@@ -1,23 +1,26 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFrameworks>net8.0</TargetFrameworks>
     <IsPackable>false</IsPackable>
     <RootNamespace>Nuventra.NuvexaDB.VisualStudio</RootNamespace>
     <Description>Visual Studio tool-window services for .nvx files. On Windows, VSSDK sources under Vsix/ compile into a package host.</Description>
   </PropertyGroup>
 
   <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('windows'))">
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFrameworks>net8.0;net8.0-windows</TargetFrameworks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(TargetFramework.EndsWith('-windows'))">
     <UseWPF>true</UseWPF>
     <DefineConstants>$(DefineConstants);VSSDK</DefineConstants>
   </PropertyGroup>
 
-  <ItemGroup Condition="!$([MSBuild]::IsOSPlatform('windows'))">
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
     <Compile Remove="Vsix\**\*.cs" />
   </ItemGroup>
 
-  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('windows'))">
+  <ItemGroup Condition="$(TargetFramework.EndsWith('-windows'))">
     <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.11.40262" />
   </ItemGroup>
 
