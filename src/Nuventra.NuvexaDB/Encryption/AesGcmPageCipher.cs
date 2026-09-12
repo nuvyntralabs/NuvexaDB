@@ -4,10 +4,24 @@ using Nuventra.NuvexaDB.Engine;
 
 namespace Nuventra.NuvexaDB.Encryption;
 
-internal static class AesGcmPageCipher
+/// <summary>
+/// AES-256-GCM for page payloads. One instance per open store so we do not
+/// construct <see cref="AesGcm"/> on every page read or write.
+/// </summary>
+internal sealed class AesGcmPageCipher : IDisposable
 {
-    public static void EncryptPage(byte[] dek, long pageId, ReadOnlySpan<byte> fileId, ReadOnlySpan<byte> logical, Span<byte> physical)
+    private readonly AesGcm _gcm;
+    private readonly object _sync = new();
+    private bool _disposed;
+
+    public AesGcmPageCipher(byte[] dek)
     {
+        _gcm = new AesGcm(dek, Constants.TagSize);
+    }
+
+    public void EncryptPage(long pageId, ReadOnlySpan<byte> fileId, ReadOnlySpan<byte> logical, Span<byte> physical)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (logical.Length != Constants.PayloadSize || physical.Length != Constants.PageSize)
         {
             throw new NuvexaException("Encrypted page buffers have the wrong size.");
@@ -17,13 +31,17 @@ internal static class AesGcmPageCipher
         RandomNumberGenerator.Fill(nonce);
         var tag = physical.Slice(Constants.NonceSize, Constants.TagSize);
         var cipher = physical[Constants.CipherOverhead..];
-        var aad = BuildAad(fileId, pageId);
-        using var gcm = new AesGcm(dek, Constants.TagSize);
-        gcm.Encrypt(nonce, logical, cipher, tag, aad);
+        Span<byte> aad = stackalloc byte[24];
+        WriteAad(aad, fileId, pageId);
+        lock (_sync)
+        {
+            _gcm.Encrypt(nonce, logical, cipher, tag, aad);
+        }
     }
 
-    public static void DecryptPage(byte[] dek, long pageId, ReadOnlySpan<byte> fileId, ReadOnlySpan<byte> physical, Span<byte> logical)
+    public void DecryptPage(long pageId, ReadOnlySpan<byte> fileId, ReadOnlySpan<byte> physical, Span<byte> logical)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (logical.Length != Constants.PayloadSize || physical.Length != Constants.PageSize)
         {
             throw new NuvexaException("Encrypted page buffers have the wrong size.");
@@ -32,11 +50,14 @@ internal static class AesGcmPageCipher
         var nonce = physical[..Constants.NonceSize];
         var tag = physical.Slice(Constants.NonceSize, Constants.TagSize);
         var cipher = physical[Constants.CipherOverhead..];
-        var aad = BuildAad(fileId, pageId);
+        Span<byte> aad = stackalloc byte[24];
+        WriteAad(aad, fileId, pageId);
         try
         {
-            using var gcm = new AesGcm(dek, Constants.TagSize);
-            gcm.Decrypt(nonce, cipher, tag, logical, aad);
+            lock (_sync)
+            {
+                _gcm.Decrypt(nonce, cipher, tag, logical, aad);
+            }
         }
         catch (CryptographicException ex)
         {
@@ -62,11 +83,20 @@ internal static class AesGcmPageCipher
         return plain;
     }
 
-    private static byte[] BuildAad(ReadOnlySpan<byte> fileId, long pageId)
+    public void Dispose()
     {
-        var aad = new byte[24];
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _gcm.Dispose();
+    }
+
+    private static void WriteAad(Span<byte> aad, ReadOnlySpan<byte> fileId, long pageId)
+    {
         fileId[..16].CopyTo(aad);
-        BinaryPrimitives.WriteInt64LittleEndian(aad.AsSpan(16), pageId);
-        return aad;
+        BinaryPrimitives.WriteInt64LittleEndian(aad[16..], pageId);
     }
 }

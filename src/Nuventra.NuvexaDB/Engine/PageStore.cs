@@ -8,6 +8,7 @@ internal sealed class PageStore : IDisposable
     private readonly Wal _wal;
     private readonly PageCache _cache;
     private readonly byte[]? _dek;
+    private readonly AesGcmPageCipher? _cipher;
     private readonly bool _readOnly;
     private readonly int _checkpointThreshold;
     private int _pagesSinceCheckpoint;
@@ -25,6 +26,7 @@ internal sealed class PageStore : IDisposable
         WalPath = path + "-wal";
         Superblock = superblock;
         _dek = dek;
+        _cipher = dek is not null ? new AesGcmPageCipher(dek) : null;
         _readOnly = readOnly;
         _checkpointThreshold = Math.Max(8, checkpointThreshold);
         _cache = new PageCache(cacheSizeMb);
@@ -196,6 +198,7 @@ internal sealed class PageStore : IDisposable
 
         _wal.Dispose();
         _data.Dispose();
+        _cipher?.Dispose();
         if (_dek is not null)
         {
             CryptographicZero(_dek);
@@ -267,12 +270,12 @@ internal sealed class PageStore : IDisposable
             return physical;
         }
 
-        if (_dek is null)
+        if (_cipher is null)
         {
             throw new NuvexaEncryptionException("The encryption key is missing.");
         }
 
-        AesGcmPageCipher.EncryptPage(_dek, page.PageId, Superblock.FileId, page.Buffer, physical);
+        _cipher.EncryptPage(page.PageId, Superblock.FileId, page.Buffer, physical);
         return physical;
     }
 
@@ -285,12 +288,12 @@ internal sealed class PageStore : IDisposable
             return logical;
         }
 
-        if (_dek is null)
+        if (_cipher is null)
         {
             throw new NuvexaEncryptionException("The encryption key is missing.");
         }
 
-        AesGcmPageCipher.DecryptPage(_dek, pageId, Superblock.FileId, physical, logical);
+        _cipher.DecryptPage(pageId, Superblock.FileId, physical, logical);
         return logical;
     }
 
