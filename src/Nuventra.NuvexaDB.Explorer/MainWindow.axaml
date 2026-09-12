@@ -1,0 +1,55 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Nuventra.NuvexaDB.Explorer"
+        xmlns:tools="using:Nuventra.NuvexaDB.Tools"
+        x:Class="Nuventra.NuvexaDB.Explorer.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="NuvexaDB Explorer"
+        Width="1200" Height="760">
+  <DockPanel>
+    <Menu DockPanel.Dock="Top">
+      <MenuItem Header="_File">
+        <MenuItem Header="_New..." Command="{Binding NewCommand}" />
+        <MenuItem Header="_Open..." Command="{Binding OpenCommand}" />
+        <MenuItem Header="_Close" Command="{Binding CloseCommand}" />
+        <Separator />
+        <MenuItem Header="Import JSON..." Command="{Binding ImportCommand}" />
+        <MenuItem Header="Export JSON..." Command="{Binding ExportCommand}" />
+        <Separator />
+        <MenuItem Header="E_xit" Command="{Binding ExitCommand}" />
+      </MenuItem>
+      <MenuItem Header="_Tools">
+        <MenuItem Header="Change encryption key..." Command="{Binding ChangeKeyCommand}" />
+        <MenuItem Header="Compact database" Command="{Binding CompactCommand}" />
+        <MenuItem Header="Refresh tree" Command="{Binding RefreshTreeCommand}" />
+      </MenuItem>
+    </Menu>
+    <TextBlock DockPanel.Dock="Bottom" Margin="8" Text="{Binding StatusText}" />
+    <Grid ColumnDefinitions="280,*" RowDefinitions="*,200">
+      <TreeView x:Name="CollectionTree"
+                Grid.RowSpan="2"
+                Margin="8"
+                ItemsSource="{Binding Tree}"
+                SelectedItem="{Binding SelectedNode, Mode=TwoWay}">
+        <TreeView.ItemTemplate>
+          <TreeDataTemplate DataType="tools:ExplorerNode" ItemsSource="{Binding Children}">
+            <TextBlock Text="{Binding Name}" />
+          </TreeDataTemplate>
+        </TreeView.ItemTemplate>
+      </TreeView>
+      <DockPanel Grid.Column="1" Margin="8">
+        <TextBox DockPanel.Dock="Top" AcceptsReturn="True" Height="56" Text="{Binding QueryText}" Watermark="db.users.find({ }).limit(50)" />
+        <Button DockPanel.Dock="Top" Content="Run query" Command="{Binding RunQueryCommand}" Margin="0,8,0,8" HorizontalAlignment="Left" />
+        <DataGrid x:Name="DocsGrid"
+                  ItemsSource="{Binding GridRows}"
+                  SelectedItem="{Binding SelectedRow}"
+                  IsReadOnly="True"
+                  CanUserResizeColumns="True" />
+      </DockPanel>
+      <Grid Grid.Row="1" Grid.Column="1" ColumnDefinitions="*,*" Margin="8">
+        <TextBox AcceptsReturn="True" TextWrapping="Wrap" IsReadOnly="True" Text="{Binding DocumentJson}" />
+        <TextBox Grid.Column="1" Margin="8,0,0,0" AcceptsReturn="True" IsReadOnly="True" Text="{Binding ExplainText}" />
+      </Grid>
+    </Grid>
+  </DockPanel>
+</Window>

@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <RootNamespace>Nuventra.NuvexaDB.Tools</RootNamespace>
+    <PackageId>Nuventra.NuvexaDB.Tools</PackageId>
+    <Title>NuvexaDB explorer services</Title>
+    <Description>UI-agnostic explorer services for NuvexaDB: schema inference, import/export, disposable SQLite grid cache.</Description>
+    <IsPackable>true</IsPackable>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.8" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nuventra.NuvexaDB\Nuventra.NuvexaDB.csproj" />
+  </ItemGroup>
+
+</Project>

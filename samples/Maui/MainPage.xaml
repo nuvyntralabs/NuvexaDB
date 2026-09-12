@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="NuvexaDB.Samples.Maui.MainPage"
+             Title="NuvexaDB">
+  <ScrollView>
+    <VerticalStackLayout Padding="16" Spacing="8">
+      <Entry x:Name="KeyEntry" Placeholder="Encryption key (optional)" IsPassword="True" />
+      <Button Text="Create / open cache.nvx" Clicked="OnOpen" />
+      <Button Text="Insert sample users" Clicked="OnInsert" />
+      <Button Text="Query age &gt;= 21" Clicked="OnQuery" />
+      <Button Text="LINQ adults" Clicked="OnLinq" />
+      <Button Text="GridFS round-trip" Clicked="OnFiles" />
+      <Label x:Name="Output" LineBreakMode="WordWrap" />
+    </VerticalStackLayout>
+  </ScrollView>
+</ContentPage>

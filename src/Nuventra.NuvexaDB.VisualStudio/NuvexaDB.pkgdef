@@ -1,0 +1,16 @@
+[$RootKey$\Packages\{8c3c0b7e-2f1a-4a6e-9e11-0b0c0a0a0a01}]
+@="NuvexaDB"
+"InprocServer32"="$WinDir$\SYSTEM32\MSCOREE.DLL"
+"Class"="Nuventra.NuvexaDB.VisualStudio.NuvexaPackage"
+"CodeBase"="$PackageFolder$\Nuventra.NuvexaDB.VisualStudio.dll"
+"AllowsBackgroundLoad"=dword:00000001
+
+[$RootKey$\Editors\{8c3c0b7e-2f1a-4a6e-9e11-0b0c0a0a0a03}]
+"DisplayName"="NuvexaDB"
+"Package"="{8c3c0b7e-2f1a-4a6e-9e11-0b0c0a0a0a01}"
+
+[$RootKey$\Editors\{8c3c0b7e-2f1a-4a6e-9e11-0b0c0a0a0a03}\Extensions]
+"nvx"=dword:00000032
+
+[$RootKey$\Editors\{8c3c0b7e-2f1a-4a6e-9e11-0b0c0a0a0a03}\LogicalViews]
+"{7651a703-06e5-11d1-8ebd-00a0c90f26ea}"=""

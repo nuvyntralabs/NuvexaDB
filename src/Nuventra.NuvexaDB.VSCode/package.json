@@ -1,0 +1,37 @@
+{
+  "name": "nuvexadb",
+  "displayName": "NuvexaDB",
+  "description": "Open encrypted .nvx files, run Mongo-style queries, browse collections and indexes.",
+  "version": "1.0.0",
+  "publisher": "nuventra",
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Other"],
+  "activationEvents": [
+    "onCustomEditor:nuvexadb.explorer",
+    "onCommand:nuvexa.find",
+    "onCommand:nuvexa.changeKey"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "nuvexa.find", "title": "NuvexaDB: Find in collection" },
+      { "command": "nuvexa.changeKey", "title": "NuvexaDB: Change encryption key" }
+    ],
+    "customEditors": [
+      {
+        "viewType": "nuvexadb.explorer",
+        "displayName": "NuvexaDB Explorer",
+        "selector": [{ "filenamePattern": "*.nvx" }]
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -p . -w"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.6.0"
+  }
+}

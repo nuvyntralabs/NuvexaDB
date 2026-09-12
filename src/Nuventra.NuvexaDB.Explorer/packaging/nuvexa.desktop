@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=NuvexaDB Explorer
+Comment=Browse encrypted NuvexaDB .nvx files
+Exec=nuvexa-explorer %f
+Icon=nuvexadb
+MimeType=application/x-nuvexadb;
+Terminal=false
+Categories=Development;Database;

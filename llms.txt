@@ -1,0 +1,11 @@
+# NuvexaDB
+
+- Package: Nuventra.NuvexaDB
+- File: .nvx (binary, optional AES-256-GCM)
+- Query: Mongo-like db.collection.find({ }).sort().limit(); aggregate $match/$lookup/$count; LINQ Where on GetCollection<T>
+- Files: db.Files GridFS-style fs.files / fs.chunks
+- Platforms: net8.0 / net9.0 / net10.0; MAUI Android, iOS, Mac Catalyst, Windows
+- Explorer: Avalonia (Win/macOS/Linux). VS + VS Code custom editors.
+- Encryption: fail-closed. Lib throws NuvexaEncryptionException. IDE prompts for key.
+- Not a server. SQLite is not the source of truth.
+- Complementary: Plugin.Maui.OfflineSync, Plugin.Maui.JobQueue, Plugin.Maui.FileVault

@@ -1,0 +1,16 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Nuventra.NuvexaDB.Explorer.ChangeKeyWindow"
+        Title="Change encryption key"
+        Width="440" Height="240"
+        WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="16" Spacing="8">
+    <TextBlock Text="Re-wrap the data-encryption key. Documents stay in place." TextWrapping="Wrap" />
+    <TextBox x:Name="CurrentBox" PasswordChar="•" Watermark="Current key" />
+    <TextBox x:Name="NextBox" PasswordChar="•" Watermark="New key" />
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Content="Cancel" Click="OnCancel" />
+      <Button Content="Change key" Click="OnOk" />
+    </StackPanel>
+  </StackPanel>
+</Window>

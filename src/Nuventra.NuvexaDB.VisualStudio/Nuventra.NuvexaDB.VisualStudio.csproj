@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Nuventra.NuvexaDB.VisualStudio</RootNamespace>
+    <Description>Visual Studio tool-window services for .nvx files. On Windows, VSSDK sources under Vsix/ compile into a package host.</Description>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('windows'))">
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <DefineConstants>$(DefineConstants);VSSDK</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup Condition="!$([MSBuild]::IsOSPlatform('windows'))">
+    <Compile Remove="Vsix\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('windows'))">
+    <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.11.40262" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="source.extension.vsixmanifest" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="NuvexaDB.pkgdef" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nuventra.NuvexaDB.Tools\Nuventra.NuvexaDB.Tools.csproj" />
+  </ItemGroup>
+
+</Project>
