@@ -19,13 +19,13 @@ Use **SQLite** when you need SQL joins or an existing sqlite-net model. Use **Nu
 dotnet add package Nuventra.NuvexaDB
 ```
 
-Do not publish this package from a local clone. CI on `main` / tags packs **nupkg + snupkg** and pushes both to nuget.org and GitHub Packages. Each successful run also uploads installable Explorer apps (Windows `.exe`, macOS `.app`, Linux `nuvexa-explorer`), the VS Code VSIX, and the Visual Studio VSIX.
+Do not publish this package from a local clone. CI on `main` / tags packs **nupkg + snupkg** and pushes both to nuget.org and GitHub Packages. Each successful run also uploads native Explorer installers, the VS Code VSIX, and the Visual Studio VSIX.
 
-Explorer artifacts are single-file apps, not a folder of DLLs:
+Explorer installers (single-file app inside a native package):
 
-- **Windows** — unzip `NuvexaDB-Explorer-*-win-x64.zip` and run `NuvexaDB Explorer.exe`. Optional: `Install.ps1` (Start Menu + `.nvx`).
-- **macOS** — unzip and open `NuvexaDB Explorer.app`.
-- **Linux** — extract the `.tar.gz` and run `./nuvexa-explorer`. Optional: `./install-linux.sh`.
+- **Windows** — `NuvexaDB-Explorer-*-win-x64.msi`
+- **macOS** — `NuvexaDB-Explorer-*-osx-*.pkg` (unsigned for now)
+- **Linux** — `nuvexadb-explorer_*_amd64.deb` (Debian/Ubuntu/Mint) and `nuvexadb-explorer-*-x86_64.rpm` (Fedora/RHEL/CentOS/openSUSE)
 
 ## Quick start
 

@@ -129,7 +129,7 @@ jobs:
     name: Explorer ${{ matrix.rid }}
     needs: [version-align, test]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -150,6 +150,20 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install WiX
+        if: startsWith(matrix.rid, 'win-')
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet tool install -g wix
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+      - name: Install fpm
+        if: startsWith(matrix.rid, 'linux-')
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y ruby ruby-dev build-essential rpm
+          sudo gem install --no-document fpm
       - name: Pack Explorer
         run: |
           set -euo pipefail
@@ -165,8 +179,10 @@ jobs:
         with:
           name: explorer-${{ matrix.rid }}
           path: |
-            artifacts/NuvexaDB-Explorer-*.zip
-            artifacts/NuvexaDB-Explorer-*.tar.gz
+            artifacts/NuvexaDB-Explorer-*.msi
+            artifacts/NuvexaDB-Explorer-*.pkg
+            artifacts/*.deb
+            artifacts/*.rpm
           if-no-files-found: error
           retention-days: 14
       - name: Summary
@@ -178,9 +194,9 @@ jobs:
             echo "Download: [explorer-${{ matrix.rid }}](${{ steps.upload.outputs.artifact-url }})"
             echo
             case "${{ matrix.rid }}" in
-              win-*) echo "Unzip and double-click **NuvexaDB Explorer.exe**. Optional: run \`Install.ps1\` for Start Menu and .nvx association." ;;
-              osx-*) echo "Unzip and double-click **NuvexaDB Explorer.app** (or drag it to Applications)." ;;
-              linux-*) echo "Extract the \`.tar.gz\`, then \`chmod +x nuvexa-explorer && ./nuvexa-explorer\`. Optional: \`./install-linux.sh\`." ;;
+              win-*) echo "Install **NuvexaDB-Explorer-*-win-x64.msi** (Start Menu + \`.nvx\` association)." ;;
+              osx-*) echo "Install **NuvexaDB-Explorer-*-osx-*.pkg** (unsigned; signing and notarization come later)." ;;
+              linux-*) echo "Debian/Ubuntu/Mint: \`sudo dpkg -i nuvexadb-explorer_*_amd64.deb\`. Fedora/RHEL/openSUSE: \`sudo rpm -i nuvexadb-explorer-*-x86_64.rpm\`." ;;
             esac
           } >> "$GITHUB_STEP_SUMMARY"
 

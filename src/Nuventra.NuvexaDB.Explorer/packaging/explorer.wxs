@@ -1,0 +1,37 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+    Name="NuvexaDB Explorer"
+    Manufacturer="Nuventra"
+    Version="$(var.ProductVersion)"
+    UpgradeCode="8c3c0b7e-2f1a-4a6e-9e11-0b0c0a0a0a10"
+    Scope="perMachine">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of NuvexaDB Explorer is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+    <Feature Id="Main" Title="NuvexaDB Explorer" Level="1">
+      <ComponentGroupRef Id="ExplorerFiles" />
+    </Feature>
+  </Package>
+
+  <Fragment>
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="NuvexaDB Explorer" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="ExplorerFiles" Directory="INSTALLFOLDER">
+      <Component Id="ExplorerExe" Guid="8c3c0b7e-2f1a-4a6e-9e11-0b0c0a0a0a11">
+        <File Id="ExplorerExe" Source="$(var.ExePath)" Name="NuvexaDB Explorer.exe" KeyPath="yes" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.nvx" Value="Nuventra.NuvexaDB" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Nuventra.NuvexaDB" Value="NuvexaDB Database" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Nuventra.NuvexaDB\shell\open\command" Value="&quot;[#ExplorerExe]&quot; &quot;%1&quot;" Type="string" />
+      </Component>
+      <Component Id="StartMenuShortcut" Directory="ProgramMenuFolder" Guid="8c3c0b7e-2f1a-4a6e-9e11-0b0c0a0a0a12">
+        <Shortcut Id="ExplorerShortcut" Name="NuvexaDB Explorer" Target="[#ExplorerExe]" WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue Root="HKCU" Key="Software\Nuventra\NuvexaDB Explorer" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+        <RemoveFolder Id="RemoveProgramMenu" On="uninstall" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>

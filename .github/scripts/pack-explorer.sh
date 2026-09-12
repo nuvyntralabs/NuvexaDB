@@ -30,44 +30,25 @@ else
   exit 1
 fi
 
-write_readme() {
-  cat > "$1" <<'EOF'
-NuvexaDB Explorer
-=================
-
-This archive is a ready-to-run desktop app (not a folder of libraries).
-EOF
-}
-
 case "$rid" in
   win-*)
     cp "$bin" "$stage/NuvexaDB Explorer.exe"
-    cp "$packaging/install-windows.ps1" "$stage/Install.ps1"
-    write_readme "$stage/README.txt"
-    cat >> "$stage/README.txt" <<'EOF'
-
-1. Double-click "NuvexaDB Explorer.exe" to start.
-2. Optional: right-click Install.ps1 → Run with PowerShell
-   to add a Start Menu shortcut and open .nvx files with Explorer.
-EOF
-    python3 - "$stage" "$outdir/NuvexaDB-Explorer-${version}-${rid}.zip" <<'PY'
-import sys, zipfile
-from pathlib import Path
-src, dest = Path(sys.argv[1]), Path(sys.argv[2])
-dest.parent.mkdir(parents=True, exist_ok=True)
-with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as zf:
-    for path in sorted(src.iterdir()):
-        if path.is_file():
-            zf.write(path, path.name)
-print(dest)
-PY
+    export PATH="$PATH:$HOME/.dotnet/tools"
+    if ! command -v wix >/dev/null 2>&1; then
+      echo "wix CLI not found. Install with: dotnet tool install -g wix" >&2
+      exit 1
+    fi
+    wix build "$packaging/explorer.wxs" \
+      -arch x64 \
+      -d "ProductVersion=$version" \
+      -d "ExePath=$stage/NuvexaDB Explorer.exe" \
+      -o "$outdir/NuvexaDB-Explorer-${version}-${rid}.msi"
     ;;
   osx-*)
     app="$stage/NuvexaDB Explorer.app"
     mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
     cp "$bin" "$app/Contents/MacOS/NuvexaDB Explorer"
     chmod +x "$app/Contents/MacOS/NuvexaDB Explorer"
-    # Keep any leftover native libs next to the host (Avalonia).
     find "$publish" -maxdepth 1 -type f \
       ! -name 'Nuventra.NuvexaDB.Explorer' ! -name 'Nuventra.NuvexaDB.Explorer.exe' \
       ! -name '*.pdb' ! -name '*.xml' \
@@ -76,50 +57,67 @@ PY
 from pathlib import Path
 import sys
 src, dest, version = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
-text = src.read_text(encoding="utf-8")
-text = text.replace("__VERSION__", version)
-dest.write_text(text, encoding="utf-8")
+dest.write_text(src.read_text(encoding="utf-8").replace("__VERSION__", version), encoding="utf-8")
 PY
-    write_readme "$stage/README.txt"
-    cat >> "$stage/README.txt" <<'EOF'
-
-Unzip, then double-click "NuvexaDB Explorer.app" (or drag it to /Applications).
-Optional: ./packaging/install-macos.sh "/path/to/NuvexaDB Explorer.app"
-EOF
     if command -v codesign >/dev/null 2>&1; then
       codesign --force --deep --sign - "$app" || true
     fi
-    (
-      cd "$stage"
-      if command -v ditto >/dev/null 2>&1; then
-        ditto -c -k --keepParent "NuvexaDB Explorer.app" "$outdir/NuvexaDB-Explorer-${version}-${rid}.zip"
-      else
-        python3 - "$outdir/NuvexaDB-Explorer-${version}-${rid}.zip" <<'PY'
-import sys, zipfile
-from pathlib import Path
-dest = Path(sys.argv[1])
-app = Path("NuvexaDB Explorer.app")
-with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as zf:
-    for path in app.rglob("*"):
-        zf.write(path, path.as_posix())
-PY
-      fi
-    )
+    if ! command -v pkgbuild >/dev/null 2>&1; then
+      echo "pkgbuild not found. Run this step on macOS." >&2
+      exit 1
+    fi
+    payload="$stage/pkgroot"
+    mkdir -p "$payload"
+    cp -R "$app" "$payload/"
+    pkgbuild \
+      --root "$payload" \
+      --identifier nuventra.nuvexadb.explorer \
+      --version "$version" \
+      --install-location /Applications \
+      "$outdir/NuvexaDB-Explorer-${version}-${rid}.pkg"
     ;;
   linux-*)
-    cp "$bin" "$stage/nuvexa-explorer"
-    chmod +x "$stage/nuvexa-explorer"
-    cp "$packaging/install-linux.sh" "$packaging/nuvexa.desktop" "$packaging/nuvexa.xml" "$stage/"
-    write_readme "$stage/README.txt"
-    cat >> "$stage/README.txt" <<'EOF'
-
-chmod +x nuvexa-explorer
-./nuvexa-explorer
-
-Optional install (Start menu + .nvx association):
-  ./install-linux.sh
+    if ! command -v fpm >/dev/null 2>&1; then
+      echo "fpm not found. Install ruby + fpm (and rpmbuild for .rpm)." >&2
+      exit 1
+    fi
+    case "$rid" in
+      linux-x64) deb_arch=amd64; rpm_arch=x86_64 ;;
+      linux-arm64) deb_arch=arm64; rpm_arch=aarch64 ;;
+      *)
+        echo "Unsupported Linux RID: $rid" >&2
+        exit 1
+        ;;
+    esac
+    rootfs="$stage/root"
+    mkdir -p "$rootfs/usr/bin" "$rootfs/usr/share/applications" "$rootfs/usr/share/mime/packages"
+    cp "$bin" "$rootfs/usr/bin/nuvexa-explorer"
+    chmod 0755 "$rootfs/usr/bin/nuvexa-explorer"
+    sed 's|^Exec=nuvexa-explorer %f|Exec=/usr/bin/nuvexa-explorer %f|' \
+      "$packaging/nuvexa.desktop" > "$rootfs/usr/share/applications/nuvexa.desktop"
+    cp "$packaging/nuvexa.xml" "$rootfs/usr/share/mime/packages/nuvexa.xml"
+    postinst="$stage/postinst.sh"
+    cat > "$postinst" <<'EOF'
+#!/bin/sh
+set -e
+update-mime-database /usr/share/mime >/dev/null 2>&1 || true
+update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
+exit 0
 EOF
-    tar -C "$stage" -czf "$outdir/NuvexaDB-Explorer-${version}-${rid}.tar.gz" .
+    chmod +x "$postinst"
+    common=(
+      -s dir -n nuvexadb-explorer -v "$version" --iteration 1
+      --description "NuvexaDB Explorer — browse encrypted .nvx files"
+      --license MIT
+      --url https://github.com/nuvyntralabs/NuvexaDB
+      --maintainer "Niladri Prasad Padhy"
+      --after-install "$postinst"
+      -C "$rootfs" usr
+    )
+    fpm "${common[@]}" -t deb -a "$deb_arch" \
+      -p "$outdir/nuvexadb-explorer_${version}_${deb_arch}.deb"
+    fpm "${common[@]}" -t rpm -a "$rpm_arch" \
+      -p "$outdir/nuvexadb-explorer-${version}-1.${rpm_arch}.rpm"
     ;;
   *)
     echo "Unsupported RID: $rid" >&2
@@ -127,4 +125,5 @@ EOF
     ;;
 esac
 
-echo "Packed Explorer for $rid into $outdir"
+echo "Packed Explorer installer for $rid into $outdir"
+ls -lh "$outdir"
