@@ -7,8 +7,29 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
 jobs:
-  build:
+  version-align:
+    name: Version alignment
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        run: python3 .github/scripts/check-versions.py --repo-root .
+
+  test:
+    name: Test
+    needs: [version-align]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -23,24 +44,148 @@ jobs:
             10.0.x
       - name: Test
         run: dotnet test tests/Nuventra.NuvexaDB.Tests/Nuventra.NuvexaDB.Tests.csproj -c Release --nologo
-      - name: Build explorer and CLI
-        run: |
-          dotnet build src/Nuventra.NuvexaDB.Explorer/Nuventra.NuvexaDB.Explorer.csproj -c Release --nologo
-          dotnet build src/Nuventra.NuvexaDB.Cli/Nuventra.NuvexaDB.Cli.csproj -c Release --nologo
-          dotnet build src/Nuventra.NuvexaDB.VisualStudio/Nuventra.NuvexaDB.VisualStudio.csproj -c Release --nologo
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Compile VS Code extension
-        working-directory: src/Nuventra.NuvexaDB.VSCode
-        run: npm install && npm run compile
       - name: SLO gate
         run: dotnet run --project benches/Nuventra.NuvexaDB.Benchmarks -c Release -- --gate
 
-  pack:
-    if: github.event_name != 'pull_request'
-    needs: build
+  vscode:
+    name: VS Code extension
+    needs: [version-align, test]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Pack VSIX
+        run: |
+          set -euo pipefail
+          version="${{ needs.version-align.outputs.version }}"
+          mkdir -p artifacts
+          chmod +x .github/scripts/pack-vscode.sh
+          .github/scripts/pack-vscode.sh "$version" "$PWD/artifacts/nuventra.nuvexadb-${version}.vsix"
+      - name: Upload VS Code VSIX
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: vscode-NuvexaDB
+          path: artifacts/nuventra.nuvexadb-*.vsix
+          if-no-files-found: error
+          retention-days: 14
+      - name: Summary
+        run: |
+          {
+            echo "### VS Code VSIX"
+            echo
+            echo "Download: [vscode-NuvexaDB](${{ steps.upload.outputs.artifact-url }})"
+            echo
+            echo "Then update the Visual Studio Code listing at [Marketplace manage](https://marketplace.visualstudio.com/manage)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  vsix:
+    name: Visual Studio VSIX
+    needs: [version-align, test]
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Pack VSIX
+        run: |
+          set -euo pipefail
+          version="${{ needs.version-align.outputs.version }}"
+          mkdir -p artifacts
+          chmod +x .github/scripts/pack-vsix.sh
+          .github/scripts/pack-vsix.sh "$version" "$PWD/artifacts/Nuventra.NuvexaDB.VisualStudio.${version}.vsix"
+      - name: Upload VSIX
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix-NuvexaDB
+          path: artifacts/Nuventra.NuvexaDB.VisualStudio.*.vsix
+          if-no-files-found: error
+          retention-days: 14
+      - name: Summary
+        run: |
+          {
+            echo "### Visual Studio VSIX"
+            echo
+            echo "Download: [vsix-NuvexaDB](${{ steps.upload.outputs.artifact-url }})"
+            echo
+            echo "Then update **NuvexaDB Explorer for Visual Studio** at [Marketplace manage](https://marketplace.visualstudio.com/manage). Do not create a new listing."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  explorer:
+    name: Explorer ${{ matrix.rid }}
+    needs: [version-align, test]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: macos-latest
+            rid: osx-arm64
+          - os: macos-latest
+            rid: osx-x64
+          - os: windows-latest
+            rid: win-x64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Publish Explorer
+        run: |
+          set -euo pipefail
+          version="${{ needs.version-align.outputs.version }}"
+          rid="${{ matrix.rid }}"
+          dest="artifacts/explorer-${rid}"
+          mkdir -p "$dest"
+          dotnet publish src/Nuventra.NuvexaDB.Explorer/Nuventra.NuvexaDB.Explorer.csproj \
+            -c Release -r "$rid" --self-contained true -o "$dest" --nologo
+          python3 -c "import shutil; shutil.make_archive('artifacts/NuvexaDB.Explorer-${version}-${rid}', 'zip', '$dest')"
+        shell: bash
+      - name: Upload Explorer
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: explorer-${{ matrix.rid }}
+          path: artifacts/NuvexaDB.Explorer-*.zip
+          if-no-files-found: error
+          retention-days: 14
+      - name: Summary
+        shell: bash
+        run: |
+          {
+            echo "### Explorer (${{ matrix.rid }})"
+            echo
+            echo "Download: [explorer-${{ matrix.rid }}](${{ steps.upload.outputs.artifact-url }})"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  pack:
+    name: nuget.org and GitHub Packages
+    needs: [version-align, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -48,14 +193,36 @@ jobs:
           dotnet-version: 10.0.x
       - name: Pack
         run: |
-          dotnet pack src/Nuventra.NuvexaDB/Nuventra.NuvexaDB.csproj -c Release -o artifacts
-          dotnet pack src/Nuventra.NuvexaDB.Tools/Nuventra.NuvexaDB.Tools.csproj -c Release -o artifacts
-          dotnet pack src/Nuventra.NuvexaDB.Cli/Nuventra.NuvexaDB.Cli.csproj -c Release -o artifacts
-      - name: Push nuget.org
-        if: startsWith(github.ref, 'refs/tags/v')
+          set -euo pipefail
+          mkdir -p artifacts
+          dotnet pack src/Nuventra.NuvexaDB/Nuventra.NuvexaDB.csproj -c Release -o artifacts --nologo
+          dotnet pack src/Nuventra.NuvexaDB.Tools/Nuventra.NuvexaDB.Tools.csproj -c Release -o artifacts --nologo
+          dotnet pack src/Nuventra.NuvexaDB.Cli/Nuventra.NuvexaDB.Cli.csproj -c Release -o artifacts --nologo
+          echo "Packed:"
+          ls -1 artifacts/*.{nupkg,snupkg}
+      - name: Upload nupkg and snupkg
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-NuvexaDB
+          path: |
+            artifacts/*.nupkg
+            artifacts/*.snupkg
+          if-no-files-found: error
+          retention-days: 14
+      - name: Push nupkg and snupkg
+        if: github.event_name != 'pull_request'
+        env:
+          NUGET_KEY: ${{ secrets.NUGET_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: python3 .github/scripts/push-packages.py --packages-dir artifacts
+      - name: Summary
         run: |
-          dotnet nuget push artifacts/*.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_KEY }} --skip-duplicate
-      - name: Push GitHub Packages
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          dotnet nuget push artifacts/*.nupkg --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
+          {
+            echo "### NuGet packages"
+            echo
+            echo "Download: [nuget-NuvexaDB](${{ steps.upload.outputs.artifact-url }})"
+            echo
+            echo "Non-PR runs push **nupkg + snupkg** to nuget.org and GitHub Packages (\`--skip-duplicate\`). \`Nuventra.NuvexaDB.Cli\` is PackAsTool and has no snupkg."
+          } >> "$GITHUB_STEP_SUMMARY"

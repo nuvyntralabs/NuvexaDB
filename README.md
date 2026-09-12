@@ -19,7 +19,7 @@ Use **SQLite** when you need SQL joins or an existing sqlite-net model. Use **Nu
 dotnet add package Nuventra.NuvexaDB
 ```
 
-Do not publish this package from a local clone. CI on `main` / tags pushes to nuget.org and GitHub Packages.
+Do not publish this package from a local clone. CI on `main` / tags packs **nupkg + snupkg** and pushes both to nuget.org and GitHub Packages. Each successful run also uploads downloadable artifacts: Explorer (Windows / macOS / Linux), the VS Code VSIX, and the Visual Studio VSIX.
 
 ## Quick start
 

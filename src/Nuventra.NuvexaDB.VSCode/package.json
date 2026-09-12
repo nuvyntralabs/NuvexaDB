@@ -4,6 +4,11 @@
   "description": "Open encrypted .nvx files, run Mongo-style queries, browse collections and indexes.",
   "version": "1.0.0",
   "publisher": "nuventra",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nuvyntralabs/NuvexaDB"
+  },
   "engines": { "vscode": "^1.90.0" },
   "categories": ["Other"],
   "activationEvents": [
