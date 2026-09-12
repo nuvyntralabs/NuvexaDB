@@ -155,7 +155,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          dotnet tool install -g wix
+          dotnet tool install -g wix --version 5.0.2
           echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
       - name: Install fpm
         if: startsWith(matrix.rid, 'linux-')

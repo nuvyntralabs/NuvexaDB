@@ -105,19 +105,24 @@ update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
 exit 0
 EOF
     chmod +x "$postinst"
-    common=(
-      -s dir -n nuvexadb-explorer -v "$version" --iteration 1
+    fpm_flags=(
+      -s dir
+      -n nuvexadb-explorer
+      -v "$version"
+      --iteration 1
       --description "NuvexaDB Explorer — browse encrypted .nvx files"
       --license MIT
       --url https://github.com/nuvyntralabs/NuvexaDB
       --maintainer "Niladri Prasad Padhy"
       --after-install "$postinst"
-      -C "$rootfs" usr
+      -C "$rootfs"
     )
-    fpm "${common[@]}" -t deb -a "$deb_arch" \
-      -p "$outdir/nuvexadb-explorer_${version}_${deb_arch}.deb"
-    fpm "${common[@]}" -t rpm -a "$rpm_arch" \
-      -p "$outdir/nuvexadb-explorer-${version}-1.${rpm_arch}.rpm"
+    fpm "${fpm_flags[@]}" -t deb -a "$deb_arch" \
+      -p "$outdir/nuvexadb-explorer_${version}_${deb_arch}.deb" \
+      usr
+    fpm "${fpm_flags[@]}" -t rpm -a "$rpm_arch" \
+      -p "$outdir/nuvexadb-explorer-${version}-1.${rpm_arch}.rpm" \
+      usr
     ;;
   *)
     echo "Unsupported RID: $rid" >&2
