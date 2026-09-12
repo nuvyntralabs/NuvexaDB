@@ -150,23 +150,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Publish Explorer
+      - name: Pack Explorer
         run: |
           set -euo pipefail
-          version="${{ needs.version-align.outputs.version }}"
-          rid="${{ matrix.rid }}"
-          dest="artifacts/explorer-${rid}"
-          mkdir -p "$dest"
-          dotnet publish src/Nuventra.NuvexaDB.Explorer/Nuventra.NuvexaDB.Explorer.csproj \
-            -c Release -r "$rid" --self-contained true -o "$dest" --nologo
-          python3 -c "import shutil; shutil.make_archive('artifacts/NuvexaDB.Explorer-${version}-${rid}', 'zip', '$dest')"
+          chmod +x .github/scripts/pack-explorer.sh
+          .github/scripts/pack-explorer.sh \
+            "${{ needs.version-align.outputs.version }}" \
+            "${{ matrix.rid }}" \
+            "$PWD/artifacts"
         shell: bash
       - name: Upload Explorer
         id: upload
         uses: actions/upload-artifact@v4
         with:
           name: explorer-${{ matrix.rid }}
-          path: artifacts/NuvexaDB.Explorer-*.zip
+          path: |
+            artifacts/NuvexaDB-Explorer-*.zip
+            artifacts/NuvexaDB-Explorer-*.tar.gz
           if-no-files-found: error
           retention-days: 14
       - name: Summary
@@ -176,6 +176,12 @@ jobs:
             echo "### Explorer (${{ matrix.rid }})"
             echo
             echo "Download: [explorer-${{ matrix.rid }}](${{ steps.upload.outputs.artifact-url }})"
+            echo
+            case "${{ matrix.rid }}" in
+              win-*) echo "Unzip and double-click **NuvexaDB Explorer.exe**. Optional: run \`Install.ps1\` for Start Menu and .nvx association." ;;
+              osx-*) echo "Unzip and double-click **NuvexaDB Explorer.app** (or drag it to Applications)." ;;
+              linux-*) echo "Extract the \`.tar.gz\`, then \`chmod +x nuvexa-explorer && ./nuvexa-explorer\`. Optional: \`./install-linux.sh\`." ;;
+            esac
           } >> "$GITHUB_STEP_SUMMARY"
 
   pack:
