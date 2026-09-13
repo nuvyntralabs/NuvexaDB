@@ -21,7 +21,7 @@ dotnet add package Nuventra.NuvexaDB
 
 Do not publish this package from a local clone. CI on `main` / tags / PRs **runs all C# tests first**, then builds and uploads GitHub artifacts (nupkg + snupkg, native ABI, Explorer installers, VS Code / Visual Studio VSIX, and language SDK packs). Coverage / test-result zips are not uploaded. nuget.org, GitHub Packages, and the version / NuGet validation jobs are commented out until multi-host publishing (.NET, Maven, npm, …) is decided. Uncomment those steps in `NuvexaDB/.github/workflows/ci.yml` to restore them.
 
-After each CI run, the job summary lists a **Download** link for every artifact (same pattern as the IDE / extensions):
+After each CI run, the job summary names the artifact. Downloads are on the run’s **Artifacts** list:
 
 | Artifact | Contents |
 | --- | --- |

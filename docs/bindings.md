@@ -149,4 +149,4 @@ Language samples live inside each SDK project (same idea as `samples/Console` fo
 - [bindings/go](../bindings/go) — `examples/sample`
 - [bindings/cpp](../bindings/cpp) — `examples/sample.cpp`
 
-Publishing Maven, Swift Package, npm, pub.dev, PyPI, or NuGet from a local clone is not allowed. CI tests each SDK against the published C ABI and uploads GitHub artifacts (`NuvexaDB-Java-<rid>`, `NuvexaDB-Python-<rid>`, …, same download-link summary as Data Studio / VSIX). Host publish stays commented out in `.github/workflows/ci.yml`.
+Publishing Maven, Swift Package, npm, pub.dev, PyPI, or NuGet from a local clone is not allowed. CI tests each SDK against the published C ABI and uploads GitHub artifacts (`NuvexaDB-Java-<rid>`, `NuvexaDB-Python-<rid>`, …). Host publish stays commented out in `.github/workflows/ci.yml`.

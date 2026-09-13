@@ -147,7 +147,7 @@ jobs:
           {
             echo "### Native ABI (${{ matrix.rid }})"
             echo
-            echo "Download: [NuvexaDB-Native-${{ matrix.rid }}](${{ steps.upload.outputs.artifact-url }})"
+            echo "Artifact: \`NuvexaDB-Native-${{ matrix.rid }}\`"
             echo
             echo "Load \`libnuvexa\` / \`nuvexa.dll\` from the artifact. Kotlin/Java: \`NUVEXA_NATIVE_LIB\`. Swift: \`NUVEXA_NATIVE_DIR\`."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -204,7 +204,7 @@ jobs:
           {
             echo "### Native ABI (android-arm64)"
             echo
-            echo "Download: [NuvexaDB-Native-android-arm64](${{ steps.upload.outputs.artifact-url }})"
+            echo "Artifact: \`NuvexaDB-Native-android-arm64\`"
             echo
             echo "Bionic Native AOT (\`linux-bionic-arm64\`) as \`libnuvexa.so\` for \`jniLibs/arm64-v8a\`."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -238,7 +238,7 @@ jobs:
           {
             echo "### iOS module"
             echo
-            echo "Download: [NuvexaDB-Native-iOS](${{ steps.upload.outputs.artifact-url }})"
+            echo "Artifact: \`NuvexaDB-Native-iOS\`"
             echo
             echo ".NET Native AOT cannot publish \`ios-arm64\` (NETSDK1203). This artifact is \`nuvexa.h\` plus a compiled \`NuvexaDB.o\`. Golden ABI cases for Apple run on the \`osx-arm64\` dylib."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -279,7 +279,7 @@ jobs:
           {
             echo "### VS Code VSIX"
             echo
-            echo "Download: [NuvexaDB-VS-Code](${{ steps.upload.outputs.artifact-url }})"
+            echo "Artifact: \`NuvexaDB-VS-Code\`"
             echo
             echo "Then update the Visual Studio Code listing at [Marketplace manage](https://marketplace.visualstudio.com/manage)."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -322,7 +322,7 @@ jobs:
           {
             echo "### Visual Studio VSIX"
             echo
-            echo "Download: [NuvexaDB-Visual-Studio](${{ steps.upload.outputs.artifact-url }})"
+            echo "Artifact: \`NuvexaDB-Visual-Studio\`"
             echo
             echo "Then update **NuvexaDB Explorer for Visual Studio** at [Marketplace manage](https://marketplace.visualstudio.com/manage). Do not create a new listing."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -393,7 +393,7 @@ jobs:
           {
             echo "### Data Studio (${{ matrix.rid }})"
             echo
-            echo "Download: [NuvexaDB-Data-Studio-${{ matrix.rid }}](${{ steps.upload.outputs.artifact-url }})"
+            echo "Artifact: \`NuvexaDB-Data-Studio-${{ matrix.rid }}\`"
             echo
             case "${{ matrix.rid }}" in
               win-*) echo "Install **NuvexaDB-Explorer-*-win-x64.msi** (Start Menu + \`.nvx\` association)." ;;
@@ -446,7 +446,7 @@ jobs:
           {
             echo "### NuGet packages"
             echo
-            echo "Download: [NuvexaDB-NuGet](${{ steps.upload.outputs.artifact-url }})"
+            echo "Artifact: \`NuvexaDB-NuGet\`"
             echo
             echo "Artifacts only. nuget.org and GitHub Packages push is commented out until multi-host publishing is decided. \`Nuventra.NuvexaDB.Cli\` is PackAsTool and has no snupkg."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -614,7 +614,7 @@ jobs:
           {
             echo "### ${{ matrix.title }}"
             echo
-            echo "Download: [NuvexaDB-${{ matrix.product }}-${{ matrix.rid }}](${{ steps.upload.outputs.artifact-url }})"
+            echo "Artifact: \`NuvexaDB-${{ matrix.product }}-${{ matrix.rid }}\`"
             echo
             echo "Unit tests passed against \`NuvexaDB-Native-${{ matrix.rid }}\`. Host publish (Maven, npm, PyPI, pub.dev, Swift) stays commented out."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -681,7 +681,7 @@ jobs:
           {
             echo "### Android AAR"
             echo
-            echo "Download: [NuvexaDB-Android](${{ steps.upload.outputs.artifact-url }})"
+            echo "Artifact: \`NuvexaDB-Android\`"
             echo
             echo "Kotlin sources match the Java library tests. The AAR includes \`jni/arm64-v8a/libnuvexa.so\` from \`NuvexaDB-Native-android-arm64\`."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -751,7 +751,7 @@ jobs:
           {
             echo "### React Native Android"
             echo
-            echo "Download: [NuvexaDB-React-Native-Android](${{ steps.upload.outputs.artifact-url }})"
+            echo "Artifact: \`NuvexaDB-React-Native-Android\`"
             echo
             echo "Gradle \`assembleRelease\` of \`bindings/react-native/android\` with \`libnuvexa.so\`."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -802,7 +802,7 @@ jobs:
           {
             echo "### React Native iOS"
             echo
-            echo "Download: [NuvexaDB-React-Native-iOS](${{ steps.upload.outputs.artifact-url }})"
+            echo "Artifact: \`NuvexaDB-React-Native-iOS\`"
             echo
             echo "Compiled \`NuvexaDB.mm\` for the iOS Simulator. Golden cases ran against the \`osx-arm64\` dylib (\`.NET\` cannot PublishAot \`ios-arm64\`)."
           } >> "$GITHUB_STEP_SUMMARY"
