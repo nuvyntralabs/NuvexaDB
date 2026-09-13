@@ -1,15 +1,19 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="Nuventra.NuvexaDB.Explorer.UnlockWindow"
-        Title="NuvexaDB"
-        Width="420" Height="180"
+        Title="Unlock database"
+        Width="440" Height="220"
+        CanResize="False"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="8">
-    <TextBlock x:Name="Prompt" TextWrapping="Wrap" />
-    <TextBox x:Name="KeyBox" PasswordChar="•" />
-    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-      <Button Content="Cancel" Click="OnCancel" />
-      <Button Content="OK" Click="OnOk" />
+  <Border Classes="card" Margin="16">
+    <StackPanel Spacing="12">
+      <TextBlock FontWeight="SemiBold" FontSize="15" Text="Encryption key" />
+      <TextBlock x:Name="Prompt" Classes="muted" TextWrapping="Wrap" />
+      <TextBox x:Name="KeyBox" PasswordChar="•" Watermark="Passphrase" />
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <Button Content="Cancel" MinWidth="88" Click="OnCancel" />
+        <Button Classes="accent" Content="Unlock" MinWidth="88" Click="OnOk" />
+      </StackPanel>
     </StackPanel>
-  </StackPanel>
+  </Border>
 </Window>

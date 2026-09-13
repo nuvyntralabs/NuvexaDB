@@ -7,7 +7,11 @@
         Title="Nuvexa Data Studio"
         Icon="/Assets/nuvexa-data-studio.png"
         Width="1280" Height="800"
+        MinWidth="960" MinHeight="640"
         DragDrop.AllowDrop="True">
+  <Window.Resources>
+    <vm:NodeKindGlyphConverter x:Key="NodeGlyph" />
+  </Window.Resources>
   <Window.KeyBindings>
     <KeyBinding Gesture="Ctrl+Enter" Command="{Binding RunQueryCommand}" />
     <KeyBinding Gesture="Ctrl+F" Command="{Binding ApplyGridFindCommand}" />
@@ -72,330 +76,405 @@
       </MenuItem>
     </Menu>
 
-    <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource NuvexaChromeBorderBrush}" BorderThickness="0,0,0,1" Padding="8,6">
-      <StackPanel Orientation="Horizontal" Spacing="6">
-        <Button Content="New Database" Command="{Binding NewCommand}" />
-        <Button Content="Open Database" Command="{Binding OpenCommand}" />
-        <Button Content="Close Database" Command="{Binding CloseCommand}" />
-        <Border Width="1" Height="22" Background="{DynamicResource NuvexaChromeBorderBrush}" Margin="6,0" />
-        <Button Content="New Collection" Command="{Binding NewCollectionCommand}" />
-      </StackPanel>
+    <Border DockPanel.Dock="Top" Classes="toolbar">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+          <Border Width="28" Height="28" CornerRadius="7" ClipToBounds="True">
+            <Image Source="/Assets/nuvexa-data-studio.png" Stretch="UniformToFill" />
+          </Border>
+          <StackPanel VerticalAlignment="Center" Spacing="0">
+            <TextBlock FontWeight="SemiBold" FontSize="14" Text="Nuvexa Data Studio" />
+            <TextBlock Classes="muted" FontSize="11" Text="Local .nvx workbench" />
+          </StackPanel>
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                    HorizontalAlignment="Left" Margin="24,0,0,0" VerticalAlignment="Center">
+          <Button Classes="toolbar accent" Content="New" Command="{Binding NewCommand}" />
+          <Button Classes="toolbar" Content="Open" Command="{Binding OpenCommand}" />
+          <Button Classes="toolbar" Content="Close" Command="{Binding CloseCommand}" />
+          <Border Width="1" Height="20" Background="{DynamicResource NuvexaChromeBorderBrush}" Margin="6,0" />
+          <Button Classes="toolbar" Content="New collection" Command="{Binding NewCollectionCommand}" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Border Classes="badge" IsVisible="{Binding IsDatabaseOpen}">
+            <TextBlock Text="Connected" />
+          </Border>
+          <Border Classes="badge warning" IsVisible="{Binding IsReadOnlyMode}">
+            <TextBlock Text="Read-only" />
+          </Border>
+        </StackPanel>
+      </Grid>
     </Border>
 
-    <TextBlock DockPanel.Dock="Bottom" Margin="8,4" Opacity="0.8" Text="{Binding StatusText}" />
+    <Border DockPanel.Dock="Bottom" Classes="status">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <TextBlock Classes="muted" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"
+                   Text="STATUS" />
+        <TextBlock Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center"
+                   Text="{Binding StatusText}" TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Column="2" Classes="muted" FontSize="11" VerticalAlignment="Center"
+                   Text="Ctrl+Enter runs NQL   ·   Ctrl+F finds in the page" />
+      </Grid>
+    </Border>
 
-    <TabControl SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}">
+    <TabControl Classes="workbench" SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}">
       <TabItem Header="Database Structure">
-        <Grid ColumnDefinitions="320,*" Margin="8">
-          <DockPanel Margin="0,0,8,0">
-            <TextBlock DockPanel.Dock="Top" FontWeight="SemiBold" Margin="0,0,0,8"
-                       Text="Collections (tables)" />
-            <TextBlock DockPanel.Dock="Top" Opacity="0.7" FontSize="12" Margin="0,0,0,8"
-                       TextWrapping="Wrap" Text="{Binding NavigatorHint}" />
-            <TreeView x:Name="StructureTree"
-                      ItemsSource="{Binding Tree}"
-                      SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
-                      DoubleTapped="OnTreeDoubleTapped"
-                      PointerPressed="OnTreePointerPressed"
-                      ContextRequested="OnTreeContextRequested">
-              <TreeView.ContextMenu>
-                <ContextMenu>
-                  <MenuItem Header="Browse Data" Command="{Binding BrowseCollectionCommand}"
-                            IsVisible="{Binding ShowCollectionMenu}" />
-                  <MenuItem Header="Add Column..." Command="{Binding NewColumnCommand}"
-                            IsVisible="{Binding ShowCollectionMenu}" />
-                  <MenuItem Header="Rename Collection..." Command="{Binding RenameCollectionCommand}"
-                            IsVisible="{Binding ShowCollectionMenu}" />
-                  <MenuItem Header="Create Index..." Command="{Binding CreateIndexCommand}"
-                            IsVisible="{Binding ShowCollectionMenu}" />
-                  <MenuItem Header="Edit Column..." Command="{Binding EditColumnCommand}"
-                            IsVisible="{Binding ShowColumnMenu}" />
-                  <MenuItem Header="Delete Column..." Command="{Binding DeleteColumnCommand}"
-                            IsVisible="{Binding ShowDeleteColumnMenu}" />
-                  <MenuItem Header="Drop Index..." Command="{Binding DropIndexCommand}"
-                            IsVisible="{Binding ShowIndexMenu}" />
-                  <MenuItem Header="Delete Collection..." Command="{Binding DeleteCollectionCommand}"
-                            IsVisible="{Binding ShowCollectionMenu}" />
-                  <MenuItem Header="Add Collection..." Command="{Binding NewCollectionCommand}"
-                            IsVisible="{Binding ShowEmptyTreeMenu}" />
-                </ContextMenu>
-              </TreeView.ContextMenu>
-              <TreeView.ItemTemplate>
-                <TreeDataTemplate DataType="tools:ExplorerNode" ItemsSource="{Binding Children}">
-                  <TextBlock Text="{Binding Caption}" />
-                </TreeDataTemplate>
-              </TreeView.ItemTemplate>
-            </TreeView>
-          </DockPanel>
-          <DockPanel Grid.Column="1">
-            <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8"
-                        IsVisible="{Binding ShowStructureEditor}">
-              <TextBlock FontWeight="SemiBold" Text="{Binding StructureHeading}" />
-              <TextBlock Opacity="0.7" FontSize="12" TextWrapping="Wrap"
-                         Text="{Binding StructureSummary}" />
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Content="Add Column" Command="{Binding NewColumnCommand}" />
-                <Button Content="Edit Column" Command="{Binding EditColumnCommand}" />
-                <Button Content="Delete Column" Command="{Binding DeleteColumnCommand}" />
-              </StackPanel>
-            </StackPanel>
-            <TextBox AcceptsReturn="True" IsReadOnly="True" TextWrapping="Wrap"
-                     IsVisible="{Binding ShowStructureHint}"
-                     Text="{Binding StructureDetail}" />
-            <Grid IsVisible="{Binding ShowStructureEditor}" RowDefinitions="*,Auto">
-              <DataGrid x:Name="StructureGrid"
-                        ItemsSource="{Binding StructureColumns}"
-                        SelectedItem="{Binding SelectedStructureColumn, Mode=TwoWay}"
-                        AutoGenerateColumns="False"
-                        IsReadOnly="True"
-                        CanUserResizeColumns="True"
-                        CanUserSortColumns="True"
-                        GridLinesVisibility="All"
-                        DoubleTapped="OnStructureGridDoubleTapped">
-                <DataGrid.Columns>
-                  <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="2*" />
-                  <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="100" />
-                  <DataGridTextColumn Header="Default" Binding="{Binding Default}" Width="*" />
-                  <DataGridCheckBoxColumn Header="Unique" Binding="{Binding Unique}" Width="80" />
-                </DataGrid.Columns>
-                <DataGrid.ContextMenu>
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="300" MinWidth="220" />
+            <ColumnDefinition Width="8" />
+            <ColumnDefinition Width="*" MinWidth="360" />
+          </Grid.ColumnDefinitions>
+          <Border Classes="card" Padding="12,12,8,12">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Top" Classes="section" Margin="0,0,0,4"
+                         Text="Collections" />
+              <TextBlock DockPanel.Dock="Top" Classes="muted" Margin="0,0,0,10"
+                         TextWrapping="Wrap" Text="{Binding NavigatorHint}" />
+              <TreeView x:Name="StructureTree"
+                        ItemsSource="{Binding Tree}"
+                        SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
+                        DoubleTapped="OnTreeDoubleTapped"
+                        PointerPressed="OnTreePointerPressed"
+                        ContextRequested="OnTreeContextRequested">
+                <TreeView.ContextMenu>
                   <ContextMenu>
-                    <MenuItem Header="Add Column..." Command="{Binding NewColumnCommand}" />
-                    <MenuItem Header="Edit Column..." Command="{Binding EditColumnCommand}" />
-                    <MenuItem Header="Delete Column..." Command="{Binding DeleteColumnCommand}" />
+                    <MenuItem Header="Browse Data" Command="{Binding BrowseCollectionCommand}"
+                              IsVisible="{Binding ShowCollectionMenu}" />
+                    <MenuItem Header="Add Column..." Command="{Binding NewColumnCommand}"
+                              IsVisible="{Binding ShowCollectionMenu}" />
+                    <MenuItem Header="Rename Collection..." Command="{Binding RenameCollectionCommand}"
+                              IsVisible="{Binding ShowCollectionMenu}" />
+                    <MenuItem Header="Create Index..." Command="{Binding CreateIndexCommand}"
+                              IsVisible="{Binding ShowCollectionMenu}" />
+                    <MenuItem Header="Edit Column..." Command="{Binding EditColumnCommand}"
+                              IsVisible="{Binding ShowColumnMenu}" />
+                    <MenuItem Header="Delete Column..." Command="{Binding DeleteColumnCommand}"
+                              IsVisible="{Binding ShowDeleteColumnMenu}" />
+                    <MenuItem Header="Drop Index..." Command="{Binding DropIndexCommand}"
+                              IsVisible="{Binding ShowIndexMenu}" />
+                    <MenuItem Header="Delete Collection..." Command="{Binding DeleteCollectionCommand}"
+                              IsVisible="{Binding ShowCollectionMenu}" />
+                    <MenuItem Header="Add Collection..." Command="{Binding NewCollectionCommand}"
+                              IsVisible="{Binding ShowEmptyTreeMenu}" />
                   </ContextMenu>
-                </DataGrid.ContextMenu>
-              </DataGrid>
-              <DockPanel Grid.Row="1" Height="180" Margin="0,8,0,0">
-                <TextBlock DockPanel.Dock="Top" FontWeight="SemiBold" Margin="0,0,0,4"
-                           Text="Observed fields (sample of up to 200 documents)" />
-                <DataGrid ItemsSource="{Binding SchemaSampleRows}"
+                </TreeView.ContextMenu>
+                <TreeView.ItemTemplate>
+                  <TreeDataTemplate DataType="tools:ExplorerNode" ItemsSource="{Binding Children}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <Border Classes="chip">
+                        <TextBlock Text="{Binding Kind, Converter={StaticResource NodeGlyph}}" />
+                      </Border>
+                      <TextBlock Text="{Binding Caption}" VerticalAlignment="Center" />
+                    </StackPanel>
+                  </TreeDataTemplate>
+                </TreeView.ItemTemplate>
+              </TreeView>
+            </DockPanel>
+          </Border>
+          <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
+          <Border Grid.Column="2" Classes="card">
+            <DockPanel>
+              <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,10"
+                          IsVisible="{Binding ShowStructureEditor}">
+                <TextBlock Classes="section" FontSize="16" Text="{Binding StructureHeading}" />
+                <TextBlock Classes="muted" TextWrapping="Wrap"
+                           Text="{Binding StructureSummary}" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Classes="accent" Content="Add column" Command="{Binding NewColumnCommand}" />
+                  <Button Content="Edit column" Command="{Binding EditColumnCommand}" />
+                  <Button Classes="danger" Content="Delete column" Command="{Binding DeleteColumnCommand}" />
+                </StackPanel>
+              </StackPanel>
+              <TextBox Classes="hint" AcceptsReturn="True" IsReadOnly="True" TextWrapping="Wrap"
+                       IsVisible="{Binding ShowStructureHint}"
+                       Text="{Binding StructureDetail}" />
+              <Grid IsVisible="{Binding ShowStructureEditor}" RowDefinitions="*,Auto">
+                <DataGrid x:Name="StructureGrid"
+                          ItemsSource="{Binding StructureColumns}"
+                          SelectedItem="{Binding SelectedStructureColumn, Mode=TwoWay}"
                           AutoGenerateColumns="False"
                           IsReadOnly="True"
                           CanUserResizeColumns="True"
                           CanUserSortColumns="True"
-                          GridLinesVisibility="All">
+                          DoubleTapped="OnStructureGridDoubleTapped">
                   <DataGrid.Columns>
                     <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="2*" />
-                    <DataGridTextColumn Header="Types" Binding="{Binding Types}" Width="120" />
-                    <DataGridTextColumn Header="Present" Binding="{Binding Present}" Width="80" />
-                    <DataGridTextColumn Header="Missing" Binding="{Binding Missing}" Width="80" />
-                    <DataGridTextColumn Header="Coverage" Binding="{Binding Coverage}" Width="80" />
-                    <DataGridTextColumn Header="Samples" Binding="{Binding Samples}" Width="3*" />
+                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="100" />
+                    <DataGridTextColumn Header="Default" Binding="{Binding Default}" Width="*" />
+                    <DataGridCheckBoxColumn Header="Unique" Binding="{Binding Unique}" Width="80" />
                   </DataGrid.Columns>
+                  <DataGrid.ContextMenu>
+                    <ContextMenu>
+                      <MenuItem Header="Add Column..." Command="{Binding NewColumnCommand}" />
+                      <MenuItem Header="Edit Column..." Command="{Binding EditColumnCommand}" />
+                      <MenuItem Header="Delete Column..." Command="{Binding DeleteColumnCommand}" />
+                    </ContextMenu>
+                  </DataGrid.ContextMenu>
                 </DataGrid>
-              </DockPanel>
-            </Grid>
-          </DockPanel>
+                <DockPanel Grid.Row="1" Height="140" Margin="0,12,0,0">
+                  <TextBlock DockPanel.Dock="Top" Classes="section" Margin="0,0,0,6"
+                             Text="Observed fields" />
+                  <TextBlock DockPanel.Dock="Top" Classes="muted" Margin="0,0,0,8"
+                             Text="Sample of up to 200 documents — shape report, not schema." />
+                  <Border Classes="card" Padding="0" CornerRadius="8">
+                    <DataGrid ItemsSource="{Binding SchemaSampleRows}"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              CanUserResizeColumns="True"
+                              CanUserSortColumns="True">
+                      <DataGrid.Columns>
+                        <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="2*" />
+                        <DataGridTextColumn Header="Types" Binding="{Binding Types}" Width="120" />
+                        <DataGridTextColumn Header="Present" Binding="{Binding Present}" Width="80" />
+                        <DataGridTextColumn Header="Missing" Binding="{Binding Missing}" Width="80" />
+                        <DataGridTextColumn Header="Coverage" Binding="{Binding Coverage}" Width="80" />
+                        <DataGridTextColumn Header="Samples" Binding="{Binding Samples}" Width="3*" />
+                      </DataGrid.Columns>
+                    </DataGrid>
+                  </Border>
+                </DockPanel>
+              </Grid>
+            </DockPanel>
+          </Border>
         </Grid>
       </TabItem>
 
       <TabItem Header="Browse Data">
-        <DockPanel Margin="8">
-          <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
-            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto">
-              <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Collection:" />
-              <ComboBox x:Name="BrowseCollectionBox"
-                        Grid.Column="1"
-                        ItemsSource="{Binding CollectionNames}"
-                        SelectedIndex="{Binding SelectedCollectionIndex, Mode=TwoWay}"
-                        Loaded="OnBrowseCollectionBoxLoaded">
-                <ComboBox.ContextMenu>
-                  <ContextMenu>
-                    <MenuItem Header="New Column..." Command="{Binding NewColumnCommand}" />
-                    <MenuItem Header="New Record..." Command="{Binding NewDocumentCommand}" />
-                    <MenuItem Header="Delete Collection..." Command="{Binding DeleteCollectionCommand}" />
-                  </ContextMenu>
-                </ComboBox.ContextMenu>
-              </ComboBox>
-              <Button Grid.Column="2" Margin="8,0,0,0" Content="New Column" Command="{Binding NewColumnCommand}" />
-              <Button Grid.Column="3" Margin="8,0,0,0" Content="New Record" Command="{Binding NewDocumentCommand}" />
-              <Button Grid.Column="4" Margin="8,0,0,0" Content="Clone Record" Command="{Binding CloneRecordCommand}" />
-              <Button Grid.Column="5" Margin="8,0,0,0" Content="Delete Record" Command="{Binding DeleteDocumentCommand}" />
-            </Grid>
-            <Grid ColumnDefinitions="Auto,*,Auto">
-              <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Filter:" />
-              <TextBox Grid.Column="1"
-                       Watermark="status: paid   or   { email: { $regex: &quot;@gmail.com&quot; } }"
-                       Text="{Binding BrowseFilterText}">
-                <TextBox.KeyBindings>
-                  <KeyBinding Gesture="Enter" Command="{Binding ApplyBrowseFilterCommand}" />
-                </TextBox.KeyBindings>
-              </TextBox>
-              <Button Grid.Column="2" Margin="8,0,0,0" Content="Apply" Command="{Binding ApplyBrowseFilterCommand}" />
-            </Grid>
-            <Grid ColumnDefinitions="Auto,160,140,*,Auto">
-              <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Build:" />
-              <ComboBox Grid.Column="1"
-                        ItemsSource="{Binding BrowseFilterFields}"
-                        SelectedItem="{Binding FilterField, Mode=TwoWay}" />
-              <ComboBox Grid.Column="2" Margin="8,0,0,0"
-                        ItemsSource="{Binding FilterOperators}"
-                        SelectedItem="{Binding FilterOperator, Mode=TwoWay}" />
-              <TextBox Grid.Column="3" Margin="8,0,0,0"
-                       Watermark="value"
-                       Text="{Binding FilterValue}">
-                <TextBox.KeyBindings>
-                  <KeyBinding Gesture="Enter" Command="{Binding BuildBrowseFilterCommand}" />
-                </TextBox.KeyBindings>
-              </TextBox>
-              <Button Grid.Column="4" Margin="8,0,0,0" Content="Build filter" Command="{Binding BuildBrowseFilterCommand}" />
-            </Grid>
-            <Grid ColumnDefinitions="Auto,*,Auto">
-              <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Find in page:" />
-              <TextBox x:Name="BrowseFindBox" Grid.Column="1"
-                       Watermark="Search _id, cells, or JSON on this page"
-                       Text="{Binding GridFindText}">
-                <TextBox.KeyBindings>
-                  <KeyBinding Gesture="Enter" Command="{Binding ApplyGridFindCommand}" />
-                </TextBox.KeyBindings>
-              </TextBox>
-              <Button Grid.Column="2" Margin="8,0,0,0" Content="Find" Command="{Binding ApplyGridFindCommand}" />
-            </Grid>
-            <TextBlock Opacity="0.7" FontSize="12"
-                       Text="Double-click a cell to edit. Boolean uses a checkbox, dates use a picker, JSON objects edit as text. Leaving a cell saves that column. Shift/Ctrl click selects several rows. Find searches this page only." />
-            <TextBlock Foreground="{DynamicResource NuvexaErrorBrush}" TextWrapping="Wrap"
-                       IsVisible="{Binding IsReadOnlyMode}"
-                       Text="Read-only is on. Browsing and queries work; writes are disabled." />
-            <TextBlock Foreground="{DynamicResource NuvexaErrorBrush}" TextWrapping="Wrap"
-                       IsVisible="{Binding HasBrowseFilterError}"
-                       Text="{Binding BrowseFilterError}" />
-            <DockPanel>
-              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8"
-                          IsVisible="{Binding ShowBrowsePager}">
-                <Button Content="Previous" Command="{Binding BrowsePreviousCommand}" />
-                <TextBlock VerticalAlignment="Center" Opacity="0.8" Text="{Binding BrowsePageText}" />
-                <Button Content="Next" Command="{Binding BrowseNextCommand}" />
-              </StackPanel>
-              <StackPanel Orientation="Horizontal" Spacing="12">
-                <TextBlock VerticalAlignment="Center" Opacity="0.8" FontSize="12"
-                           Text="{Binding BrowseStatusText}" />
-                <TextBlock VerticalAlignment="Center" Opacity="0.8" FontSize="12"
-                           Text="{Binding BrowseFindStatus}" />
-              </StackPanel>
-            </DockPanel>
-          </StackPanel>
-          <TabControl DockPanel.Dock="Bottom" Height="200" Margin="0,8,0,0">
-            <TabItem Header="JSON">
-              <TextBox AcceptsReturn="True" IsReadOnly="True" TextWrapping="Wrap"
-                       FontFamily="Menlo, Consolas, monospace"
-                       Text="{Binding DocumentJson}">
-                <TextBox.ContextMenu>
-                  <ContextMenu>
-                    <MenuItem Header="Copy Record JSON" Command="{Binding CopyRowCommand}" />
-                  </ContextMenu>
-                </TextBox.ContextMenu>
-              </TextBox>
-            </TabItem>
-            <TabItem Header="Tree">
-              <TreeView ItemsSource="{Binding DocumentTree}">
-                <TreeView.ItemTemplate>
-                  <TreeDataTemplate DataType="tools:JsonDocumentNode" ItemsSource="{Binding Children}">
-                    <TextBlock Text="{Binding Caption}" FontFamily="Menlo, Consolas, monospace" />
-                  </TreeDataTemplate>
-                </TreeView.ItemTemplate>
-              </TreeView>
-            </TabItem>
-          </TabControl>
-          <DataGrid x:Name="BrowseGrid"
-                    ItemsSource="{Binding GridRows}"
-                    SelectedItem="{Binding SelectedRow}"
-                    SelectionMode="Extended"
-                    AutoGenerateColumns="False"
-                    IsReadOnly="{Binding IsReadOnlyMode}"
-                    CanUserResizeColumns="True"
-                    CanUserSortColumns="True"
-                    GridLinesVisibility="All"
-                    PointerPressed="OnBrowsePointerPressed"
-                    SelectionChanged="OnBrowseSelectionChanged"
-                    Sorting="OnBrowseSorting">
-            <DataGrid.ContextMenu>
-              <ContextMenu>
-                <MenuItem Header="New Record..." Command="{Binding NewDocumentCommand}" />
-                <MenuItem Header="Edit Record..." Command="{Binding EditRecordCommand}" />
-                <MenuItem Header="Clone Record" Command="{Binding CloneRecordCommand}" />
-                <MenuItem Header="Delete Record" Command="{Binding DeleteDocumentCommand}" />
-                <Separator />
-                <MenuItem Header="Copy Cell" Command="{Binding CopyCellCommand}" />
-                <MenuItem Header="Copy Record JSON" Command="{Binding CopyRowCommand}" />
-                <Separator />
-                <MenuItem Header="New Column..." Command="{Binding NewColumnCommand}" />
-              </ContextMenu>
-            </DataGrid.ContextMenu>
-          </DataGrid>
-        </DockPanel>
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" MinHeight="280" />
+            <RowDefinition Height="6" />
+            <RowDefinition Height="132" MinHeight="72" />
+          </Grid.RowDefinitions>
+          <Border Classes="card" Margin="0,0,0,8" Padding="12,8">
+            <StackPanel Spacing="6">
+              <Grid ColumnDefinitions="88,*,Auto,Auto,Auto,Auto">
+                <TextBlock Classes="label" Text="Collection" />
+                <ComboBox x:Name="BrowseCollectionBox"
+                          Grid.Column="1"
+                          ItemsSource="{Binding CollectionNames}"
+                          SelectedIndex="{Binding SelectedCollectionIndex, Mode=TwoWay}"
+                          Loaded="OnBrowseCollectionBoxLoaded">
+                  <ComboBox.ContextMenu>
+                    <ContextMenu>
+                      <MenuItem Header="New Column..." Command="{Binding NewColumnCommand}" />
+                      <MenuItem Header="New Record..." Command="{Binding NewDocumentCommand}" />
+                      <MenuItem Header="Delete Collection..." Command="{Binding DeleteCollectionCommand}" />
+                    </ContextMenu>
+                  </ComboBox.ContextMenu>
+                </ComboBox>
+                <Button Grid.Column="2" Classes="toolbar" Margin="8,0,0,0" Content="New column" Command="{Binding NewColumnCommand}" />
+                <Button Grid.Column="3" Classes="toolbar accent" Margin="8,0,0,0" Content="New record" Command="{Binding NewDocumentCommand}" />
+                <Button Grid.Column="4" Classes="toolbar" Margin="8,0,0,0" Content="Clone" Command="{Binding CloneRecordCommand}" />
+                <Button Grid.Column="5" Classes="toolbar danger" Margin="8,0,0,0" Content="Delete" Command="{Binding DeleteDocumentCommand}" />
+              </Grid>
+              <Grid ColumnDefinitions="88,*,Auto,16,Auto,*,Auto">
+                <TextBlock Classes="label" Text="Filter" />
+                <TextBox Grid.Column="1"
+                         Watermark="status: paid   or   { email: { $regex: &quot;@gmail.com&quot; } }"
+                         Text="{Binding BrowseFilterText}">
+                  <TextBox.KeyBindings>
+                    <KeyBinding Gesture="Enter" Command="{Binding ApplyBrowseFilterCommand}" />
+                  </TextBox.KeyBindings>
+                </TextBox>
+                <Button Grid.Column="2" Classes="toolbar" Margin="8,0,0,0" Content="Apply" Command="{Binding ApplyBrowseFilterCommand}" />
+                <TextBlock Grid.Column="4" Classes="label" Text="Find" />
+                <TextBox x:Name="BrowseFindBox" Grid.Column="5"
+                         Watermark="_id, cells, or JSON on this page"
+                         Text="{Binding GridFindText}">
+                  <TextBox.KeyBindings>
+                    <KeyBinding Gesture="Enter" Command="{Binding ApplyGridFindCommand}" />
+                  </TextBox.KeyBindings>
+                </TextBox>
+                <Button Grid.Column="6" Classes="toolbar" Margin="8,0,0,0" Content="Find" Command="{Binding ApplyGridFindCommand}" />
+              </Grid>
+              <Grid ColumnDefinitions="88,170,140,*,Auto">
+                <TextBlock Classes="label" Text="Build" />
+                <ComboBox Grid.Column="1"
+                          ItemsSource="{Binding BrowseFilterFields}"
+                          SelectedItem="{Binding FilterField, Mode=TwoWay}" />
+                <ComboBox Grid.Column="2" Margin="8,0,0,0"
+                          ItemsSource="{Binding FilterOperators}"
+                          SelectedItem="{Binding FilterOperator, Mode=TwoWay}" />
+                <TextBox Grid.Column="3" Margin="8,0,0,0"
+                         Watermark="value"
+                         Text="{Binding FilterValue}">
+                  <TextBox.KeyBindings>
+                    <KeyBinding Gesture="Enter" Command="{Binding BuildBrowseFilterCommand}" />
+                  </TextBox.KeyBindings>
+                </TextBox>
+                <Button Grid.Column="4" Classes="toolbar" Margin="8,0,0,0" Content="Build filter" Command="{Binding BuildBrowseFilterCommand}" />
+              </Grid>
+              <Border Classes="badge warning" HorizontalAlignment="Left"
+                      IsVisible="{Binding IsReadOnlyMode}">
+                <TextBlock Text="Read-only is on. Browsing and queries work; writes are disabled." />
+              </Border>
+              <TextBlock Foreground="{DynamicResource NuvexaErrorBrush}" TextWrapping="Wrap"
+                         IsVisible="{Binding HasBrowseFilterError}"
+                         Text="{Binding BrowseFilterError}" />
+              <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8"
+                            IsVisible="{Binding ShowBrowsePager}">
+                  <Button Classes="toolbar" Content="Previous" Command="{Binding BrowsePreviousCommand}" />
+                  <TextBlock VerticalAlignment="Center" Classes="muted" Text="{Binding BrowsePageText}" />
+                  <Button Classes="toolbar" Content="Next" Command="{Binding BrowseNextCommand}" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <TextBlock VerticalAlignment="Center" Classes="muted"
+                             Text="{Binding BrowseStatusText}" />
+                  <TextBlock VerticalAlignment="Center" Classes="muted"
+                             Text="{Binding BrowseFindStatus}" />
+                </StackPanel>
+              </DockPanel>
+            </StackPanel>
+          </Border>
+          <Border Grid.Row="1" Classes="card" Padding="0">
+            <DataGrid x:Name="BrowseGrid"
+                      ItemsSource="{Binding GridRows}"
+                      SelectedItem="{Binding SelectedRow}"
+                      SelectionMode="Extended"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="{Binding IsReadOnlyMode}"
+                      CanUserResizeColumns="True"
+                      CanUserSortColumns="True"
+                      PointerPressed="OnBrowsePointerPressed"
+                      SelectionChanged="OnBrowseSelectionChanged"
+                      Sorting="OnBrowseSorting">
+              <DataGrid.ContextMenu>
+                <ContextMenu>
+                  <MenuItem Header="New Record..." Command="{Binding NewDocumentCommand}" />
+                  <MenuItem Header="Edit Record..." Command="{Binding EditRecordCommand}" />
+                  <MenuItem Header="Clone Record" Command="{Binding CloneRecordCommand}" />
+                  <MenuItem Header="Delete Record" Command="{Binding DeleteDocumentCommand}" />
+                  <Separator />
+                  <MenuItem Header="Copy Cell" Command="{Binding CopyCellCommand}" />
+                  <MenuItem Header="Copy Record JSON" Command="{Binding CopyRowCommand}" />
+                  <Separator />
+                  <MenuItem Header="New Column..." Command="{Binding NewColumnCommand}" />
+                </ContextMenu>
+              </DataGrid.ContextMenu>
+            </DataGrid>
+          </Border>
+          <GridSplitter Grid.Row="2" ResizeDirection="Rows" />
+          <Border Grid.Row="3" Classes="card" Padding="8,6,8,8">
+            <TabControl>
+              <TabItem Header="JSON">
+                <TextBox Classes="hint editor" AcceptsReturn="True" IsReadOnly="True" TextWrapping="Wrap"
+                         FontFamily="Menlo, Consolas, monospace"
+                         Text="{Binding DocumentJson}">
+                  <TextBox.ContextMenu>
+                    <ContextMenu>
+                      <MenuItem Header="Copy Record JSON" Command="{Binding CopyRowCommand}" />
+                    </ContextMenu>
+                  </TextBox.ContextMenu>
+                </TextBox>
+              </TabItem>
+              <TabItem Header="Tree">
+                <TreeView ItemsSource="{Binding DocumentTree}">
+                  <TreeView.ItemTemplate>
+                    <TreeDataTemplate DataType="tools:JsonDocumentNode" ItemsSource="{Binding Children}">
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{Binding Name}" FontFamily="Menlo, Consolas, monospace"
+                                   FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Value}" FontFamily="Menlo, Consolas, monospace"
+                                   Foreground="{DynamicResource NuvexaAccentBrush}"
+                                   VerticalAlignment="Center" />
+                      </StackPanel>
+                    </TreeDataTemplate>
+                  </TreeView.ItemTemplate>
+                </TreeView>
+              </TabItem>
+            </TabControl>
+          </Border>
+        </Grid>
       </TabItem>
 
       <TabItem Header="NQL">
-        <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,*" Margin="8">
-          <Grid ColumnDefinitions="Auto,*,Auto,*" Margin="0,0,0,8">
-            <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Examples:" />
-            <ComboBox Grid.Column="1"
-                      HorizontalAlignment="Stretch"
-                      ItemsSource="{Binding QuerySamples}"
-                      SelectedItem="{Binding SelectedQuerySample}">
-              <ComboBox.ItemTemplate>
-                <DataTemplate x:DataType="tools:ExplorerQuerySample">
-                  <TextBlock Text="{Binding Title}" />
-                </DataTemplate>
-              </ComboBox.ItemTemplate>
-            </ComboBox>
-            <TextBlock Grid.Column="2" VerticalAlignment="Center" Margin="16,0,8,0" Text="History:" />
-            <ComboBox Grid.Column="3"
-                      HorizontalAlignment="Stretch"
-                      ItemsSource="{Binding QueryHistory}"
-                      SelectedItem="{Binding SelectedHistoryItem}" />
-          </Grid>
-          <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,0,0,8">
-            <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Saved:" />
-            <ComboBox Grid.Column="1"
-                      HorizontalAlignment="Stretch"
-                      ItemsSource="{Binding SavedQueries}"
-                      SelectedItem="{Binding SelectedSavedQuery}">
-              <ComboBox.ItemTemplate>
-                <DataTemplate x:DataType="vm:SavedQuery">
-                  <TextBlock Text="{Binding Name}" />
-                </DataTemplate>
-              </ComboBox.ItemTemplate>
-            </ComboBox>
-            <Button Grid.Column="2" Margin="8,0,0,0" Content="Save current" Command="{Binding SaveQueryCommand}" />
-            <Button Grid.Column="3" Margin="8,0,0,0" Content="Delete saved" Command="{Binding DeleteSavedQueryCommand}" />
-          </Grid>
-          <TextBox Grid.Row="2" AcceptsReturn="True" TextWrapping="Wrap"
-                   FontFamily="Menlo, Consolas, monospace"
-                   Text="{Binding QueryText}"
-                   Watermark="db.users.find({ }).limit(50)" />
-          <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8" Margin="0,8">
-            <Button Content="Execute" Command="{Binding RunQueryCommand}" />
-            <Button Content="Export Results" Command="{Binding ExportQueryCommand}" />
-            <Button Content="Export CSV" Command="{Binding ExportQueryCsvCommand}" />
-            <TextBlock VerticalAlignment="Center" Opacity="0.75"
-                       Text="Saves a JSON or CSV file" />
-            <TextBlock VerticalAlignment="Center" Opacity="0.7"
-                       Text="NQL (Nuvexa Query Language): db.&lt;collection&gt;.find({ ... }).limit(n)   Ctrl+Enter to run" />
-          </StackPanel>
-          <StackPanel Grid.Row="4" Spacing="4" Margin="0,0,0,8">
-            <TextBlock Foreground="{DynamicResource NuvexaErrorBrush}" TextWrapping="Wrap"
-                       IsVisible="{Binding HasQueryError}"
-                       Text="{Binding QueryErrorText}" />
-            <TextBlock Opacity="0.8" FontFamily="Menlo, Consolas, monospace"
-                       Text="{Binding ExplainText}" />
-          </StackPanel>
-          <DataGrid x:Name="QueryGrid" Grid.Row="5"
-                    ItemsSource="{Binding QueryRows}"
-                    SelectedItem="{Binding SelectedQueryRow}"
-                    AutoGenerateColumns="False"
-                    IsReadOnly="True"
-                    CanUserResizeColumns="True"
-                    GridLinesVisibility="All">
-            <DataGrid.ContextMenu>
-              <ContextMenu>
-                <MenuItem Header="Copy Row JSON" Command="{Binding CopyQueryRowCommand}" />
-                <MenuItem Header="Export Results as JSON..." Command="{Binding ExportQueryCommand}" />
-                <MenuItem Header="Execute NQL" Command="{Binding RunQueryCommand}" />
-              </ContextMenu>
-            </DataGrid.ContextMenu>
-          </DataGrid>
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="220" MinHeight="120" />
+            <RowDefinition Height="6" />
+            <RowDefinition Height="*" MinHeight="220" />
+          </Grid.RowDefinitions>
+          <Border Classes="card" Margin="0,0,0,8" Padding="12,10">
+            <StackPanel Spacing="8">
+              <Grid ColumnDefinitions="Auto,*,Auto,*">
+                <TextBlock Classes="label" Text="Examples" />
+                <ComboBox Grid.Column="1"
+                          HorizontalAlignment="Stretch"
+                          ItemsSource="{Binding QuerySamples}"
+                          SelectedItem="{Binding SelectedQuerySample}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="tools:ExplorerQuerySample">
+                      <TextBlock Text="{Binding Title}" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBlock Grid.Column="2" Classes="label" Margin="16,0,10,0" Text="History" />
+                <ComboBox Grid.Column="3"
+                          HorizontalAlignment="Stretch"
+                          ItemsSource="{Binding QueryHistory}"
+                          SelectedItem="{Binding SelectedHistoryItem}" />
+              </Grid>
+              <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                <TextBlock Classes="label" Text="Saved" />
+                <ComboBox Grid.Column="1"
+                          HorizontalAlignment="Stretch"
+                          ItemsSource="{Binding SavedQueries}"
+                          SelectedItem="{Binding SelectedSavedQuery}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:SavedQuery">
+                      <TextBlock Text="{Binding Name}" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Button Grid.Column="2" Classes="toolbar" Margin="8,0,0,0" Content="Save current" Command="{Binding SaveQueryCommand}" />
+                <Button Grid.Column="3" Classes="toolbar danger" Margin="8,0,0,0" Content="Delete saved" Command="{Binding DeleteSavedQueryCommand}" />
+              </Grid>
+            </StackPanel>
+          </Border>
+          <Border Grid.Row="1" Classes="card" Padding="10">
+            <DockPanel>
+              <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
+                <Button Classes="accent" Content="Execute" Command="{Binding RunQueryCommand}" />
+                <Button Content="Export JSON" Command="{Binding ExportQueryCommand}" />
+                <Button Content="Export CSV" Command="{Binding ExportQueryCsvCommand}" />
+                <TextBlock VerticalAlignment="Center" Classes="muted"
+                           Text="db.&lt;collection&gt;.find({ … }).limit(n)   ·   Ctrl+Enter" />
+              </StackPanel>
+              <StackPanel DockPanel.Dock="Bottom" Spacing="4" Margin="0,8,0,0">
+                <TextBlock Foreground="{DynamicResource NuvexaErrorBrush}" TextWrapping="Wrap"
+                           IsVisible="{Binding HasQueryError}"
+                           Text="{Binding QueryErrorText}" />
+                <TextBlock Classes="muted" FontFamily="Menlo, Consolas, monospace"
+                           Text="{Binding ExplainText}" />
+              </StackPanel>
+              <TextBox Classes="editor" AcceptsReturn="True" TextWrapping="Wrap"
+                       FontFamily="Menlo, Consolas, monospace"
+                       Text="{Binding QueryText}"
+                       Watermark="db.users.find({ }).limit(50)" />
+            </DockPanel>
+          </Border>
+          <GridSplitter Grid.Row="2" ResizeDirection="Rows" />
+          <Border Grid.Row="3" Classes="card" Padding="0">
+            <DataGrid x:Name="QueryGrid"
+                      ItemsSource="{Binding QueryRows}"
+                      SelectedItem="{Binding SelectedQueryRow}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      CanUserResizeColumns="True">
+              <DataGrid.ContextMenu>
+                <ContextMenu>
+                  <MenuItem Header="Copy Row JSON" Command="{Binding CopyQueryRowCommand}" />
+                  <MenuItem Header="Export Results as JSON..." Command="{Binding ExportQueryCommand}" />
+                  <MenuItem Header="Execute NQL" Command="{Binding RunQueryCommand}" />
+                </ContextMenu>
+              </DataGrid.ContextMenu>
+            </DataGrid>
+          </Border>
         </Grid>
       </TabItem>
     </TabControl>

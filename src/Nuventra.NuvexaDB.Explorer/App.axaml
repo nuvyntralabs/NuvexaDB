@@ -8,22 +8,235 @@
       <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
           <SolidColorBrush x:Key="NuvexaErrorBrush" Color="#C42B1C" />
-          <SolidColorBrush x:Key="NuvexaChromeBorderBrush" Color="#33000000" />
+          <SolidColorBrush x:Key="NuvexaChromeBorderBrush" Color="#D5DEE8" />
+          <SolidColorBrush x:Key="NuvexaAccentBrush" Color="#0E7490" />
+          <SolidColorBrush x:Key="NuvexaAccentSoftBrush" Color="#1A0E7490" />
+          <SolidColorBrush x:Key="NuvexaMutedBrush" Color="#5B6B7C" />
+          <SolidColorBrush x:Key="NuvexaSurfaceBrush" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="NuvexaCanvasBrush" Color="#EEF2F7" />
+          <SolidColorBrush x:Key="NuvexaToolbarBrush" Color="#F7F9FC" />
+          <SolidColorBrush x:Key="NuvexaChipBrush" Color="#140E7490" />
+          <SolidColorBrush x:Key="NuvexaAltRowBrush" Color="#F7FAFC" />
+          <SolidColorBrush x:Key="NuvexaGridLineBrush" Color="#E6EDF4" />
+          <SolidColorBrush x:Key="NuvexaWarningBrush" Color="#B45309" />
+          <SolidColorBrush x:Key="NuvexaWarningSoftBrush" Color="#1AB45309" />
+          <SolidColorBrush x:Key="NuvexaOkBrush" Color="#0F766E" />
+          <SolidColorBrush x:Key="NuvexaOkSoftBrush" Color="#140F766E" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
-          <SolidColorBrush x:Key="NuvexaErrorBrush" Color="#E07070" />
-          <SolidColorBrush x:Key="NuvexaChromeBorderBrush" Color="#44FFFFFF" />
+          <SolidColorBrush x:Key="NuvexaErrorBrush" Color="#F07167" />
+          <SolidColorBrush x:Key="NuvexaChromeBorderBrush" Color="#2A3648" />
+          <SolidColorBrush x:Key="NuvexaAccentBrush" Color="#5EEAD4" />
+          <SolidColorBrush x:Key="NuvexaAccentSoftBrush" Color="#285EEAD4" />
+          <SolidColorBrush x:Key="NuvexaMutedBrush" Color="#93A4B8" />
+          <SolidColorBrush x:Key="NuvexaSurfaceBrush" Color="#151C28" />
+          <SolidColorBrush x:Key="NuvexaCanvasBrush" Color="#0B1220" />
+          <SolidColorBrush x:Key="NuvexaToolbarBrush" Color="#111827" />
+          <SolidColorBrush x:Key="NuvexaChipBrush" Color="#335EEAD4" />
+          <SolidColorBrush x:Key="NuvexaAltRowBrush" Color="#1A2332" />
+          <SolidColorBrush x:Key="NuvexaGridLineBrush" Color="#243044" />
+          <SolidColorBrush x:Key="NuvexaWarningBrush" Color="#FBBF24" />
+          <SolidColorBrush x:Key="NuvexaWarningSoftBrush" Color="#33FBBF24" />
+          <SolidColorBrush x:Key="NuvexaOkBrush" Color="#5EEAD4" />
+          <SolidColorBrush x:Key="NuvexaOkSoftBrush" Color="#285EEAD4" />
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
     </ResourceDictionary>
   </Application.Resources>
   <Application.Styles>
-    <FluentTheme />
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <ColorPaletteResources x:Key="Light" Accent="#0E7490" RegionColor="#EEF2F7" />
+        <ColorPaletteResources x:Key="Dark" Accent="#2DD4BF" RegionColor="#0B1220" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
     <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+
+    <Style Selector="Window">
+      <Setter Property="FontFamily" Value="Inter" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Background" Value="{DynamicResource NuvexaCanvasBrush}" />
+    </Style>
+
+    <Style Selector="Menu">
+      <Setter Property="Background" Value="{DynamicResource NuvexaToolbarBrush}" />
+      <Setter Property="Padding" Value="6,2" />
+    </Style>
+
+    <Style Selector="Button">
+      <Setter Property="Padding" Value="16,8" />
+      <Setter Property="MinHeight" Value="36" />
+      <Setter Property="MinWidth" Value="88" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="Button /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="Button.toolbar">
+      <Setter Property="Padding" Value="16,8" />
+    </Style>
+
+    <Style Selector="Button.danger">
+      <Setter Property="Foreground" Value="{DynamicResource NuvexaErrorBrush}" />
+    </Style>
+
+    <Style Selector="TextBox">
+      <Setter Property="MinHeight" Value="36" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="10,8" />
+    </Style>
+
+    <Style Selector="TextBox.editor">
+      <Setter Property="MinHeight" Value="88" />
+      <Setter Property="Padding" Value="12" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="CaretBrush" Value="{DynamicResource NuvexaAccentBrush}" />
+    </Style>
+
+    <Style Selector="TextBox.hint">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="4" />
+      <Setter Property="Foreground" Value="{DynamicResource NuvexaMutedBrush}" />
+    </Style>
+
+    <Style Selector="ComboBox">
+      <Setter Property="MinHeight" Value="36" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+    </Style>
+
+    <Style Selector="TextBlock.section">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="FontSize" Value="13" />
+    </Style>
+
+    <Style Selector="TextBlock.muted">
+      <Setter Property="Foreground" Value="{DynamicResource NuvexaMutedBrush}" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+
+    <Style Selector="TextBlock.label">
+      <Setter Property="Foreground" Value="{DynamicResource NuvexaMutedBrush}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="0,0,10,0" />
+    </Style>
+
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{DynamicResource NuvexaSurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource NuvexaChromeBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="12" />
+    </Style>
+
+    <Style Selector="Border.toolbar">
+      <Setter Property="Background" Value="{DynamicResource NuvexaToolbarBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource NuvexaChromeBorderBrush}" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+      <Setter Property="Padding" Value="12,8" />
+    </Style>
+
+    <Style Selector="Border.status">
+      <Setter Property="Background" Value="{DynamicResource NuvexaToolbarBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource NuvexaChromeBorderBrush}" />
+      <Setter Property="BorderThickness" Value="0,1,0,0" />
+      <Setter Property="Padding" Value="12,6" />
+    </Style>
+
+    <Style Selector="Border.badge">
+      <Setter Property="Background" Value="{DynamicResource NuvexaOkSoftBrush}" />
+      <Setter Property="CornerRadius" Value="999" />
+      <Setter Property="Padding" Value="10,3" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="Border.badge TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource NuvexaOkBrush}" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="Border.badge.warning">
+      <Setter Property="Background" Value="{DynamicResource NuvexaWarningSoftBrush}" />
+    </Style>
+
+    <Style Selector="Border.badge.warning TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource NuvexaWarningBrush}" />
+    </Style>
+
+    <Style Selector="Border.chip">
+      <Setter Property="Background" Value="{DynamicResource NuvexaChipBrush}" />
+      <Setter Property="CornerRadius" Value="5" />
+      <Setter Property="Width" Value="20" />
+      <Setter Property="Height" Value="20" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="Border.chip TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource NuvexaAccentBrush}" />
+      <Setter Property="FontSize" Value="10" />
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="TabControl.workbench">
+      <Setter Property="Padding" Value="10" />
+      <Setter Property="Background" Value="{DynamicResource NuvexaCanvasBrush}" />
+    </Style>
+
+    <Style Selector="TabItem">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Padding" Value="16,0" />
+      <Setter Property="MinHeight" Value="36" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="TabItem:selected">
+      <Setter Property="Foreground" Value="{DynamicResource NuvexaAccentBrush}" />
+    </Style>
+
+    <Style Selector="TreeView">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="2" />
+    </Style>
+
+    <Style Selector="TreeViewItem">
+      <Setter Property="Padding" Value="2,3" />
+      <Setter Property="MinHeight" Value="28" />
+    </Style>
+
     <Style Selector="DataGrid">
-      <Setter Property="GridLinesVisibility" Value="All" />
+      <Setter Property="GridLinesVisibility" Value="Horizontal" />
       <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
       <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="RowHeight" Value="32" />
+      <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource NuvexaGridLineBrush}" />
+    </Style>
+
+    <Style Selector="DataGridColumnHeader">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="{DynamicResource NuvexaMutedBrush}" />
+      <Setter Property="MinHeight" Value="34" />
+    </Style>
+
+    <Style Selector="GridSplitter">
+      <Setter Property="Background" Value="Transparent" />
     </Style>
   </Application.Styles>
 </Application>

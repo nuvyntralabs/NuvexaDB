@@ -14,7 +14,7 @@ This page is the capability inventory for product docs and a white paper. Engine
 | **Browse Data** | Spreadsheet of one collection. Cell leave, new/edit/delete record persist immediately to the `.nvx`. |
 | **NQL** | Nuvexa Query Language `find` / `aggregate`. Results grid, explain line, JSON export. |
 
-File menu: New / Open / **Open Recent** / Close, Import/Export JSON or CSV, Export Query Results as JSON or CSV. Tools: change encryption key, compact, **backup**, **restore**, **database properties**. **View → Theme** follows the system appearance by default (Light / Dark override). **View → Read-only** disables writes. Drag a `.nvx` onto the window to open it.
+File menu: New / Open / **Open Recent** / Close, Import/Export JSON or CSV, Export Query Results as JSON or CSV. Tools: change encryption key, compact, **backup**, **restore**, **database properties**. **View → Theme** follows the system appearance by default (Light / Dark override). **View → Read-only** disables writes. Drag a `.nvx` onto the window to open it. The workbench uses Nuvexa navy/cyan surfaces, Inter, a compact toolbar, and resizable Structure / Browse / NQL panes.
 
 ## File and session
 

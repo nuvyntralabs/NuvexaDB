@@ -2,15 +2,20 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="Nuventra.NuvexaDB.Explorer.ChangeKeyWindow"
         Title="Change encryption key"
-        Width="440" Height="240"
+        Width="460" Height="280"
+        CanResize="False"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="8">
-    <TextBlock Text="Re-wrap the data-encryption key. Documents stay in place." TextWrapping="Wrap" />
-    <TextBox x:Name="CurrentBox" PasswordChar="•" Watermark="Current key" />
-    <TextBox x:Name="NextBox" PasswordChar="•" Watermark="New key" />
-    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-      <Button Content="Cancel" Click="OnCancel" />
-      <Button Content="Change key" Click="OnOk" />
+  <Border Classes="card" Margin="16">
+    <StackPanel Spacing="12">
+      <TextBlock FontWeight="SemiBold" FontSize="15" Text="Re-wrap the data-encryption key" />
+      <TextBlock Classes="muted" TextWrapping="Wrap"
+                 Text="Documents stay in place. Use the new key the next time you open this file." />
+      <TextBox x:Name="CurrentBox" PasswordChar="•" Watermark="Current key" />
+      <TextBox x:Name="NextBox" PasswordChar="•" Watermark="New key" />
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <Button Content="Cancel" MinWidth="88" Click="OnCancel" />
+        <Button Classes="accent" Content="Change key" MinWidth="108" Click="OnOk" />
+      </StackPanel>
     </StackPanel>
-  </StackPanel>
+  </Border>
 </Window>

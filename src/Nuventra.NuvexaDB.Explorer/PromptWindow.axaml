@@ -1,15 +1,18 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="Nuventra.NuvexaDB.Explorer.PromptWindow"
-        Title="NuvexaDB"
-        Width="420" Height="180"
+        Title="Nuvexa Data Studio"
+        Width="440" Height="220"
+        CanResize="False"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="8">
-    <TextBlock x:Name="Prompt" TextWrapping="Wrap" />
-    <TextBox x:Name="ValueBox" />
-    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-      <Button Content="Cancel" Click="OnCancel" />
-      <Button Content="OK" Click="OnOk" />
+  <Border Classes="card" Margin="16">
+    <StackPanel Spacing="12">
+      <TextBlock x:Name="Prompt" FontWeight="SemiBold" TextWrapping="Wrap" />
+      <TextBox x:Name="ValueBox" />
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <Button Content="Cancel" MinWidth="88" Click="OnCancel" />
+        <Button Classes="accent" Content="OK" MinWidth="88" Click="OnOk" />
+      </StackPanel>
     </StackPanel>
-  </StackPanel>
+  </Border>
 </Window>

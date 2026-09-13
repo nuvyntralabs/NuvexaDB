@@ -4,73 +4,77 @@
         x:Class="Nuventra.NuvexaDB.Explorer.TableDefinitionWindow"
         x:DataType="local:TableDefinitionDraft"
         Title="Edit table definition"
-        Width="820" Height="620"
-        MinWidth="680" MinHeight="500"
+        Width="840" Height="640"
+        MinWidth="700" MinHeight="520"
         WindowStartupLocation="CenterOwner">
   <DockPanel Margin="16">
-    <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="0,12,0,0">
+    <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="0,14,0,0">
       <TextBlock Text="{Binding ErrorText}" Foreground="{DynamicResource NuvexaErrorBrush}" TextWrapping="Wrap" />
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
         <Button Content="Cancel" MinWidth="88" Click="OnCancel" />
-        <Button Content="OK" MinWidth="88" Click="OnOk" />
+        <Button Classes="accent" Content="OK" MinWidth="88" Click="OnOk" />
       </StackPanel>
     </StackPanel>
 
-    <TextBox DockPanel.Dock="Bottom" Height="120" Margin="0,12,0,0"
-             IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
-             FontFamily="Menlo, Consolas, monospace"
-             Text="{Binding Preview}" />
+    <Border DockPanel.Dock="Bottom" Classes="card" Padding="10" Height="128" Margin="0,12,0,0">
+      <TextBox Classes="hint" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+               FontFamily="Menlo, Consolas, monospace"
+               Text="{Binding Preview}" />
+    </Border>
 
-    <DockPanel>
-      <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,12">
-        <TextBlock Text="Table name" />
-        <TextBox Watermark="e.g. users" Text="{Binding TableName}" />
-        <Expander Header="Advanced">
-          <TextBlock Opacity="0.75" TextWrapping="Wrap"
-                     Text="A collection is a table of JSON documents. _id is always the primary key. Types set the default value for new rows. Unique creates an index." />
-        </Expander>
-      </StackPanel>
+    <Border Classes="card" Padding="14">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,12">
+          <TextBlock Classes="section" FontSize="15" Text="New collection" />
+          <TextBlock Classes="muted" Text="A collection is a table of JSON documents. _id is always the primary key." />
+          <TextBox Watermark="e.g. users" Text="{Binding TableName}" />
+          <Expander Header="Advanced">
+            <TextBlock Classes="muted" TextWrapping="Wrap"
+                       Text="Types set the default value for new rows. Unique creates an index." />
+          </Expander>
+        </StackPanel>
 
-      <TabControl>
-        <TabItem Header="Columns">
-          <DockPanel>
-            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
-              <Button Content="Add" Click="OnAdd" />
-              <Button Content="Remove" Click="OnRemove" />
-              <Button Content="Move to top" Click="OnMoveTop" />
-              <Button Content="Move up" Click="OnMoveUp" />
-              <Button Content="Move down" Click="OnMoveDown" />
-              <Button Content="Move to bottom" Click="OnMoveBottom" />
-            </StackPanel>
-            <Grid DockPanel.Dock="Top" ColumnDefinitions="160,130,40,*" Margin="0,0,0,6">
-              <TextBlock Text="Name" FontWeight="SemiBold" />
-              <TextBlock Grid.Column="1" Text="Type" FontWeight="SemiBold" />
-              <TextBlock Grid.Column="2" Text="U" FontWeight="SemiBold" />
-              <TextBlock Grid.Column="3" Text="Default" FontWeight="SemiBold" />
-            </Grid>
-            <TextBlock Opacity="0.7" Margin="0,8" Text="Click Add to create a column."
-                       IsVisible="{Binding !HasFields}" />
-            <ScrollViewer>
-              <ItemsControl ItemsSource="{Binding Fields}">
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="local:TableFieldRow">
-                    <Grid ColumnDefinitions="160,130,40,*" Margin="0,0,0,6">
-                      <TextBox Text="{Binding Name}" />
-                      <ComboBox Grid.Column="1"
-                                ItemsSource="{x:Static local:TableFieldRow.Types}"
-                                SelectedItem="{Binding Type}"
-                                HorizontalAlignment="Stretch" />
-                      <CheckBox Grid.Column="2" IsChecked="{Binding Unique}"
-                                HorizontalAlignment="Center" VerticalAlignment="Center" />
-                      <TextBox Grid.Column="3" Text="{Binding Default}" />
-                    </Grid>
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-            </ScrollViewer>
-          </DockPanel>
-        </TabItem>
-      </TabControl>
-    </DockPanel>
+        <TabControl>
+          <TabItem Header="Columns">
+            <DockPanel>
+              <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,10">
+                <Button Classes="accent" Content="Add" Click="OnAdd" />
+                <Button Classes="danger" Content="Remove" Click="OnRemove" />
+                <Button Content="Move to top" Click="OnMoveTop" />
+                <Button Content="Move up" Click="OnMoveUp" />
+                <Button Content="Move down" Click="OnMoveDown" />
+                <Button Content="Move to bottom" Click="OnMoveBottom" />
+              </StackPanel>
+              <Grid DockPanel.Dock="Top" ColumnDefinitions="160,130,40,*" Margin="0,0,0,8">
+                <TextBlock Classes="label" Margin="0" Text="Name" />
+                <TextBlock Grid.Column="1" Classes="label" Margin="0" Text="Type" />
+                <TextBlock Grid.Column="2" Classes="label" Margin="0" Text="U" />
+                <TextBlock Grid.Column="3" Classes="label" Margin="0" Text="Default" />
+              </Grid>
+              <TextBlock Classes="muted" Margin="0,8" Text="Click Add to create a column."
+                         IsVisible="{Binding !HasFields}" />
+              <ScrollViewer>
+                <ItemsControl ItemsSource="{Binding Fields}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="local:TableFieldRow">
+                      <Grid ColumnDefinitions="160,130,40,*" Margin="0,0,0,6">
+                        <TextBox Text="{Binding Name}" />
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{x:Static local:TableFieldRow.Types}"
+                                  SelectedItem="{Binding Type}"
+                                  HorizontalAlignment="Stretch" />
+                        <CheckBox Grid.Column="2" IsChecked="{Binding Unique}"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <TextBox Grid.Column="3" Text="{Binding Default}" />
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </DockPanel>
+          </TabItem>
+        </TabControl>
+      </DockPanel>
+    </Border>
   </DockPanel>
 </Window>

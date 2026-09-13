@@ -60,7 +60,7 @@ Existing files without an HMAC still open if CRC and pages verify. The next chec
 ### Explorer IDE
 
 - Desktop app name is **Nuvexa Data Studio**, with a window / dock / installer icon.
-- Theme follows the OS (light / dark). **View → Theme** can pin System, Light, or Dark.
+- Theme follows the OS (light / dark). **View → Theme** can pin System, Light, or Dark. Chrome uses navy/cyan cards, Inter, a compact toolbar, and resizable Structure / Browse / NQL panes.
 - Database Structure right pane lists the selected collection’s columns and can add, edit, or delete them. **Observed fields** samples up to 200 documents (types, coverage, examples).
 - Browse: JSON **Tree** tab, clone record, multi-select delete, find-in-page, click-to-sort this page, field/operator **Build filter** (still runs through `BrowsePageAsync`).
 - File: CSV import/export and query-result CSV. Tools: backup, restore, database properties. View: **Read-only**. Drag-and-drop a `.nvx` to open. Close reports a leftover WAL file when present.

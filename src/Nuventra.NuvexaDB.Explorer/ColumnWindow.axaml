@@ -2,18 +2,22 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="Nuventra.NuvexaDB.Explorer.ColumnWindow"
         Title="Add column"
-        Width="440" Height="280"
+        Width="460" Height="320"
+        CanResize="False"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="8">
-    <TextBlock x:Name="HintText"
-               Text="Add a column to this collection. Existing rows get the default value."
-               TextWrapping="Wrap" />
-    <TextBox x:Name="NameBox" Watermark="Column name, e.g. name or address.city" />
-    <ComboBox x:Name="TypeBox" HorizontalAlignment="Stretch" />
-    <TextBox x:Name="DefaultBox" Watermark="Default value (optional)" />
-    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-      <Button Content="Cancel" Click="OnCancel" />
-      <Button x:Name="OkButton" Content="Add column" Click="OnOk" />
+  <Border Classes="card" Margin="16">
+    <StackPanel Spacing="12">
+      <TextBlock FontWeight="SemiBold" FontSize="15" Text="Column" />
+      <TextBlock x:Name="HintText" Classes="muted"
+                 Text="Add a column to this collection. Existing rows get the default value."
+                 TextWrapping="Wrap" />
+      <TextBox x:Name="NameBox" Watermark="Column name, e.g. name or address.city" />
+      <ComboBox x:Name="TypeBox" HorizontalAlignment="Stretch" />
+      <TextBox x:Name="DefaultBox" Watermark="Default value (optional)" />
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <Button Content="Cancel" MinWidth="88" Click="OnCancel" />
+        <Button x:Name="OkButton" Classes="accent" Content="Add column" MinWidth="108" Click="OnOk" />
+      </StackPanel>
     </StackPanel>
-  </StackPanel>
+  </Border>
 </Window>
