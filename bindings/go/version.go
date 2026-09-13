@@ -1,4 +1,5 @@
 package nuvexa
 
-// Version matches Directory.Build.props / the NuGet package.
-const Version = "1.0.0"
+// PackageVersion matches Directory.Build.props / the NuGet package.
+// ABI version is Version() (nuvexa_abi_version).
+const PackageVersion = "1.0.0"

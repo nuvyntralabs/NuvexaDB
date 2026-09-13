@@ -187,8 +187,8 @@ def collect(root: Path) -> dict[str, str]:
     )
     versions["Go"] = first_match(
         root / "bindings/go/version.go",
-        r'Version\s*=\s*"([^"]+)"',
-        "Version",
+        r'PackageVersion\s*=\s*"([^"]+)"',
+        "PackageVersion",
     )
     versions["Swift"] = first_match(
         root / "bindings/swift/Sources/NuvexaDB/Version.swift",
@@ -311,7 +311,7 @@ def write_versions(root: Path, version: str) -> None:
     )
     replace_one(
         root / "bindings/go/version.go",
-        r'(Version\s*=\s*")[^"]+(")',
+        r'(PackageVersion\s*=\s*")[^"]+(")',
         rf"\g<1>{version}\g<2>",
         "Go version",
     )

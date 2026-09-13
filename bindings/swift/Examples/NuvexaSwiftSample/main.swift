@@ -35,13 +35,13 @@ print("-- NQL age >= 21, sort name, limit 10 --")
 for row in try db.execute("db.users.find({ age: { $gte: 21 } }).sort({ name: 1 }).limit(10)") {
     print(row.json)
 }
-print("-- NQL \$and London + active --")
+print(#"-- NQL $and London + active --"#)
 for row in try db.execute(
     #"db.users.find({ $and: [ { "address.city": "London" }, { status: "active" } ] }).sort({ age: -1 })"#)
 {
     print(row.json)
 }
-print("-- NQL \$or age < 30 or New York --")
+print(#"-- NQL $or age < 30 or New York --"#)
 for row in try db.execute(
     #"db.users.find({ $or: [ { age: { $lt: 30 } }, { "address.city": "New York" } ] })"#)
 {
