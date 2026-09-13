@@ -60,6 +60,10 @@ jobs:
           version="$(python3 -c "import re, pathlib; text=pathlib.Path('Directory.Build.props').read_text(); print(re.search(r'<Version>([^<]+)</Version>', text).group(1))")"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Using Directory.Build.props Version=$version (alignment / NuGet validation commented out)"
+      - if: always()
+        shell: bash
+        run: |
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then : > "$GITHUB_STEP_SUMMARY"; fi
 
   test:
     name: Unit tests (${{ matrix.os }})
@@ -82,6 +86,10 @@ jobs:
         run: dotnet test tests/Nuventra.NuvexaDB.Tests/Nuventra.NuvexaDB.Tests.csproj -c Release --nologo
       - name: SLO gate
         run: dotnet run --project benches/Nuventra.NuvexaDB.Benchmarks -c Release -- --gate
+      - if: always()
+        shell: bash
+        run: |
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then : > "$GITHUB_STEP_SUMMARY"; fi
 
   native:
     name: Native ABI ${{ matrix.rid }}
@@ -140,6 +148,10 @@ jobs:
           path: artifacts/native/${{ matrix.rid }}/
           if-no-files-found: error
           retention-days: 14
+      - if: always()
+        shell: bash
+        run: |
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then : > "$GITHUB_STEP_SUMMARY"; fi
 
   native-android:
     name: Native ABI android-arm64
@@ -186,6 +198,10 @@ jobs:
           path: artifacts/native/android-arm64/
           if-no-files-found: error
           retention-days: 14
+      - if: always()
+        shell: bash
+        run: |
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then : > "$GITHUB_STEP_SUMMARY"; fi
 
   native-ios:
     name: iOS module compile
@@ -210,6 +226,10 @@ jobs:
           path: artifacts/native/ios/
           if-no-files-found: error
           retention-days: 14
+      - if: always()
+        shell: bash
+        run: |
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then : > "$GITHUB_STEP_SUMMARY"; fi
 
   vscode:
     name: VS Code extension
@@ -241,6 +261,10 @@ jobs:
           path: artifacts/nuventra.nuvexadb-*.vsix
           if-no-files-found: error
           retention-days: 14
+      - if: always()
+        shell: bash
+        run: |
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then : > "$GITHUB_STEP_SUMMARY"; fi
 
   vsix:
     name: Visual Studio VSIX
@@ -274,6 +298,10 @@ jobs:
           path: artifacts/Nuventra.NuvexaDB.VisualStudio.*.vsix
           if-no-files-found: error
           retention-days: 14
+      - if: always()
+        shell: bash
+        run: |
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then : > "$GITHUB_STEP_SUMMARY"; fi
 
   explorer:
     name: Data Studio ${{ matrix.rid }}
@@ -334,6 +362,10 @@ jobs:
             artifacts/*.rpm
           if-no-files-found: error
           retention-days: 14
+      - if: always()
+        shell: bash
+        run: |
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then : > "$GITHUB_STEP_SUMMARY"; fi
 
   pack:
     name: NuGet packages
@@ -373,6 +405,10 @@ jobs:
       #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       #     GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
       #   run: python3 .github/scripts/push-packages.py --packages-dir artifacts
+      - if: always()
+        shell: bash
+        run: |
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then : > "$GITHUB_STEP_SUMMARY"; fi
 
   sdk:
     name: ${{ matrix.title }}
@@ -484,6 +520,7 @@ jobs:
         if: matrix.sdk == 'jvm'
         with:
           gradle-version: "8.12.1"
+          add-job-summary: never
       - uses: actions/setup-python@v5
         if: matrix.sdk == 'python'
         with:
@@ -530,6 +567,10 @@ jobs:
           path: artifacts/sdk/${{ matrix.sdk }}-${{ matrix.rid }}/
           if-no-files-found: error
           retention-days: 14
+      - if: always()
+        shell: bash
+        run: |
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then : > "$GITHUB_STEP_SUMMARY"; fi
 
   android:
     name: Android AAR
@@ -545,6 +586,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.12.1"
+          add-job-summary: never
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
       - name: Android platform
@@ -587,6 +629,10 @@ jobs:
           path: artifacts/sdk/android/
           if-no-files-found: error
           retention-days: 14
+      - if: always()
+        shell: bash
+        run: |
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then : > "$GITHUB_STEP_SUMMARY"; fi
 
   react-native-android:
     name: React Native Android
@@ -605,6 +651,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.12.1"
+          add-job-summary: never
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
       - name: Android platform
@@ -647,6 +694,10 @@ jobs:
           path: artifacts/sdk/react-native-android/
           if-no-files-found: error
           retention-days: 14
+      - if: always()
+        shell: bash
+        run: |
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then : > "$GITHUB_STEP_SUMMARY"; fi
 
   react-native-ios:
     name: React Native iOS
@@ -688,3 +739,7 @@ jobs:
           path: artifacts/sdk/react-native-ios/
           if-no-files-found: error
           retention-days: 14
+      - if: always()
+        shell: bash
+        run: |
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then : > "$GITHUB_STEP_SUMMARY"; fi
