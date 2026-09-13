@@ -42,8 +42,18 @@ public sealed class NuvexaEditorFactory : IVsEditorFactory
         var pane = new NuvexaToolWindowPane(_package.Host);
         _package.JoinableTaskFactory.RunAsync(async () =>
         {
-            await _package.Host.OpenOrPromptAsync(pszMkDocument, prompt =>
+            var result = await _package.Host.OpenOrPromptAsync(pszMkDocument, prompt =>
                 Task.FromResult(NuvexaKeyDialog.Ask(prompt))).ConfigureAwait(true);
+            if (result == "failed")
+            {
+                System.Windows.MessageBox.Show(
+                    string.IsNullOrWhiteSpace(_package.Host.Status)
+                        ? "This database file is corrupt or has been tampered with. It was not opened."
+                        : _package.Host.Status,
+                    "NuvexaDB",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
+            }
             if (pane.Content is NuvexaVsControl control)
             {
                 control.Reload();

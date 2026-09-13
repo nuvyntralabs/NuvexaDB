@@ -112,27 +112,34 @@ class NuvexaWorkbench implements vscode.Disposable {
   }
 
   async load(path: string): Promise<void> {
-    const key = await ensureKey(path);
-    if (key === "cancelled") {
-      this.post({
-        type: "error",
-        surface: "browse",
-        body: "Open cancelled. Encryption key required."
-      });
-      return;
-    }
+    try {
+      const key = await ensureKey(path);
+      if (key === "cancelled") {
+        this.post({
+          type: "error",
+          surface: "browse",
+          body: "Open cancelled. Encryption key required."
+        });
+        return;
+      }
 
-    this.path = path;
-    const [treeJson, samplesJson] = await Promise.all([
-      runNuvexa(["tree", path], keys.get(path)),
-      runNuvexa(["samples"])
-    ]);
-    this.post({
-      type: "opened",
-      path,
-      tree: parseTree(treeJson),
-      samples: parseSamples(samplesJson)
-    });
+      this.path = path;
+      const [treeJson, samplesJson] = await Promise.all([
+        runNuvexa(["tree", path], keys.get(path)),
+        runNuvexa(["samples"])
+      ]);
+      this.post({
+        type: "opened",
+        path,
+        tree: parseTree(treeJson),
+        samples: parseSamples(samplesJson)
+      });
+    } catch (e) {
+      this.path = undefined;
+      const body = e instanceof Error ? e.message : String(e);
+      void vscode.window.showErrorMessage(body);
+      this.post({ type: "error", surface: "browse", body });
+    }
   }
 
   private async onMessage(webview: vscode.Webview, msg: WorkbenchMessage): Promise<void> {
@@ -794,6 +801,18 @@ function page(): string {
 </html>`;
 }
 
+function readCliError(out: string): string {
+  try {
+    const parsed = JSON.parse(out) as { error?: string };
+    if (parsed && typeof parsed.error === "string" && parsed.error) {
+      return parsed.error;
+    }
+  } catch {
+    /* not JSON */
+  }
+  return out.trim();
+}
+
 function runNuvexa(args: string[], key?: string): Promise<string> {
   const extra = key ? ["--key", key] : [];
   return new Promise((resolve, reject) => {
@@ -806,7 +825,7 @@ function runNuvexa(args: string[], key?: string): Promise<string> {
       if (code === 0 || code === 2) {
         resolve(out || err);
       } else {
-        reject(new Error(err || `nuvexa exited ${code}`));
+        reject(new Error(readCliError(out) || err || `nuvexa exited ${code}`));
       }
     });
     child.on("error", (e) =>

@@ -62,15 +62,28 @@ public sealed class NuvexaToolWindow : IAsyncDisposable
                 {
                     // retry
                 }
+                catch (NuvexaIntegrityException ex)
+                {
+                    Status = ex.Message;
+                    return "failed";
+                }
             }
 
             Status = "failed";
             return "failed";
         }
 
-        await Session.OpenAsync(path, null).ConfigureAwait(false);
-        await RefreshAsync().ConfigureAwait(false);
-        return "ok";
+        try
+        {
+            await Session.OpenAsync(path, null).ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
+            return "ok";
+        }
+        catch (NuvexaIntegrityException ex)
+        {
+            Status = ex.Message;
+            return "failed";
+        }
     }
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)

@@ -499,9 +499,23 @@ public sealed partial class MainWindowViewModel : PageViewModel
                 await Dialogs.AlertAsync("Nuvexa Data Studio", "Wrong encryption key. The file was not opened.");
             }
         }
+        catch (NuvexaIntegrityException ex)
+        {
+            StatusText = ex.Message;
+            if (Dialogs is not null)
+            {
+                await Dialogs.AlertAsync(
+                    "Nuvexa Data Studio",
+                    "This database file is corrupt or has been tampered with. It was not opened.");
+            }
+        }
         catch (Exception ex)
         {
             StatusText = ex.Message;
+            if (Dialogs is not null)
+            {
+                await Dialogs.AlertAsync("Nuvexa Data Studio", ex.Message);
+            }
         }
     }
 
