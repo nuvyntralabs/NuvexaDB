@@ -89,6 +89,7 @@ public sealed class PendingWorkTests : IDisposable
         }
 
         await using var window = new NuvexaToolWindow();
+        Assert.Contains("Niladri Prasad Padhy", window.AboutText, StringComparison.Ordinal);
         Assert.Equal("ok", await window.OpenOrPromptAsync(path, _ => Task.FromResult<string?>(null)));
         var users = Assert.Single(window.Tree, n => n.Name == "users");
         Assert.Equal("users  (1)", users.Caption);

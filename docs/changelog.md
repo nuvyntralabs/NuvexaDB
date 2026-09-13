@@ -66,16 +66,29 @@ Existing files without an HMAC still open if CRC and pages verify. The next chec
 - File: CSV import/export and query-result CSV. Tools: backup, restore, database properties. View: **Read-only**. Drag-and-drop a `.nvx` to open. Close reports a leftover WAL file when present.
 - NQL: named **Saved** queries (`explorer-saved-queries.json`).
 - VS Code / Visual Studio Browse Data: **Build filter**, find-in-page, JSON **Tree**, click-to-sort this page. Still browse-only. `BrowseFilterBuilder` / `JsonDocumentTree` live on `Nuventra.NuvexaDB.Tools`.
+- **About**: Data Studio **Help → About Nuvexa**; VS Code About tab + `NuvexaDB: About`; Visual Studio About tab. Copy lives on `NuvexaAbout`.
 
 - **Structure tree counts** update after insert / delete / browse reload (`customers  (6)`). The node is updated in place so the tree does not collapse.
 - **Browse Data pagination**: 200 rows per page, **Previous** / **Next**, status `Showing A–B of T` / `Page X of Y`. A new unfiltered record opens the last page. Deleting the last row on a page steps back one page. Small collections still show `N record(s).` with no pager.
 - **NQL** tab: Examples include **Page**. `.skip().limit()` and `.page()` both run through `ExecuteAsync`.
 - Browse paging and query examples live on `ExplorerSession.BrowsePageAsync` / `ExplorerQuerySample` so Visual Studio and VS Code stay in sync with the desktop IDE.
 
+### Samples
+
+Language samples live only inside each binding project (JVM `src/sampleJava` / `src/sampleKotlin`, Flutter `examples/sample.dart`, and the other SDK `examples/` folders). Catalog folders `samples/Java`, `Kotlin`, `Flutter`, and the other language sample trees were removed. .NET samples: `Console`, `Maui`, `Avalonia`, `Wpf`, `WinUI`, and `Uno`. The `samples/Relationships` generator was removed.
+
+### Language bindings (ABI v2)
+
+C ABI `nuvexa_abi_version()` is **2**. Added catalog (`list` / `drop` / `rename` collections), `insert_many`, `count`, index list/drop, `stats`, checkpoint / backup / compact / restore, rekey, transactions, and path-based GridFS. Existing SDKs (Kotlin/Java, Swift, Flutter, React Native) expose the new symbols. New thin SDKs: Python (ctypes), Node (`@nuventra/nuvexadb-node`), Go (cgo), C++ (`nuvexa.hpp`). LINQ stays .NET-only. Fixtures: `tests/interop/cases.json` plus `ExtendedAbiTests`. Docs: `docs/architecture.md`, `docs/bindings.md`.
+
 ### Visual Studio and VS Code
 
 - VS Code / Cursor: **Open Database** / **Close Database**, collapsible collection + Columns tree, **Browse Data** and **Execute Query** tabs. Browse-only (no create / edit / delete).
 - CLI: `nuvexa browse`, `nuvexa samples`, `nuvexa explain`; `find` accepts `--skip` / `--limit` / `--page`.
+
+### CI
+
+GitHub Actions still builds every library, IDE, and extension, runs their unit tests (C# Coverlet reports plus language interop suites), and uploads artifacts with the same job-summary download links as Explorer / VS Code / Visual Studio. **nuget.org, GitHub Packages, version alignment, and NuGet key/version validation are commented out** until multi-host publishing is decided. Language SDK jobs (`bindings-jvm`, `python`, `node`, `react-native`, `go`, `cpp`, `swift`, `flutter`, `android`) wait for the matching `native-<rid>` artifact.
 
 ### Tests
 
@@ -83,6 +96,8 @@ Existing files without an HMAC still open if CRC and pages verify. The next chec
 - `FindAsync` skip/limit pages; `LoadTree` count after insert.
 - Query parser `.page(2, 200)` / `.limit(200).page(3)`.
 - Explorer tree assertion looks under the **Indexes** group.
+- Interop fixtures (`tests/interop/cases.json`) run through the managed engine, `NuvexaAbi`, Kotlin, Swift, Flutter, React Native, Python, Node, Go, and C++.
+- ABI v2 catalog / transaction / GridFS cases in `ExtendedAbiTests`.
 
 ### Scale bench (local, not `--gate`)
 

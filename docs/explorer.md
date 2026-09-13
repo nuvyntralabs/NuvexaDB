@@ -14,7 +14,7 @@ This page is the capability inventory for product docs and a white paper. Engine
 | **Browse Data** | Spreadsheet of one collection. Cell leave, new/edit/delete record persist immediately to the `.nvx`. |
 | **NQL** | Nuvexa Query Language `find` / `aggregate`. Results grid, explain line, JSON export. |
 
-File menu: New / Open / **Open Recent** / Close, Import/Export JSON or CSV, Export Query Results as JSON or CSV. Tools: change encryption key, compact, **backup**, **restore**, **database properties**. **View → Theme** follows the system appearance by default (Light / Dark override). **View → Read-only** disables writes. Drag a `.nvx` onto the window to open it. The workbench uses Nuvexa navy/cyan surfaces, Inter, a compact toolbar, and resizable Structure / Browse / NQL panes.
+File menu: New / Open / **Open Recent** / Close, Import/Export JSON or CSV, Export Query Results as JSON or CSV. Tools: change encryption key, compact, **backup**, **restore**, **database properties**. **View → Theme** follows the system appearance by default (Light / Dark override). **View → Read-only** disables writes. **Help → About Nuvexa** is the product page (author, MIT, GitHub / NuGet). Drag a `.nvx` onto the window to open it. The workbench uses Nuvexa navy/cyan surfaces, Inter, a compact toolbar, and resizable Structure / Browse / NQL panes.
 
 ## File and session
 
@@ -79,7 +79,7 @@ Aggregate stages: `$match $project $sort $skip $limit $count $lookup`.
 
 ## Distribution
 
-CI publishes native installers (unsigned macOS `.pkg` to `/Applications` for now), plus VS Code and Visual Studio VSIX, alongside the `Nuventra.NuvexaDB` nupkg. Packaging scripts: `src/Nuventra.NuvexaDB.Explorer/packaging/`.
+CI builds native installers (unsigned macOS `.pkg` to `/Applications` for now), plus VS Code and Visual Studio VSIX, and uploads them as GitHub artifacts next to the packed `Nuventra.NuvexaDB` nupkg. nuget.org push is commented out. Packaging scripts: `src/Nuventra.NuvexaDB.Explorer/packaging/`.
 
 ## Visual Studio and VS Code
 
@@ -88,6 +88,7 @@ These hosts use the same session APIs as the desktop IDE. They do not duplicate 
 | Feature | Visual Studio | VS Code / Cursor |
 | --- | --- | --- |
 | Open Database / Close Database | In-process `NuvexaToolWindow` | `nuvexa.open` / `nuvexa.close` |
+| **About** (author, license, links) | About tab (`NuvexaAbout`) | About tab + `nuvexa.about` |
 | Collapsible collection tree (Columns / Indexes, row counts) | Same session tree | `nuvexa tree` |
 | **Browse Data** (filter, **Build filter**, find-in-page, JSON/Tree, 200-row pager, read-only grid) | `BrowsePageAsync` | `nuvexa browse --filter --page` |
 | **Execute Query** (NQL examples, explain, read-only grid) | `QueryAsync` + `ExplainQueryAsync` | `nuvexa query` + `nuvexa explain` / `nuvexa samples` |

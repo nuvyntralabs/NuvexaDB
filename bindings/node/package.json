@@ -1,0 +1,17 @@
+{
+  "name": "@nuventra/nuvexadb-node",
+  "version": "1.0.0",
+  "description": "Node.js library for NuvexaDB over the Native AOT C ABI.",
+  "license": "MIT",
+  "type": "module",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "files": ["src"],
+  "dependencies": {
+    "koffi": "^2.12.1"
+  },
+  "scripts": {
+    "test": "node --test test/interop.test.mjs",
+    "sample": "node examples/sample.mjs"
+  }
+}

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <Exclude>[xunit.*]*,[Nuventra.NuvexaDB.Tests]*,[Nuventra.NuvexaDB.CrashHarness]*</Exclude>
+          <Include>[Nuventra.NuvexaDB]*,[Nuventra.NuvexaDB.Tools]*,[Nuventra.NuvexaDB.Native]*,[Nuventra.NuvexaDB.VisualStudio]*,[Nuventra.NuvexaDB.Cli]*</Include>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

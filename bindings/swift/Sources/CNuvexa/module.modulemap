@@ -1,0 +1,4 @@
+module CNuvexa {
+    header "include/nuvexa.h"
+    export *
+}

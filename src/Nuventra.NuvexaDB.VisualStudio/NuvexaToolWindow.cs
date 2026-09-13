@@ -17,6 +17,7 @@ public sealed class NuvexaToolWindow : IAsyncDisposable
     public IReadOnlyList<DocumentRow> QueryRows { get; private set; } = [];
     public IReadOnlyList<ExplorerQuerySample> QuerySamples { get; } = ExplorerQuerySample.All;
     public string Status { get; private set; } = "Closed.";
+    public string AboutText => NuvexaAbout.PlainText("Visual Studio");
     public string Explain { get; private set; } = "";
     public string QueryExplain { get; private set; } = "";
     public string QueryStatus { get; private set; } = "";

@@ -1,6 +1,6 @@
 # NuvexaDB
 
-Embedded, Mongo-inspired NoSQL for **.NET** and **.NET MAUI**. One portable binary **`.nvx`** file (BSON documents on data pages, AES-256-GCM encryption), and a desktop explorer for Windows, macOS, and Linux.
+Embedded, Mongo-inspired NoSQL for **.NET** and **.NET MAUI**, with a Native AOT C ABI for **Java**, **Kotlin**, **Swift**, **Flutter**, **React Native**, **Python**, **Node.js**, **Go**, and **C++**. One portable binary **`.nvx`** file (BSON documents on data pages, AES-256-GCM encryption), and a desktop explorer for Windows, macOS, and Linux.
 
 **Package:** `Nuventra.NuvexaDB`  
 **Author:** Niladri Prasad Padhy / Nuventra  
@@ -19,7 +19,19 @@ Use **SQLite** when you need SQL joins or an existing sqlite-net model. Use **Nu
 dotnet add package Nuventra.NuvexaDB
 ```
 
-Do not publish this package from a local clone. CI on `main` / tags packs **nupkg + snupkg** and pushes both to nuget.org and GitHub Packages. Each successful run also uploads native Explorer installers, the VS Code VSIX, and the Visual Studio VSIX.
+Do not publish this package from a local clone. CI on `main` / tags / PRs **builds, tests, and uploads GitHub artifacts** (nupkg + snupkg, native ABI, Explorer installers, VS Code / Visual Studio VSIX, and language SDK packs). nuget.org, GitHub Packages, and the version / NuGet validation jobs are commented out until multi-host publishing (.NET, Maven, npm, …) is decided. Uncomment those steps in `NuvexaDB/.github/workflows/ci.yml` to restore them.
+
+After each CI run, the job summary lists a **Download** link for every artifact (same pattern as the IDE / extensions):
+
+| Artifact | Contents |
+| --- | --- |
+| `nuget-NuvexaDB` | `nupkg` + `snupkg` (not pushed) |
+| `native-<rid>` | C ABI (`libnuvexa` / `nuvexa.dll`) |
+| `explorer-<rid>` | Data Studio installer (msi / pkg / deb / rpm) |
+| `vscode-NuvexaDB` | VS Code / Cursor VSIX |
+| `vsix-NuvexaDB` | Visual Studio VSIX |
+| `bindings-<sdk>-<rid>` | Language SDK pack after that SDK’s unit tests |
+| `coverage-<os>` | Coverlet cobertura for engine + Explorer + Visual Studio |
 
 Explorer installers (single-file app inside a native package):
 
@@ -83,14 +95,57 @@ Aggregation: `$match $project $sort $skip $limit $count $group $lookup`. Typed L
 | **Access library** | `Nuventra.NuvexaDB` | `NuvexaDatabase` / `NuvexaCollection` / `AddNuvexaDB` for apps |
 | **Nuvexa Data Studio** | `Nuventra.NuvexaDB.Explorer` | Avalonia desktop IDE + [Plugin.Avalonia.MVVMExpress](https://www.nuget.org/packages/Plugin.Avalonia.MVVMExpress) on Windows, macOS, and Linux |
 | **Editor extensions** | `Nuventra.NuvexaDB.VSCode`, `Nuventra.NuvexaDB.VisualStudio` | Custom editor / tool window over the same `ExplorerSession` (browse filter, 200-row pager, query examples, explain) |
+| **C ABI** | `Nuventra.NuvexaDB.Native` | Native AOT shared library (`nuvexa_create` / `execute` / …). Same engine; JSON in, JSON out. |
+| **Language SDKs** | `bindings/jvm`, `android`, `swift`, `flutter`, `react-native`, `python`, `node`, `go`, `cpp` | Thin overlays over `nuvexa.h` (ABI v2) |
 
 Supporting: `Nuventra.NuvexaDB.Tools` (session + grid cache), `nuvexa` CLI (`browse` / `samples` / `explain` / `backup` / `restore`; used by VS Code).
 
+## Language bindings
+
+Do not rewrite the engine. Publish the C ABI, then call it:
+
+```bash
+src/Nuventra.NuvexaDB.Native/publish.sh
+```
+
+```kotlin
+NuvexaDatabase.create("app.nvx", "correct-horse").use { db ->
+    db.insert("users", """{"name":"Ada","age":36}""")
+    db.execute("db.users.find({ age: { \$gte: 21 } }).limit(20)")
+}
+```
+
+```swift
+let db = try NuvexaDatabase.create("app.nvx", key: "correct-horse")
+_ = try db.insert(collection: "users", json: #"{"name":"Ada","age":36}"#)
+_ = try db.execute("db.users.find({ age: { $gte: 21 } }).limit(20)")
+```
+
+```dart
+final db = NuvexaDatabase.create('app.nvx', key: 'correct-horse');
+db.insert('users', '{"name":"Ada","age":36}');
+db.execute('db.users.find({ age: { \$gte: 21 } }).limit(20)');
+```
+
+```js
+const db = await NuvexaDatabase.create("app.nvx", "correct-horse");
+await db.insert("users", JSON.stringify({ name: "Ada", age: 36 }));
+await db.execute("db.users.find({ age: { $gte: 21 } }).limit(20)");
+```
+
+Desktop RIDs ship first (`osx-*`, `win-x64`, `linux-x64`). Android `libnuvexa.so` and the iOS xcframework need those workloads. ABI v2 adds catalog, transactions, and path-based GridFS. Details: [docs/bindings.md](docs/bindings.md). Language samples live inside each binding project.
+
 ## Samples
 
-- `samples/Console` — create, encrypt, fail-closed open, query
-- `samples/Maui` — Android / iOS / Mac Catalyst / Windows app-data `.nvx`
-- `samples/Avalonia` — desktop file + query
+Each .NET sample is its own solution (`*.sln` next to the project). `NuvexaDB.sln` is the engine, tests, tools, and IDE hosts only.
+
+- `samples/Console/Console.sln` — create, encrypt, fail-closed open, query
+- `samples/Maui/MauiSample.sln` — Android / iOS / Mac Catalyst / Windows app-data `.nvx`
+- `samples/Avalonia/AvaloniaSample.sln` — desktop file + query
+- `samples/Wpf/WpfSample.sln` — WPF (`net10.0-windows10.0.17763.0`)
+- `samples/WinUI/WinUISample.sln` — unpackaged WinUI 3 (`net10.0-windows10.0.19041.0`)
+- `samples/Uno/UnoSample.sln` — Uno Platform desktop (`net10.0-desktop`; not WASM)
+- `bindings/*/examples` (and JVM `src/sampleJava` / `src/sampleKotlin`) — same flow over the C ABI, kept next to each SDK
 
 ## Benchmarks
 
@@ -114,5 +169,7 @@ dotnet run --project benches/Nuventra.NuvexaDB.Benchmarks -c Release -- --gate
 - [Change log](docs/changelog.md) — unreleased engine, Explorer, and bench notes
 - [File format](docs/format.md)
 - [Encryption](docs/encryption.md)
+- [Engine sharing architecture](docs/architecture.md) — one engine, one C ABI, thin SDKs
+- [Language bindings](docs/bindings.md)
 - [NQL](docs/query.md)
 - [Benchmarks](docs/benchmarks.md)

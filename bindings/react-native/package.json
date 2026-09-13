@@ -1,0 +1,29 @@
+{
+  "name": "@nuventra/nuvexadb",
+  "version": "1.0.0",
+  "description": "React Native / Node SDK for NuvexaDB over the Native AOT C ABI.",
+  "license": "MIT",
+  "type": "module",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "files": [
+    "src",
+    "ios",
+    "android",
+    "nuvexadb.podspec"
+  ],
+  "peerDependencies": {
+    "react": "*",
+    "react-native": ">=0.73.0"
+  },
+  "peerDependenciesMeta": {
+    "react": { "optional": true },
+    "react-native": { "optional": true }
+  },
+  "dependencies": {
+    "koffi": "^2.12.1"
+  },
+  "scripts": {
+    "test": "node --test test/interop.test.mjs"
+  }
+}

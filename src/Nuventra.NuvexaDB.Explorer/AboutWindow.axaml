@@ -1,0 +1,38 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Nuventra.NuvexaDB.Explorer.AboutWindow"
+        Title="About Nuvexa"
+        Width="560" Height="520"
+        MinWidth="480" MinHeight="420"
+        WindowStartupLocation="CenterOwner">
+  <DockPanel Margin="16">
+    <Button DockPanel.Dock="Bottom" Classes="accent" Content="Close" MinWidth="88"
+            HorizontalAlignment="Right" Margin="0,14,0,0" Click="OnClose" />
+    <Border Classes="card" Padding="18">
+      <ScrollViewer>
+        <StackPanel Spacing="12">
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <Border Width="48" Height="48" CornerRadius="10" ClipToBounds="True">
+              <Image Source="/Assets/nuvexa-data-studio.png" Stretch="UniformToFill" />
+            </Border>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock x:Name="TitleText" FontWeight="SemiBold" FontSize="18" />
+              <TextBlock x:Name="VersionText" Classes="muted" />
+            </StackPanel>
+          </StackPanel>
+          <TextBlock x:Name="SummaryText" TextWrapping="Wrap" />
+          <TextBlock x:Name="AboutText" Classes="muted" TextWrapping="Wrap" />
+          <StackPanel Spacing="4">
+            <TextBlock x:Name="AuthorText" />
+            <TextBlock x:Name="OrgText" Classes="muted" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <HyperlinkButton x:Name="WebsiteLink" Content="Website" />
+            <HyperlinkButton x:Name="GitHubLink" Content="GitHub" />
+            <HyperlinkButton x:Name="NuGetLink" Content="NuGet" />
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+  </DockPanel>
+</Window>

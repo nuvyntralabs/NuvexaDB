@@ -1,0 +1,17 @@
+<Project Sdk="Uno.Sdk/6.6.42">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-desktop</TargetFramework>
+    <UnoSingleProject>true</UnoSingleProject>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>NuvexaDB.Samples.Uno</RootNamespace>
+    <ApplicationTitle>NuvexaDB Uno sample</ApplicationTitle>
+    <ApplicationId>dev.nuventra.nuvexadb.uno</ApplicationId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Nuventra.NuvexaDB\Nuventra.NuvexaDB.csproj" />
+  </ItemGroup>
+
+</Project>

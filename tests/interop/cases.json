@@ -1,0 +1,30 @@
+{
+  "key": "correct-horse",
+  "collection": "users",
+  "documents": [
+    { "name": "Ada", "age": 36, "city": "London" },
+    { "name": "Cara", "age": 21, "city": "Bengaluru" },
+    { "name": "Ben", "age": 12, "city": "Bengaluru" }
+  ],
+  "indexes": [
+    ["age"],
+    ["city"]
+  ],
+  "cases": [
+    {
+      "name": "adults-sorted",
+      "nql": "db.users.find({ age: { $gte: 21 } }).sort({ name: 1 }).limit(20)",
+      "expectNames": ["Ada", "Cara"]
+    },
+    {
+      "name": "page-two-size-one",
+      "nql": "db.users.find({}).sort({ name: 1 }).page(2, 1)",
+      "expectNames": ["Ben"]
+    },
+    {
+      "name": "city-equality",
+      "nql": "db.users.find({ city: \"Bengaluru\" }).sort({ name: 1 })",
+      "expectNames": ["Ben", "Cara"]
+    }
+  ]
+}

@@ -13,25 +13,61 @@ concurrency:
 
 permissions:
   contents: read
-  packages: write
+  # packages: write  # required when nuget.org / GitHub Packages push is uncommented
 
 jobs:
-  version-align:
-    name: Version alignment
+  # ---------------------------------------------------------------------------
+  # Paused: version alignment + nuget.org validation.
+  # NuvexaDB will later publish to more than one host (.NET NuGet, Maven
+  # Central, npm, pub.dev, …). Uncomment these jobs and the pack push step
+  # when those hosts are decided. Until then CI builds, tests, and uploads
+  # GitHub artifacts the same way Explorer / VS Code / Visual Studio already do.
+  # ---------------------------------------------------------------------------
+  # version-align:
+  #   name: Version alignment
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 5
+  #   outputs:
+  #     version: ${{ steps.check.outputs.version }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - id: check
+  #       run: python3 .github/scripts/check-versions.py --repo-root .
+  #
+  # version-check:
+  #   name: NuGet release
+  #   needs: [version-align]
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 10
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Check NUGET_KEY and published version
+  #       env:
+  #         NUGET_KEY: ${{ secrets.NUGET_KEY }}
+  #       run: python3 .github/scripts/check-nuget-release.py --plugin-root .
+
+  version:
+    name: Read version
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      version: ${{ steps.check.outputs.version }}
+      version: ${{ steps.read.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-      - id: check
-        run: python3 .github/scripts/check-versions.py --repo-root .
+      - id: read
+        run: |
+          set -euo pipefail
+          version="$(python3 -c "import re, pathlib; text=pathlib.Path('Directory.Build.props').read_text(); print(re.search(r'<Version>([^<]+)</Version>', text).group(1))")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Using Directory.Build.props Version=$version (alignment / NuGet validation commented out)"
 
   test:
-    name: Test
-    needs: [version-align]
+    name: Unit tests (${{ matrix.os }})
+    needs: [version]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
@@ -42,14 +78,95 @@ jobs:
             8.0.x
             9.0.x
             10.0.x
-      - name: Test
-        run: dotnet test tests/Nuventra.NuvexaDB.Tests/Nuventra.NuvexaDB.Tests.csproj -c Release --nologo
+      - name: Test engine, Explorer IDE, and Visual Studio
+        run: >
+          dotnet test tests/Nuventra.NuvexaDB.Tests/Nuventra.NuvexaDB.Tests.csproj
+          -c Release --nologo
+          --settings tests/Coverage.runsettings
+          --collect:"XPlat Code Coverage"
+          --results-directory coverage
       - name: SLO gate
         run: dotnet run --project benches/Nuventra.NuvexaDB.Benchmarks -c Release -- --gate
+      - name: Summarize coverage
+        id: coverage
+        shell: bash
+        run: |
+          chmod +x .github/scripts/summarize-coverage.py
+          python3 .github/scripts/summarize-coverage.py --root coverage
+      - name: Upload coverage
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.os }}
+          path: coverage/**
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Summary
+        shell: bash
+        run: |
+          {
+            echo "### Unit tests (${{ matrix.os }})"
+            echo
+            if [ -n "${{ steps.upload.outputs.artifact-url }}" ]; then
+              echo "Download: [coverage-${{ matrix.os }}](${{ steps.upload.outputs.artifact-url }})"
+              echo
+            fi
+            echo "Engine, Explorer IDE, and Visual Studio tests passed. Line coverage: ${{ steps.coverage.outputs.line_rate }}."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  native:
+    name: Native ABI ${{ matrix.rid }}
+    needs: [version, test]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: macos-latest
+            rid: osx-arm64
+          - os: macos-latest
+            rid: osx-x64
+          - os: windows-latest
+            rid: win-x64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Publish C ABI
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x src/Nuventra.NuvexaDB.Native/publish.sh
+          src/Nuventra.NuvexaDB.Native/publish.sh \
+            "${{ needs.version.outputs.version }}" \
+            "${{ matrix.rid }}" \
+            "$PWD/artifacts/native"
+      - name: Upload native library
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.rid }}
+          path: artifacts/native/${{ matrix.rid }}/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Summary
+        shell: bash
+        run: |
+          {
+            echo "### Native ABI (${{ matrix.rid }})"
+            echo
+            echo "Download: [native-${{ matrix.rid }}](${{ steps.upload.outputs.artifact-url }})"
+            echo
+            echo "Load \`libnuvexa\` / \`nuvexa.dll\` from the artifact. Kotlin/Java: \`NUVEXA_NATIVE_LIB\`. Swift: \`NUVEXA_NATIVE_DIR\`."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   vscode:
     name: VS Code extension
-    needs: [version-align, test]
+    needs: [version, test]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -57,10 +174,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Test VS Code extension
+        working-directory: src/Nuventra.NuvexaDB.VSCode
+        run: |
+          set -euo pipefail
+          npm ci
+          npm test
       - name: Pack VSIX
         run: |
           set -euo pipefail
-          version="${{ needs.version-align.outputs.version }}"
+          version="${{ needs.version.outputs.version }}"
           mkdir -p artifacts
           chmod +x .github/scripts/pack-vscode.sh
           .github/scripts/pack-vscode.sh "$version" "$PWD/artifacts/nuventra.nuvexadb-${version}.vsix"
@@ -84,7 +207,7 @@ jobs:
 
   vsix:
     name: Visual Studio VSIX
-    needs: [version-align, test]
+    needs: [version, test]
     runs-on: windows-latest
     timeout-minutes: 20
     defaults:
@@ -100,10 +223,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Visual Studio unit tests
+        run: >
+          dotnet test tests/Nuventra.NuvexaDB.Tests/Nuventra.NuvexaDB.Tests.csproj
+          -c Release --nologo
+          --filter FullyQualifiedName~VisualStudio
+          --settings tests/Coverage.runsettings
+          --collect:"XPlat Code Coverage"
+          --results-directory coverage-vsix
       - name: Pack VSIX
         run: |
           set -euo pipefail
-          version="${{ needs.version-align.outputs.version }}"
+          version="${{ needs.version.outputs.version }}"
           mkdir -p artifacts
           chmod +x .github/scripts/pack-vsix.sh
           .github/scripts/pack-vsix.sh "$version" "$PWD/artifacts/Nuventra.NuvexaDB.VisualStudio.${version}.vsix"
@@ -127,7 +258,7 @@ jobs:
 
   explorer:
     name: Explorer ${{ matrix.rid }}
-    needs: [version-align, test]
+    needs: [version, test]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     strategy:
@@ -150,6 +281,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Explorer IDE unit tests
+        run: >
+          dotnet test tests/Nuventra.NuvexaDB.Tests/Nuventra.NuvexaDB.Tests.csproj
+          -c Release --nologo
+          --filter "FullyQualifiedName~Explorer"
+          --settings tests/Coverage.runsettings
+          --collect:"XPlat Code Coverage"
+          --results-directory coverage-explorer
       - name: Install WiX
         if: startsWith(matrix.rid, 'win-')
         shell: bash
@@ -169,7 +308,7 @@ jobs:
           set -euo pipefail
           chmod +x .github/scripts/pack-explorer.sh
           .github/scripts/pack-explorer.sh \
-            "${{ needs.version-align.outputs.version }}" \
+            "${{ needs.version.outputs.version }}" \
             "${{ matrix.rid }}" \
             "$PWD/artifacts"
         shell: bash
@@ -201,13 +340,13 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   pack:
-    name: nuget.org and GitHub Packages
-    needs: [version-align, test]
+    name: NuGet packages
+    needs: [version, test]
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    permissions:
-      contents: read
-      packages: write
+    # permissions:
+    #   contents: read
+    #   packages: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -232,13 +371,13 @@ jobs:
             artifacts/*.snupkg
           if-no-files-found: error
           retention-days: 14
-      - name: Push nupkg and snupkg
-        if: github.event_name != 'pull_request'
-        env:
-          NUGET_KEY: ${{ secrets.NUGET_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
-        run: python3 .github/scripts/push-packages.py --packages-dir artifacts
+      # - name: Push nupkg and snupkg
+      #   if: github.event_name != 'pull_request'
+      #   env:
+      #     NUGET_KEY: ${{ secrets.NUGET_KEY }}
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+      #   run: python3 .github/scripts/push-packages.py --packages-dir artifacts
       - name: Summary
         run: |
           {
@@ -246,5 +385,216 @@ jobs:
             echo
             echo "Download: [nuget-NuvexaDB](${{ steps.upload.outputs.artifact-url }})"
             echo
-            echo "Non-PR runs push **nupkg + snupkg** to nuget.org and GitHub Packages (\`--skip-duplicate\`). \`Nuventra.NuvexaDB.Cli\` is PackAsTool and has no snupkg."
+            echo "Artifacts only. nuget.org and GitHub Packages push is commented out until multi-host publishing is decided. \`Nuventra.NuvexaDB.Cli\` is PackAsTool and has no snupkg."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  sdk:
+    name: ${{ matrix.title }}
+    needs: [version, test, native]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+            sdk: jvm
+            title: JVM library (linux-x64)
+          - os: macos-latest
+            rid: osx-arm64
+            sdk: jvm
+            title: JVM library (osx-arm64)
+          - os: windows-latest
+            rid: win-x64
+            sdk: jvm
+            title: JVM library (win-x64)
+          - os: ubuntu-latest
+            rid: linux-x64
+            sdk: python
+            title: Python library (linux-x64)
+          - os: macos-latest
+            rid: osx-arm64
+            sdk: python
+            title: Python library (osx-arm64)
+          - os: windows-latest
+            rid: win-x64
+            sdk: python
+            title: Python library (win-x64)
+          - os: ubuntu-latest
+            rid: linux-x64
+            sdk: node
+            title: Node library (linux-x64)
+          - os: macos-latest
+            rid: osx-arm64
+            sdk: node
+            title: Node library (osx-arm64)
+          - os: windows-latest
+            rid: win-x64
+            sdk: node
+            title: Node library (win-x64)
+          - os: ubuntu-latest
+            rid: linux-x64
+            sdk: react-native
+            title: React Native library (linux-x64)
+          - os: macos-latest
+            rid: osx-arm64
+            sdk: react-native
+            title: React Native library (osx-arm64)
+          - os: ubuntu-latest
+            rid: linux-x64
+            sdk: go
+            title: Go library (linux-x64)
+          - os: macos-latest
+            rid: osx-arm64
+            sdk: go
+            title: Go library (osx-arm64)
+          - os: ubuntu-latest
+            rid: linux-x64
+            sdk: cpp
+            title: C++ library (linux-x64)
+          - os: macos-latest
+            rid: osx-arm64
+            sdk: cpp
+            title: C++ library (osx-arm64)
+          - os: macos-latest
+            rid: osx-arm64
+            sdk: swift
+            title: Swift library (osx-arm64)
+          - os: ubuntu-latest
+            rid: linux-x64
+            sdk: flutter
+            title: Flutter library (linux-x64)
+          - os: macos-latest
+            rid: osx-arm64
+            sdk: flutter
+            title: Flutter library (osx-arm64)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        if: matrix.sdk == 'jvm'
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        if: matrix.sdk == 'jvm'
+        with:
+          gradle-version: "8.12.1"
+      - uses: actions/setup-python@v5
+        if: matrix.sdk == 'python'
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        if: matrix.sdk == 'node' || matrix.sdk == 'react-native'
+        with:
+          node-version: 22
+      - uses: actions/setup-go@v5
+        if: matrix.sdk == 'go'
+        with:
+          go-version: "1.22.x"
+      - name: Install cgo toolchain
+        if: matrix.sdk == 'go' && runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+      - name: Install CMake
+        if: matrix.sdk == 'cpp' && runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++
+      - uses: dart-lang/setup-dart@v1
+        if: matrix.sdk == 'flutter'
+      - name: Download native ABI
+        uses: actions/download-artifact@v4
+        with:
+          name: native-${{ matrix.rid }}
+          path: artifacts/native/${{ matrix.rid }}
+      - name: Test and pack ${{ matrix.sdk }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x .github/scripts/run-sdk-ci.sh
+          .github/scripts/run-sdk-ci.sh \
+            "${{ matrix.sdk }}" \
+            "${{ needs.version.outputs.version }}" \
+            "$PWD/artifacts/sdk/${{ matrix.sdk }}-${{ matrix.rid }}" \
+            "$PWD/artifacts/native/${{ matrix.rid }}"
+      - name: Upload ${{ matrix.sdk }}
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: bindings-${{ matrix.sdk }}-${{ matrix.rid }}
+          path: artifacts/sdk/${{ matrix.sdk }}-${{ matrix.rid }}/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Summary
+        shell: bash
+        run: |
+          {
+            echo "### ${{ matrix.title }}"
+            echo
+            echo "Download: [bindings-${{ matrix.sdk }}-${{ matrix.rid }}](${{ steps.upload.outputs.artifact-url }})"
+            echo
+            echo "Unit tests passed against \`native-${{ matrix.rid }}\`. Host publish (Maven, npm, PyPI, pub.dev, Swift) stays commented out."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  android:
+    name: Android AAR
+    needs: [version, test, native]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.12.1"
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Android platform
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: Download native ABI
+        uses: actions/download-artifact@v4
+        with:
+          name: native-linux-x64
+          path: artifacts/native/linux-x64
+      - name: JVM unit tests (shared Android Kotlin)
+        run: |
+          set -euo pipefail
+          chmod +x .github/scripts/run-sdk-ci.sh
+          .github/scripts/run-sdk-ci.sh \
+            jvm \
+            "${{ needs.version.outputs.version }}" \
+            "$PWD/artifacts/sdk/android-jvm-tests" \
+            "$PWD/artifacts/native/linux-x64"
+      - name: Assemble AAR
+        run: |
+          set -euo pipefail
+          chmod +x .github/scripts/run-sdk-ci.sh
+          .github/scripts/run-sdk-ci.sh \
+            android \
+            "${{ needs.version.outputs.version }}" \
+            "$PWD/artifacts/sdk/android"
+      - name: Upload Android AAR
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: bindings-android
+          path: artifacts/sdk/android/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Summary
+        run: |
+          {
+            echo "### Android AAR"
+            echo
+            echo "Download: [bindings-android](${{ steps.upload.outputs.artifact-url }})"
+            echo
+            echo "Kotlin sources match the JVM library tests. Copy \`libnuvexa.so\` into \`jniLibs\` from a future \`native-android-arm64\` artifact before shipping."
           } >> "$GITHUB_STEP_SUMMARY"

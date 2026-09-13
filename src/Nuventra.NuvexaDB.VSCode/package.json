@@ -15,13 +15,15 @@
     "onView:nuvexadb.browser",
     "onCustomEditor:nuvexadb.explorer",
     "onCommand:nuvexa.open",
-    "onCommand:nuvexa.close"
+    "onCommand:nuvexa.close",
+    "onCommand:nuvexa.about"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       { "command": "nuvexa.open", "title": "NuvexaDB: Open Database" },
-      { "command": "nuvexa.close", "title": "NuvexaDB: Close Database" }
+      { "command": "nuvexa.close", "title": "NuvexaDB: Close Database" },
+      { "command": "nuvexa.about", "title": "NuvexaDB: About" }
     ],
     "viewsContainers": {
       "activitybar": [
@@ -52,7 +54,8 @@
   },
   "scripts": {
     "compile": "tsc -p .",
-    "watch": "tsc -p . -w"
+    "watch": "tsc -p . -w",
+    "test": "tsc -p . && node --test test/package.test.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

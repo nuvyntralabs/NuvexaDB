@@ -17,12 +17,12 @@ dotnet tool install -g Nuventra.NuvexaDB.Cli
 Commands:
 
 - Click the **NuvexaDB** cylinder icon in the left Activity Bar
-- `NuvexaDB: Open Database` / `NuvexaDB: Close Database`
+- `NuvexaDB: Open Database` / `NuvexaDB: Close Database` / `NuvexaDB: About`
 - Open a `.nvx` file (custom editor)
 
 Build:
 
 ```bash
 cd src/Nuventra.NuvexaDB.VSCode
-npm install && npm run compile
+npm install && npm test
 ```

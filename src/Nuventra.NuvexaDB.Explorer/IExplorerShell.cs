@@ -24,5 +24,6 @@ public interface IExplorerShell
         string action = "New Record",
         string confirm = "Insert");
     Task SetClipboardAsync(string text);
+    Task ShowAboutAsync();
     void Exit();
 }

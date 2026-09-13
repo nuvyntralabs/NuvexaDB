@@ -265,6 +265,7 @@ public sealed class NuvexaVsControl : UserControl
 
         _tabs.Items.Add(new TabItem { Header = "Browse Data", Content = browse });
         _tabs.Items.Add(new TabItem { Header = "Execute Query", Content = nql });
+        _tabs.Items.Add(new TabItem { Header = "About", Content = CreateAboutPanel() });
 
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
@@ -476,6 +477,30 @@ public sealed class NuvexaVsControl : UserControl
 
             UpdateHeaders(treeItem.Items);
         }
+    }
+
+    private static ScrollViewer CreateAboutPanel()
+    {
+        var body = new TextBlock
+        {
+            Text = NuvexaAbout.PlainText("Visual Studio"),
+            TextWrapping = TextWrapping.Wrap
+        };
+        var links = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 0) };
+        links.Children.Add(AboutLink("Website", NuvexaAbout.Website));
+        links.Children.Add(AboutLink("GitHub", NuvexaAbout.GitHub));
+        links.Children.Add(AboutLink("NuGet", NuvexaAbout.NuGet));
+        var stack = new StackPanel { Margin = new Thickness(12) };
+        stack.Children.Add(body);
+        stack.Children.Add(links);
+        return new ScrollViewer { Content = stack, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+    }
+
+    private static Button AboutLink(string title, string url)
+    {
+        var button = new Button { Content = title, Margin = new Thickness(0, 0, 8, 0), Padding = new Thickness(10, 4) };
+        button.Click += (_, _) => NuvexaAbout.OpenUrl(url);
+        return button;
     }
 
     private static TreeViewItem ToItem(ExplorerNode node)

@@ -125,6 +125,8 @@ public sealed class AvaloniaExplorerShell : IExplorerShell
         }
     }
 
+    public Task ShowAboutAsync() => AboutWindow.ShowAsync(Window);
+
     public void Exit() => Window.Close();
 
     private static FilePickerFileType NvxType => new("NuvexaDB") { Patterns = ["*.nvx"] };

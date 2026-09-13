@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
@@ -14,9 +18,14 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Nuventra.NuvexaDB\Nuventra.NuvexaDB.csproj" />
+    <ProjectReference Include="..\..\src\Nuventra.NuvexaDB.Native\Nuventra.NuvexaDB.Native.csproj" />
     <ProjectReference Include="..\..\src\Nuventra.NuvexaDB.Tools\Nuventra.NuvexaDB.Tools.csproj" />
     <ProjectReference Include="..\..\src\Nuventra.NuvexaDB.VisualStudio\Nuventra.NuvexaDB.VisualStudio.csproj" />
     <ProjectReference Include="..\Nuventra.NuvexaDB.CrashHarness\Nuventra.NuvexaDB.CrashHarness.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\interop\cases.json" Link="interop\cases.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

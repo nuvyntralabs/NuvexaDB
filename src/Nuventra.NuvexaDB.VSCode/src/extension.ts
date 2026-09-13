@@ -24,6 +24,12 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand("nuvexa.close", () => workbench.closeDatabase())
   );
+  context.subscriptions.push(
+    vscode.commands.registerCommand("nuvexa.about", async () => {
+      await vscode.commands.executeCommand("workbench.view.extension.nuvexadb");
+      workbench.showAbout();
+    })
+  );
   void vscode.commands.executeCommand("workbench.view.extension.nuvexadb");
 }
 
@@ -99,6 +105,10 @@ class NuvexaWorkbench implements vscode.Disposable {
     }
     this.path = undefined;
     this.post({ type: "closed" });
+  }
+
+  showAbout(): void {
+    this.post({ type: "about" });
   }
 
   async load(path: string): Promise<void> {
@@ -315,12 +325,16 @@ function page(): string {
   tr.selected { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
   tr { cursor: pointer; }
   #status { padding: 6px 12px; border-top: 1px solid var(--vscode-panel-border); opacity: 0.8; font-size: 12px; }
+  .about { max-width: 560px; display: flex; flex-direction: column; gap: 10px; }
+  .about h1 { font-size: 18px; margin: 0; }
+  .about a { color: var(--vscode-textLink-foreground); }
 </style>
 </head>
 <body>
   <div class="toolbar">
     <button id="openDb">Open Database</button>
     <button id="closeDb">Close Database</button>
+    <button id="aboutDb">About</button>
   </div>
   <div class="shell">
     <aside>
@@ -332,6 +346,7 @@ function page(): string {
       <div class="tabs">
         <button class="tab active" data-tab="browse">Browse Data</button>
         <button class="tab" data-tab="query">Execute Query</button>
+        <button class="tab" data-tab="about">About</button>
       </div>
       <section id="browse" class="panel active">
         <div class="row">
@@ -398,6 +413,20 @@ function page(): string {
         <div class="hint">Selected record (JSON)</div>
         <pre id="queryJson"></pre>
       </section>
+      <section id="about" class="panel">
+        <div class="about">
+          <h1>Nuvexa Data Studio</h1>
+          <div class="hint">NuvexaDB 1.0.0 · .nvx format 1 · MIT</div>
+          <p>Embedded Mongo-like document database for .NET and .NET MAUI. One portable .nvx file, BSON pages, optional AES-256-GCM, and NQL (Nuvexa Query Language).</p>
+          <p class="hint">NuvexaDB is built by Niladri Prasad Padhy (Nuventra) and published with the MauiEssentials catalog under Nuvyntra Labs. This VS Code / Cursor editor is browse-only. Writes stay in the desktop workbench.</p>
+          <p>Author: Niladri Prasad Padhy / Nuventra<br />Organization: Nuvyntra Labs</p>
+          <p>
+            <a href="https://nuvyntralabs.github.io/">Website</a>
+            · <a href="https://github.com/nuvyntralabs/NuvexaDB">GitHub</a>
+            · <a href="https://www.nuget.org/packages/Nuventra.NuvexaDB">NuGet</a>
+          </p>
+        </div>
+      </section>
     </main>
   </div>
   <div id="status">Closed.</div>
@@ -413,6 +442,7 @@ function page(): string {
     let sortDesc = false;
     document.getElementById('openDb').onclick = () => vscode.postMessage({ type: 'open' });
     document.getElementById('closeDb').onclick = () => vscode.postMessage({ type: 'close' });
+    document.getElementById('aboutDb').onclick = () => showTab('about');
     function showTab(name) {
       document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.getAttribute('data-tab') === name));
       document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === name));
@@ -745,6 +775,8 @@ function page(): string {
         document.getElementById('queryStatus').textContent = queryDocs.length + ' document(s).';
         renderGrid('queryGrid', 'queryJson', queryDocs, 0);
         showTab('query');
+      } else if (m.type === 'about') {
+        showTab('about');
       } else if (m.type === 'error') {
         if (m.surface === 'browse') {
           document.getElementById('browseStatus').textContent = m.body || '';

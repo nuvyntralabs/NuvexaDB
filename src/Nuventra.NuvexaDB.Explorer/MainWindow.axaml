@@ -74,6 +74,9 @@
         <Separator />
         <MenuItem Header="Database properties..." Command="{Binding ShowPropertiesCommand}" />
       </MenuItem>
+      <MenuItem Header="_Help">
+        <MenuItem Header="_About Nuvexa..." Command="{Binding AboutCommand}" />
+      </MenuItem>
     </Menu>
 
     <Border DockPanel.Dock="Top" Classes="toolbar">

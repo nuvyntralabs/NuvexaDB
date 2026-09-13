@@ -7,6 +7,6 @@ ext="$root/src/Nuventra.NuvexaDB.VSCode"
 cp "$root/LICENSE" "$ext/LICENSE"
 cd "$ext"
 npm ci
-npm run compile
+npm test
 npx --yes @vscode/vsce package --no-git-tag-version --no-update-package-json -o "$output"
 echo "Packed $output"

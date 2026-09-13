@@ -1,0 +1,2 @@
+-keep class nuventra.nuvexadb.** { *; }
+-keep class com.sun.jna.** { *; }

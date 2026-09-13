@@ -36,6 +36,7 @@ public sealed partial class MainWindowViewModel
     public AsyncModelCommand SaveQueryCommand { get; private set; } = null!;
     public AsyncModelCommand DeleteSavedQueryCommand { get; private set; } = null!;
     public ModelCommand ApplyGridFindCommand { get; private set; } = null!;
+    public AsyncModelCommand AboutCommand { get; private set; } = null!;
 
     public bool IsReadOnlyMode
     {
@@ -117,6 +118,7 @@ public sealed partial class MainWindowViewModel
         SaveQueryCommand = new AsyncModelCommand(_ => SaveQueryAsync(), () => _session.IsOpen && !string.IsNullOrWhiteSpace(QueryText));
         DeleteSavedQueryCommand = new AsyncModelCommand(_ => DeleteSavedQueryAsync(), () => SelectedSavedQuery is not null);
         ApplyGridFindCommand = new ModelCommand(() => ApplyGridFind());
+        AboutCommand = new AsyncModelCommand(_ => _shell.ShowAboutAsync());
         foreach (var item in SavedQueryStore.Load())
         {
             SavedQueries.Add(item);

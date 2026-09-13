@@ -90,4 +90,16 @@ public sealed class ExplorerIdeTests
         Assert.Contains("WAL: 3 bytes", text, StringComparison.Ordinal);
         Assert.Contains("Encrypted: True", text, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void About_NamesAuthorAndLinks()
+    {
+        var text = NuvexaAbout.PlainText("Data Studio");
+        Assert.Contains("Nuvexa Data Studio", text, StringComparison.Ordinal);
+        Assert.Contains("Niladri Prasad Padhy", text, StringComparison.Ordinal);
+        Assert.Contains("MIT", text, StringComparison.Ordinal);
+        Assert.Contains(NuvexaAbout.GitHub, text, StringComparison.Ordinal);
+        Assert.Contains(NuvexaAbout.NuGet, text, StringComparison.Ordinal);
+        Assert.Equal(1, NuvexaAbout.FormatVersion);
+    }
 }

@@ -1,0 +1,21 @@
+apply plugin: "com.android.library"
+
+android {
+    namespace "nuventra.nuvexadb.rn"
+    compileSdk 35
+    defaultConfig {
+        minSdk 26
+    }
+    sourceSets {
+        main {
+            java.srcDirs += ["../../jvm/src/main/kotlin"]
+            kotlin.srcDirs += ["../../jvm/src/main/kotlin"]
+        }
+    }
+}
+
+dependencies {
+    implementation "com.facebook.react:react-android"
+    api "net.java.dev.jna:jna:5.17.0@aar"
+    api "org.json:json:20250107"
+}
