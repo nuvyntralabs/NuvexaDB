@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using Microsoft.Extensions.DependencyInjection;
+using Nuventra.NuvexaDB.Tools;
 
 namespace Nuventra.NuvexaDB.Explorer;
 
@@ -48,17 +49,56 @@ public sealed class AvaloniaExplorerShell : IExplorerShell
     {
         var file = await Window.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "Export JSON",
-            DefaultExtension = "json"
+            Title = "Export JSON file",
+            SuggestedFileName = "results.json",
+            DefaultExtension = "json",
+            FileTypeChoices = [JsonType]
         });
-        return file?.Path.LocalPath;
+        var path = file?.Path.LocalPath;
+        return path is null ? null : EnsureJsonExtension(path);
     }
 
     public Task<string?> PromptKeyAsync(string message) => UnlockWindow.AskAsync(Window, message);
 
+    public Task<string?> PromptTextAsync(string message, string? initial = null) =>
+        PromptWindow.AskAsync(Window, message, initial);
+
     public Task<(string Current, string Next)?> PromptChangeKeyAsync() => ChangeKeyWindow.AskAsync(Window);
+
+    public Task<TableColumnDefinition?> PromptColumnAsync(TableColumnDefinition? existing = null) =>
+        ColumnWindow.AskAsync(Window, existing);
+
+    public Task<IndexDefinition?> PromptIndexAsync(string? field = null) =>
+        IndexWindow.AskAsync(Window, field);
+
+    public Task<TableDefinition?> PromptTableDefinitionAsync() => TableDefinitionWindow.AskAsync(Window);
+
+    public Task<IReadOnlyDictionary<string, string>?> PromptRecordAsync(
+        string collection,
+        IReadOnlyList<TableColumnDefinition> columns,
+        string action = "New Record",
+        string confirm = "Insert") =>
+        RecordWindow.AskAsync(Window, collection, columns, action, confirm);
+
+    public async Task SetClipboardAsync(string text)
+    {
+        var clipboard = TopLevel.GetTopLevel(Window)?.Clipboard;
+        if (clipboard is not null)
+        {
+            await clipboard.SetTextAsync(text);
+        }
+    }
 
     public void Exit() => Window.Close();
 
     private static FilePickerFileType NvxType => new("NuvexaDB") { Patterns = ["*.nvx"] };
+
+    private static FilePickerFileType JsonType => new("JSON file")
+    {
+        Patterns = ["*.json"],
+        MimeTypes = ["application/json"]
+    };
+
+    internal static string EnsureJsonExtension(string path) =>
+        path.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? path : path + ".json";
 }

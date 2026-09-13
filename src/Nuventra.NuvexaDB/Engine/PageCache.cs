@@ -3,6 +3,7 @@ namespace Nuventra.NuvexaDB.Engine;
 internal sealed class PageCache
 {
     private readonly int _capacity;
+    private readonly object _sync = new();
     private readonly Dictionary<long, LinkedListNode<CacheEntry>> _map = new();
     private readonly LinkedList<CacheEntry> _lru = new();
 
@@ -12,17 +13,24 @@ internal sealed class PageCache
         _capacity = pages;
     }
 
-    public int Count => _map.Count;
+    public int Count
+    {
+        get { lock (_sync) { return _map.Count; } }
+    }
+
     public int Capacity => _capacity;
 
     public bool TryGet(long pageId, out Page page)
     {
-        if (_map.TryGetValue(pageId, out var node))
+        lock (_sync)
         {
-            _lru.Remove(node);
-            _lru.AddFirst(node);
-            page = node.Value.Page;
-            return true;
+            if (_map.TryGetValue(pageId, out var node))
+            {
+                _lru.Remove(node);
+                _lru.AddFirst(node);
+                page = node.Value.Page;
+                return true;
+            }
         }
 
         page = null!;
@@ -31,46 +39,52 @@ internal sealed class PageCache
 
     public void Set(Page page)
     {
-        if (_map.TryGetValue(page.PageId, out var existing))
+        lock (_sync)
         {
-            existing.Value.Page = page;
-            _lru.Remove(existing);
-            _lru.AddFirst(existing);
-            return;
-        }
+            if (_map.TryGetValue(page.PageId, out var existing))
+            {
+                existing.Value.Page = page;
+                _lru.Remove(existing);
+                _lru.AddFirst(existing);
+                return;
+            }
 
-        while (_map.Count >= _capacity)
-        {
-            EvictOne();
-        }
+            while (_map.Count >= _capacity)
+            {
+                EvictOne();
+            }
 
-        var node = _lru.AddFirst(new CacheEntry(page));
-        _map[page.PageId] = node;
+            var node = _lru.AddFirst(new CacheEntry(page));
+            _map[page.PageId] = node;
+        }
     }
 
     public IEnumerable<Page> DirtyPages()
     {
-        foreach (var node in _lru)
+        lock (_sync)
         {
-            if (node.Page.Dirty)
-            {
-                yield return node.Page;
-            }
+            return _lru.Where(node => node.Page.Dirty).Select(node => node.Page).ToList();
         }
     }
 
     public void Remove(long pageId)
     {
-        if (_map.Remove(pageId, out var node))
+        lock (_sync)
         {
-            _lru.Remove(node);
+            if (_map.Remove(pageId, out var node))
+            {
+                _lru.Remove(node);
+            }
         }
     }
 
     public void Clear()
     {
-        _map.Clear();
-        _lru.Clear();
+        lock (_sync)
+        {
+            _map.Clear();
+            _lru.Clear();
+        }
     }
 
     private void EvictOne()

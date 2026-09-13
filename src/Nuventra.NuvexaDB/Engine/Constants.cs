@@ -14,10 +14,15 @@ internal static class Constants
     public const int MaxDocumentBytes = 16 * 1024 * 1024;
     public const int MaxKeyBytes = 1024;
     public const int MaxCollectionName = 120;
+    /// <summary>On-disk format. Do not change page size, WAL layout, or index key encoding without a new version.</summary>
     public const ushort FormatVersion = 1;
     public const long SuperblockPageId = 0;
     public const long CatalogPageId = 1;
     public const long FirstAllocPageId = 2;
+    public const int SuperblockCrcOffset = 198;
+    public const int SuperblockCrcLength = 400;
+    public const int SuperblockMacOffset = 400;
+    public const int SuperblockMacSize = 32;
 
     public static ReadOnlySpan<byte> FileMagic => "NVX1"u8;
     public static ReadOnlySpan<byte> WalMagic => "NVXW"u8;
@@ -42,7 +47,8 @@ internal enum SuperblockFlags : ushort
 {
     None = 0,
     Encrypted = 1,
-    CompactNeeded = 2
+    CompactNeeded = 2,
+    IntegrityProtected = 4
 }
 
 internal enum WalRecordType : byte

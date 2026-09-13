@@ -1,0 +1,38 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:Nuventra.NuvexaDB.Explorer"
+        x:Class="Nuventra.NuvexaDB.Explorer.RecordWindow"
+        x:DataType="local:RecordDraft"
+        Title="New Record"
+        Width="560" Height="480"
+        MinWidth="440" MinHeight="320"
+        WindowStartupLocation="CenterOwner">
+  <DockPanel Margin="16">
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
+      <Button Content="Cancel" MinWidth="88" Click="OnCancel" />
+      <Button Content="{Binding ConfirmLabel}" MinWidth="88" Click="OnOk" />
+    </StackPanel>
+
+    <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,12">
+      <TextBlock FontWeight="SemiBold" Text="{Binding Title}" />
+      <TextBlock Opacity="0.75" TextWrapping="Wrap"
+                 Text="_id is assigned automatically. Enter a value for each column, then Insert." />
+      <TextBlock Opacity="0.75" TextWrapping="Wrap" IsVisible="{Binding !HasFields}"
+                 Text="This collection has no columns yet. Insert an empty record, or add columns first." />
+    </StackPanel>
+
+    <ScrollViewer>
+      <ItemsControl ItemsSource="{Binding Fields}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="local:RecordFieldRow">
+            <Grid ColumnDefinitions="160,90,*" Margin="0,0,0,8">
+              <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+              <TextBlock Grid.Column="1" Text="{Binding Type}" Opacity="0.65" VerticalAlignment="Center" />
+              <TextBox Grid.Column="2" Text="{Binding Value}" Watermark="Value" />
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </DockPanel>
+</Window>

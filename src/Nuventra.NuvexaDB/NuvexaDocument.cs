@@ -67,6 +67,11 @@ public sealed class NuvexaDocument
 
     public JsonElement AsElement() => JsonSerializer.SerializeToElement(Root);
 
+    internal byte[] ToStorageBytes() => Documents.BsonCodec.Encode(Root);
+
+    internal static NuvexaDocument FromStorage(ReadOnlySpan<byte> bytes) =>
+        new(Documents.BsonCodec.DecodeObject(bytes));
+
     internal void EnsureId()
     {
         if (Root["_id"] is null || string.IsNullOrWhiteSpace(Root["_id"]?.ToString()))

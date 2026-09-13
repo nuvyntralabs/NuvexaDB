@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Registers .nvx with a NuvexaDB Explorer .app bundle via Launch Services.
 set -euo pipefail
-APP="${1:?Usage: install-macos.sh /path/to/NuvexaDB Explorer.app}"
+APP="${1:?Usage: install-macos.sh /path/to/Nuvexa Data Studio.app}"
 if [[ ! -d "$APP" ]]; then
   echo "App bundle not found: $APP" >&2
   exit 1

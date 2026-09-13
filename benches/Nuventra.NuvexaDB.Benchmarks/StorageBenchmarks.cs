@@ -15,6 +15,12 @@ public static class Program
             return SloGate.Run();
         }
 
+        if (args.Contains("--crore", StringComparer.OrdinalIgnoreCase)
+            || args.Contains("--scale", StringComparer.OrdinalIgnoreCase))
+        {
+            return ScaleBench.Run(args);
+        }
+
         BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
         return 0;
     }

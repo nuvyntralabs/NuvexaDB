@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Nuventra.NuvexaDB.Query;
@@ -46,6 +47,48 @@ public sealed class NuvexaFindFluent
 
     public Task<List<NuvexaDocument>> ToListAsync(CancellationToken cancellationToken = default) =>
         _collection.ExecuteFindAsync(_filter, _sort, _skip, _limit, _projection, explain: false, cancellationToken);
+
+    /// <summary>
+    /// Yields matching documents in pages so callers can stream without one giant list.
+    /// Existing <see cref="ToListAsync"/> behavior is unchanged.
+    /// </summary>
+    public async IAsyncEnumerable<NuvexaDocument> ToAsyncEnumerable(
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        const int batch = NuvexaLimits.CompactBatchSize;
+        var skip = _skip;
+        var remaining = _limit;
+        while (true)
+        {
+            var take = remaining == 0 ? batch : Math.Min(batch, remaining);
+            var chunk = await _collection.ExecuteFindAsync(
+                _filter, _sort, skip, take, _projection, explain: false, cancellationToken).ConfigureAwait(false);
+            if (chunk.Count == 0)
+            {
+                yield break;
+            }
+
+            foreach (var doc in chunk)
+            {
+                yield return doc;
+            }
+
+            skip += chunk.Count;
+            if (remaining > 0)
+            {
+                remaining -= chunk.Count;
+                if (remaining <= 0)
+                {
+                    yield break;
+                }
+            }
+
+            if (chunk.Count < take)
+            {
+                yield break;
+            }
+        }
+    }
 
     public Task<NuvexaExplainPlan> ExplainAsync(CancellationToken cancellationToken = default) =>
         _collection.ExplainAsync(_filter, _sort, _skip, _limit, cancellationToken);

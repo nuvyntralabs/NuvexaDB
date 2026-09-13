@@ -4,11 +4,11 @@ namespace Nuventra.NuvexaDB.Engine;
 
 internal sealed class PageStore : IDisposable
 {
-    private readonly FileStream _data;
-    private readonly Wal _wal;
+    private FileStream _data;
+    private Wal _wal;
     private readonly PageCache _cache;
-    private readonly byte[]? _dek;
-    private readonly AesGcmPageCipher? _cipher;
+    private byte[]? _dek;
+    private AesGcmPageCipher? _cipher;
     private readonly bool _readOnly;
     private readonly int _checkpointThreshold;
     private int _pagesSinceCheckpoint;
@@ -33,7 +33,7 @@ internal sealed class PageStore : IDisposable
 
         var access = readOnly ? FileAccess.Read : FileAccess.ReadWrite;
         var mode = create ? FileMode.Create : FileMode.Open;
-        _data = new FileStream(path, mode, access, FileShare.Read, Constants.PageSize, FileOptions.RandomAccess);
+        _data = new FileStream(path, mode, access, FileShare.None, Constants.PageSize, FileOptions.RandomAccess);
         _wal = new Wal(WalPath, readOnly);
 
         if (create)
@@ -85,7 +85,7 @@ internal sealed class PageStore : IDisposable
         logical.CopyTo(page.Buffer);
         if (page.PageId != 0 && page.PageId != pageId)
         {
-            throw new NuvexaException($"Page {pageId} stored a mismatched id {page.PageId}.");
+            throw new NuvexaIntegrityException($"The database file is corrupt or has been tampered with (page {pageId}).");
         }
 
         page.PageId = pageId;
@@ -216,6 +216,11 @@ internal sealed class PageStore : IDisposable
         {
             if (pageId == Constants.SuperblockPageId)
             {
+                if (Encrypted && _dek is not null)
+                {
+                    Superblock.VerifyIntegrityMac(physical, _dek);
+                }
+
                 Superblock.CommittedLsn = Math.Max(Superblock.CommittedLsn, lsn);
                 continue;
             }
@@ -247,17 +252,164 @@ internal sealed class PageStore : IDisposable
         }
     }
 
+    public void CopyDataFile(string destinationPath)
+    {
+        lock (_sync)
+        {
+            _data.Flush(flushToDisk: true);
+            _data.Seek(0, SeekOrigin.Begin);
+            using var dest = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None);
+            _data.CopyTo(dest);
+            dest.Flush(flushToDisk: true);
+        }
+    }
+
+    /// <summary>Drops uncommitted dirty pages and restores the superblock from the data file.</summary>
+    public void AbortUncommitted()
+    {
+        lock (_sync)
+        {
+            _cache.Clear();
+            var header = ReadPhysicalUnlocked(Constants.SuperblockPageId);
+            Superblock.CopyFrom(Superblock.Read(header));
+            if (Encrypted && _dek is not null)
+            {
+                Superblock.VerifyIntegrityMac(header, _dek);
+            }
+        }
+    }
+
+    /// <summary>Closes the current files and opens a compacted replacement at the same path.</summary>
+    public void ReplaceDataFile(string compactedPath, string? encryptionKey)
+    {
+        if (_readOnly)
+        {
+            throw new NuvexaException("The database is open read-only.");
+        }
+
+        lock (_sync)
+        {
+            _cache.Clear();
+            _wal.Dispose();
+            _data.Dispose();
+            File.Delete(Path);
+            if (File.Exists(WalPath))
+            {
+                File.Delete(WalPath);
+            }
+
+            File.Move(compactedPath, Path);
+            var compactWal = compactedPath + "-wal";
+            if (File.Exists(compactWal))
+            {
+                File.Move(compactWal, WalPath);
+            }
+
+            _data = new FileStream(Path, FileMode.Open, FileAccess.ReadWrite, FileShare.None, Constants.PageSize, FileOptions.RandomAccess);
+            _wal = new Wal(WalPath, readOnly: false);
+            var header = ReadPhysicalUnlocked(Constants.SuperblockPageId);
+            Superblock.CopyFrom(Superblock.Read(header));
+            if (Superblock.Encrypted)
+            {
+                if (string.IsNullOrEmpty(encryptionKey))
+                {
+                    throw new NuvexaEncryptionException("Compact of an encrypted database requires the encryption key used to open it.");
+                }
+
+                var kek = KeyDerivation.DeriveKek(
+                    encryptionKey,
+                    Superblock.Salt,
+                    Superblock.KdfMemoryKb,
+                    Superblock.KdfIterations,
+                    Superblock.KdfParallelism);
+                KeyDerivation.VerifyKek(kek, Superblock);
+                var dek = KeyDerivation.UnwrapDek(kek, Superblock);
+                CryptographicZero(kek);
+                Superblock.VerifyIntegrityMac(header, dek);
+                _cipher?.Dispose();
+                if (_dek is not null)
+                {
+                    CryptographicZero(_dek);
+                }
+
+                _dek = dek;
+                _cipher = new AesGcmPageCipher(dek);
+            }
+
+            ReplayWal();
+            _pagesSinceCheckpoint = 0;
+        }
+    }
+
     private void WriteSuperblockToWal(long lsn)
     {
         var buf = new byte[Constants.PageSize];
+        if (_dek is not null)
+        {
+            Superblock.Flags |= SuperblockFlags.IntegrityProtected;
+        }
+
         Superblock.Write(buf);
+        if (_dek is not null)
+        {
+            Superblock.WriteIntegrityMac(buf, _dek);
+        }
+
         _wal.AppendPage(Constants.SuperblockPageId, lsn, buf);
+    }
+
+    public void VerifyIntegrity()
+    {
+        var filePages = _data.Length / Constants.PageSize;
+        var last = Math.Max(Superblock.PageCount, Superblock.NextPageId);
+        last = Math.Min(last, filePages);
+        for (var pageId = 1L; pageId < last; pageId++)
+        {
+            if (_cache.TryGet(pageId, out var cached))
+            {
+                if (cached.Type != PageType.Free)
+                {
+                    cached.VerifyChecksum();
+                }
+
+                continue;
+            }
+
+            var physical = ReadPhysical(pageId);
+            if (IsUnusedPhysical(physical))
+            {
+                continue;
+            }
+
+            var logical = DecryptLogical(pageId, physical);
+            var page = new Page();
+            logical.CopyTo(page.Buffer);
+            if (page.PageId != 0 && page.PageId != pageId)
+            {
+                throw new NuvexaIntegrityException($"The database file is corrupt or has been tampered with (page {pageId}).");
+            }
+
+            if (page.Type != PageType.Free)
+            {
+                page.VerifyChecksum();
+            }
+        }
     }
 
     private void WriteSuperblock()
     {
         var buf = new byte[Constants.PageSize];
+        if (_dek is not null)
+        {
+            Superblock.Flags |= SuperblockFlags.IntegrityProtected;
+        }
+
         Superblock.Write(buf);
+        if (_dek is not null)
+        {
+            Superblock.WriteIntegrityMac(buf, _dek);
+        }
+
         WritePhysical(Constants.SuperblockPageId, buf);
     }
 
@@ -293,17 +445,45 @@ internal sealed class PageStore : IDisposable
             throw new NuvexaEncryptionException("The encryption key is missing.");
         }
 
-        _cipher.DecryptPage(pageId, Superblock.FileId, physical, logical);
+        try
+        {
+            _cipher.DecryptPage(pageId, Superblock.FileId, physical, logical);
+        }
+        catch (NuvexaEncryptionException ex)
+        {
+            throw new NuvexaIntegrityException("The database file is corrupt or has been tampered with.", ex);
+        }
+
         return logical;
+    }
+
+    private static bool IsUnusedPhysical(ReadOnlySpan<byte> physical)
+    {
+        for (var i = 0; i < physical.Length; i++)
+        {
+            if (physical[i] != 0)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private byte[] ReadPhysical(long pageId)
     {
+        lock (_sync)
+        {
+            return ReadPhysicalUnlocked(pageId);
+        }
+    }
+
+    private byte[] ReadPhysicalUnlocked(long pageId)
+    {
         var offset = pageId * Constants.PageSize;
         if (offset + Constants.PageSize > _data.Length)
         {
-            var empty = new byte[Constants.PageSize];
-            return empty;
+            return new byte[Constants.PageSize];
         }
 
         var buffer = new byte[Constants.PageSize];
@@ -319,13 +499,16 @@ internal sealed class PageStore : IDisposable
 
     private void WritePhysical(long pageId, ReadOnlySpan<byte> physical)
     {
-        var offset = pageId * Constants.PageSize;
-        if (_data.Length < offset + Constants.PageSize)
+        lock (_sync)
         {
-            _data.SetLength(offset + Constants.PageSize);
-        }
+            var offset = pageId * Constants.PageSize;
+            if (_data.Length < offset + Constants.PageSize)
+            {
+                _data.SetLength(offset + Constants.PageSize);
+            }
 
-        _data.Seek(offset, SeekOrigin.Begin);
-        _data.Write(physical);
+            _data.Seek(offset, SeekOrigin.Begin);
+            _data.Write(physical);
+        }
     }
 }

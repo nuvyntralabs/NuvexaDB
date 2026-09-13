@@ -80,7 +80,7 @@ internal sealed class Page
         Checksum = stored;
         if (stored != computed)
         {
-            throw new NuvexaException($"Checksum mismatch on page {PageId}.");
+            throw new NuvexaIntegrityException($"The database file is corrupt or has been tampered with (page {PageId}).");
         }
     }
 

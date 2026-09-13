@@ -35,6 +35,30 @@ public sealed class NuvexaCollection
     public Task<NuvexaDocument?> FindByIdAsync(string id, CancellationToken cancellationToken = default) =>
         _db.ReadAsync(() => FindByIdCore(id), cancellationToken);
 
+    public Task ReplaceAsync(NuvexaDocument document, CancellationToken cancellationToken = default) =>
+        _db.WriteAsync(() =>
+        {
+            document.EnsureId();
+            if (FindByIdCore(document.Id) is null)
+            {
+                throw new NuvexaException($"No document with _id '{document.Id}'.");
+            }
+
+            ReplaceCore(document);
+        }, cancellationToken);
+
+    public Task<bool> DeleteByIdAsync(string id, CancellationToken cancellationToken = default) =>
+        _db.WriteAsync(() =>
+        {
+            if (FindByIdCore(id) is null)
+            {
+                return false;
+            }
+
+            DeleteByIdCore(id);
+            return true;
+        }, cancellationToken);
+
     public NuvexaFindFluent Find(NuvexaFilter? filter = null) => new(this, filter ?? NuvexaFilter.And());
 
     public NuvexaFindFluent Find(string filterJson) => new(this, NuvexaFilter.Parse(filterJson));
@@ -67,13 +91,24 @@ public sealed class NuvexaCollection
     public Task EnsureIndexAsync(string fieldPath, string? name = null, bool unique = false, CancellationToken cancellationToken = default) =>
         _db.WriteAsync(() => EnsureIndexCore(fieldPath, name ?? fieldPath, unique), cancellationToken);
 
+    public Task EnsureIndexAsync(IReadOnlyList<string> fieldPaths, string? name = null, bool unique = false, CancellationToken cancellationToken = default)
+    {
+        var stored = DocumentPath.JoinIndexPaths(fieldPaths);
+        var indexName = name ?? string.Join("_", fieldPaths);
+        return _db.WriteAsync(() => EnsureIndexCore(stored, indexName, unique), cancellationToken);
+    }
+
     public Task<IReadOnlyList<NuvexaIndexInfo>> ListIndexesAsync(CancellationToken cancellationToken = default) =>
         _db.ReadAsync(() =>
         {
             var indexes = Catalog.LoadSecondary(_db.Store, Meta)
-                .Select(i => new NuvexaIndexInfo(i.Name, i.FieldPath, i.Unique))
+                .Select(i => new NuvexaIndexInfo(
+                    i.Name,
+                    DocumentPath.DisplayIndexPath(i.FieldPath),
+                    i.Unique,
+                    DocumentPath.SplitIndexPaths(i.FieldPath)))
                 .ToList();
-            indexes.Insert(0, new NuvexaIndexInfo("_id_", "_id", Unique: true));
+            indexes.Insert(0, new NuvexaIndexInfo("_id_", "_id", Unique: true, ["_id"]));
             return (IReadOnlyList<NuvexaIndexInfo>)indexes;
         }, cancellationToken);
 
@@ -122,8 +157,8 @@ public sealed class NuvexaCollection
             throw new NuvexaException($"A document with _id '{document.Id}' already exists.");
         }
 
-        var json = Engine.Constants.Utf8.GetBytes(document.ToJson());
-        var (pageId, slot) = DocumentIO.Write(_db.Store, Meta, json);
+        var payload = document.ToStorageBytes();
+        var (pageId, slot) = DocumentIO.Write(_db.Store, Meta, payload);
         tree.Upsert(key, pageId, slot);
         Meta.IndexRoot = tree.RootPageId;
         UpdateSecondary(document, pageId, slot, removeOld: null);
@@ -141,7 +176,7 @@ public sealed class NuvexaCollection
         }
 
         var bytes = DocumentIO.Read(_db.Store, pageId, slot);
-        return NuvexaDocument.Parse(Engine.Constants.Utf8.GetString(bytes));
+        return NuvexaDocument.FromStorage(bytes);
     }
 
     private void DeleteByIdCore(string id)
@@ -154,7 +189,7 @@ public sealed class NuvexaCollection
         }
 
         var bytes = DocumentIO.Read(_db.Store, pageId, slot);
-        var existing = NuvexaDocument.Parse(Engine.Constants.Utf8.GetString(bytes));
+        var existing = NuvexaDocument.FromStorage(bytes);
         UpdateSecondary(null, pageId, slot, existing);
         DocumentIO.Delete(_db.Store, pageId, slot);
         tree.Remove(key);
@@ -171,13 +206,13 @@ public sealed class NuvexaCollection
         if (tree.TryFind(key, out var oldPage, out var oldSlot))
         {
             var bytes = DocumentIO.Read(_db.Store, oldPage, oldSlot);
-            old = NuvexaDocument.Parse(Engine.Constants.Utf8.GetString(bytes));
+            old = NuvexaDocument.FromStorage(bytes);
             DocumentIO.Delete(_db.Store, oldPage, oldSlot);
             tree.Remove(key);
         }
 
-        var json = Engine.Constants.Utf8.GetBytes(document.ToJson());
-        var (pageId, slot) = DocumentIO.Write(_db.Store, Meta, json);
+        var payload = document.ToStorageBytes();
+        var (pageId, slot) = DocumentIO.Write(_db.Store, Meta, payload);
         tree.Upsert(key, pageId, slot);
         Meta.IndexRoot = tree.RootPageId;
         UpdateSecondary(document, pageId, slot, old);
@@ -201,58 +236,72 @@ public sealed class NuvexaCollection
         var strategy = "COLLSCAN";
         string? indexName = null;
         var docs = new List<NuvexaDocument>();
+        var earlyStop = sort.Count == 0;
+        var skipped = 0;
 
+        IEnumerable<NuvexaDocument> source;
         if (filter.Kind == NuvexaFilterKind.Eq && filter.Path is "_id")
         {
             strategy = "ID";
             indexName = "_id_";
             var id = filter.Values[0].ToString()?.Trim('"') ?? "";
             var found = FindByIdCore(id);
-            if (found is not null)
-            {
-                examined = 1;
-                docs.Add(found);
-            }
+            source = found is null ? [] : [found];
         }
         else if (TrySecondaryScan(filter, out var scanned, out indexName))
         {
             strategy = "IXSCAN";
-            foreach (var doc in scanned)
-            {
-                examined++;
-                if (filter.Matches(doc.AsElement()))
-                {
-                    docs.Add(doc);
-                }
-            }
+            source = scanned;
         }
         else
         {
-            foreach (var (pageId, slot) in DocumentIO.EnumerateSlots(_db.Store, Meta))
+            source = EnumerateCollection();
+        }
+
+        foreach (var doc in source)
+        {
+            examined++;
+            if (!filter.Matches(doc.AsElement()))
             {
-                examined++;
-                var bytes = DocumentIO.Read(_db.Store, pageId, slot);
-                var doc = NuvexaDocument.Parse(Engine.Constants.Utf8.GetString(bytes));
-                if (filter.Matches(doc.AsElement()))
+                continue;
+            }
+
+            if (earlyStop)
+            {
+                if (skipped < skip)
                 {
-                    docs.Add(doc);
+                    skipped++;
+                    continue;
                 }
+
+                docs.Add(doc);
+                if (limit > 0 && docs.Count >= limit)
+                {
+                    break;
+                }
+            }
+            else
+            {
+                docs.Add(doc);
             }
         }
 
-        if (sort.Count > 0)
+        if (!earlyStop)
         {
-            docs.Sort((a, b) => CompareSort(a, b, sort));
-        }
+            if (sort.Count > 0)
+            {
+                docs.Sort((a, b) => CompareSort(a, b, sort));
+            }
 
-        if (skip > 0)
-        {
-            docs = docs.Skip(skip).ToList();
-        }
+            if (skip > 0)
+            {
+                docs = docs.Skip(skip).ToList();
+            }
 
-        if (limit > 0)
-        {
-            docs = docs.Take(limit).ToList();
+            if (limit > 0)
+            {
+                docs = docs.Take(limit).ToList();
+            }
         }
 
         if (projection is { Count: > 0 })
@@ -271,32 +320,259 @@ public sealed class NuvexaCollection
         return docs;
     }
 
-    private bool TrySecondaryScan(NuvexaFilter filter, out List<NuvexaDocument> docs, out string? indexName)
+    internal IEnumerable<NuvexaDocument> EnumerateAll() => EnumerateCollection();
+
+    private IEnumerable<NuvexaDocument> EnumerateCollection()
+    {
+        foreach (var (pageId, slot) in DocumentIO.EnumerateSlots(_db.Store, Meta))
+        {
+            var bytes = DocumentIO.Read(_db.Store, pageId, slot);
+            yield return NuvexaDocument.FromStorage(bytes);
+        }
+    }
+
+    private bool TrySecondaryScan(NuvexaFilter filter, out IEnumerable<NuvexaDocument> docs, out string? indexName)
     {
         docs = [];
         indexName = null;
-        if (filter.Kind != NuvexaFilterKind.Eq && filter.Kind != NuvexaFilterKind.Gte && filter.Kind != NuvexaFilterKind.Gt
-            && filter.Kind != NuvexaFilterKind.Lte && filter.Kind != NuvexaFilterKind.Lt)
-        {
-            return false;
-        }
-
-        var indexes = Catalog.LoadSecondary(_db.Store, Meta);
-        var match = indexes.FirstOrDefault(i => i.FieldPath == filter.Path);
-        if (match is null || match.RootPageId == 0)
+        if (!TryResolveIndexedPredicate(filter, out var predicate, out var match) || match.RootPageId == 0)
         {
             return false;
         }
 
         indexName = match.Name;
+        GetIndexBounds(predicate, match, out var lo, out var hi, out var hasLo, out var hasHi);
         var tree = new BPlusTree(_db.Store, match.RootPageId);
-        foreach (var (_, pageId, slot) in tree.Scan(null, null, hasLo: false, hasHi: false))
+        docs = EnumerateIndex(tree, lo, hi, hasLo, hasHi);
+        return true;
+    }
+
+    private IEnumerable<NuvexaDocument> EnumerateIndex(
+        BPlusTree tree,
+        byte[]? lo,
+        byte[]? hi,
+        bool hasLo,
+        bool hasHi)
+    {
+        foreach (var (_, pageId, slot) in tree.Scan(lo, hi, hasLo, hasHi))
         {
             var bytes = DocumentIO.Read(_db.Store, pageId, slot);
-            docs.Add(NuvexaDocument.Parse(Engine.Constants.Utf8.GetString(bytes)));
+            yield return NuvexaDocument.FromStorage(bytes);
+        }
+    }
+
+    private bool TryResolveIndexedPredicate(
+        NuvexaFilter filter,
+        out NuvexaFilter predicate,
+        out SecondaryIndexMeta match)
+    {
+        predicate = filter;
+        match = null!;
+        var indexes = Catalog.LoadSecondary(_db.Store, Meta);
+        if (indexes.Count == 0)
+        {
+            return false;
         }
 
+        if (filter.Kind == NuvexaFilterKind.And)
+        {
+            if (TryMatchCompoundAnd(filter, indexes, out match))
+            {
+                predicate = filter;
+                return true;
+            }
+
+            NuvexaFilter? best = null;
+            SecondaryIndexMeta? bestMatch = null;
+            var bestRank = int.MaxValue;
+            foreach (var child in filter.Children)
+            {
+                if (!TryMatchIndex(child, indexes, out var found))
+                {
+                    continue;
+                }
+
+                var rank = IndexPreference(child);
+                if (rank >= bestRank)
+                {
+                    continue;
+                }
+
+                best = child;
+                bestMatch = found;
+                bestRank = rank;
+            }
+
+            if (best is null || bestMatch is null)
+            {
+                return false;
+            }
+
+            predicate = best;
+            match = bestMatch;
+            return true;
+        }
+
+        return TryMatchIndex(filter, indexes, out match);
+    }
+
+    private static bool TryMatchIndex(
+        NuvexaFilter filter,
+        IReadOnlyList<SecondaryIndexMeta> indexes,
+        out SecondaryIndexMeta match)
+    {
+        match = null!;
+        if (filter.Path is null || !IsIndexableKind(filter.Kind))
+        {
+            return false;
+        }
+
+        var found = indexes.FirstOrDefault(i => i.FieldPath == filter.Path)
+            ?? indexes.FirstOrDefault(i =>
+                DocumentPath.SplitIndexPaths(i.FieldPath) is { Length: > 0 } paths && paths[0] == filter.Path);
+        if (found is null)
+        {
+            return false;
+        }
+
+        match = found;
         return true;
+    }
+
+    private static bool TryMatchCompoundAnd(
+        NuvexaFilter filter,
+        IReadOnlyList<SecondaryIndexMeta> indexes,
+        out SecondaryIndexMeta match)
+    {
+        match = null!;
+        var eq = filter.Children.Where(c => c.Kind == NuvexaFilterKind.Eq && c.Path is not null).ToList();
+        if (eq.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var idx in indexes)
+        {
+            var paths = DocumentPath.SplitIndexPaths(idx.FieldPath);
+            if (paths.Length < 2)
+            {
+                continue;
+            }
+
+            if (paths.All(p => eq.Any(c => c.Path == p)))
+            {
+                match = idx;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsIndexableKind(NuvexaFilterKind kind) =>
+        kind is NuvexaFilterKind.Eq or NuvexaFilterKind.Gt or NuvexaFilterKind.Gte
+            or NuvexaFilterKind.Lt or NuvexaFilterKind.Lte;
+
+    // Equality uses a tight prefix. String ranges keep byte order. Numeric ranges
+    // cannot use lo/hi (G17 keys are not numeric-order-preserving).
+    private static int IndexPreference(NuvexaFilter filter)
+    {
+        if (filter.Kind == NuvexaFilterKind.Eq)
+        {
+            return 0;
+        }
+
+        if (filter.Values.Length > 0 && filter.Values[0].ValueKind != JsonValueKind.Number)
+        {
+            return 1;
+        }
+
+        return 2;
+    }
+
+    private static void GetIndexBounds(
+        NuvexaFilter predicate,
+        SecondaryIndexMeta index,
+        out byte[]? lo,
+        out byte[]? hi,
+        out bool hasLo,
+        out bool hasHi)
+    {
+        lo = hi = null;
+        hasLo = hasHi = false;
+        var paths = DocumentPath.SplitIndexPaths(index.FieldPath);
+        if (DocumentPath.IsCompoundIndexPath(index.FieldPath) &&
+            predicate.Kind == NuvexaFilterKind.And)
+        {
+            var values = new List<JsonElement>(paths.Length);
+            foreach (var path in paths)
+            {
+                var child = predicate.Children.FirstOrDefault(c =>
+                    c.Kind == NuvexaFilterKind.Eq && c.Path == path && c.Values.Length > 0);
+                if (child is null)
+                {
+                    return;
+                }
+
+                values.Add(child.Values[0]);
+            }
+
+            lo = DocumentPath.CompoundScanPrefix(values);
+            hi = DocumentPath.CompoundScanPrefixSuccessor(values);
+            hasLo = hasHi = true;
+            return;
+        }
+
+        if (predicate.Values.Length == 0)
+        {
+            return;
+        }
+
+        var value = predicate.Values[0];
+        // G17 number keys are not numeric-order-preserving. Range bounds would skip
+        // valid rows (e.g. 100 < 60 as strings). Equality is an exact prefix.
+        if (value.ValueKind == JsonValueKind.Number && predicate.Kind != NuvexaFilterKind.Eq)
+        {
+            return;
+        }
+
+        byte[] prefix;
+        byte[] successor;
+        if (DocumentPath.IsCompoundIndexPath(index.FieldPath) && paths[0] == predicate.Path)
+        {
+            prefix = DocumentPath.CompoundFirstFieldPrefix(value);
+            successor = DocumentPath.CompoundFirstFieldPrefixSuccessor(value);
+        }
+        else
+        {
+            prefix = DocumentPath.IndexScanPrefix(value);
+            successor = DocumentPath.IndexScanPrefixSuccessor(value);
+        }
+
+        switch (predicate.Kind)
+        {
+            case NuvexaFilterKind.Eq:
+                lo = prefix;
+                hi = successor;
+                hasLo = hasHi = true;
+                break;
+            case NuvexaFilterKind.Gte:
+                lo = prefix;
+                hasLo = true;
+                break;
+            case NuvexaFilterKind.Gt:
+                lo = successor;
+                hasLo = true;
+                break;
+            case NuvexaFilterKind.Lt:
+                hi = prefix;
+                hasHi = true;
+                break;
+            case NuvexaFilterKind.Lte:
+                hi = successor;
+                hasHi = true;
+                break;
+        }
     }
 
     private void EnsureIndexCore(string fieldPath, string name, bool unique)
@@ -311,17 +587,18 @@ public sealed class NuvexaCollection
         foreach (var (pageId, slot) in DocumentIO.EnumerateSlots(_db.Store, Meta))
         {
             var bytes = DocumentIO.Read(_db.Store, pageId, slot);
-            var doc = NuvexaDocument.Parse(Engine.Constants.Utf8.GetString(bytes));
-            if (DocumentPath.TryGet(doc.AsElement(), fieldPath, out var value))
+            var doc = NuvexaDocument.FromStorage(bytes);
+            if (!TryIndexKey(fieldPath, doc, out var key))
             {
-                var key = DocumentPath.IndexKey(value, doc.Id);
-                if (unique && tree.TryFind(key, out _, out _))
-                {
-                    throw new NuvexaException($"Unique index '{name}' would be violated.");
-                }
-
-                tree.Upsert(key, pageId, slot);
+                continue;
             }
+
+            if (unique && tree.TryFind(key, out _, out _))
+            {
+                throw new NuvexaException($"Unique index '{name}' would be violated.");
+            }
+
+            tree.Upsert(key, pageId, slot);
         }
 
         indexes.Add(new SecondaryIndexMeta
@@ -341,14 +618,13 @@ public sealed class NuvexaCollection
         foreach (var idx in indexes)
         {
             var tree = new BPlusTree(_db.Store, idx.RootPageId);
-            if (removeOld is not null && DocumentPath.TryGet(removeOld.AsElement(), idx.FieldPath, out var oldVal))
+            if (removeOld is not null && TryIndexKey(idx.FieldPath, removeOld, out var oldKey))
             {
-                tree.Remove(DocumentPath.IndexKey(oldVal, removeOld.Id));
+                tree.Remove(oldKey);
             }
 
-            if (next is not null && DocumentPath.TryGet(next.AsElement(), idx.FieldPath, out var newVal))
+            if (next is not null && TryIndexKey(idx.FieldPath, next, out var key))
             {
-                var key = DocumentPath.IndexKey(newVal, next.Id);
                 if (idx.Unique && tree.TryFind(key, out _, out _))
                 {
                     throw new NuvexaException($"Unique index '{idx.Name}' would be violated.");
@@ -380,6 +656,37 @@ public sealed class NuvexaCollection
         }
 
         return 0;
+    }
+
+    private static bool TryIndexKey(string fieldPath, NuvexaDocument document, out byte[] key)
+    {
+        var paths = DocumentPath.SplitIndexPaths(fieldPath);
+        if (paths.Length == 1)
+        {
+            if (!DocumentPath.TryGet(document.AsElement(), paths[0], out var value))
+            {
+                key = [];
+                return false;
+            }
+
+            key = DocumentPath.IndexKey(value, document.Id);
+            return true;
+        }
+
+        var values = new List<JsonElement>(paths.Length);
+        foreach (var path in paths)
+        {
+            if (!DocumentPath.TryGet(document.AsElement(), path, out var value))
+            {
+                key = [];
+                return false;
+            }
+
+            values.Add(value);
+        }
+
+        key = DocumentPath.CompoundIndexKey(values, document.Id);
+        return true;
     }
 }
 
@@ -423,4 +730,7 @@ public sealed class NuvexaCollection<T> where T : class
 
     public Task EnsureIndexAsync(string fieldPath, CancellationToken cancellationToken = default) =>
         _inner.EnsureIndexAsync(fieldPath, cancellationToken: cancellationToken);
+
+    public Task EnsureIndexAsync(IReadOnlyList<string> fieldPaths, CancellationToken cancellationToken = default) =>
+        _inner.EnsureIndexAsync(fieldPaths, cancellationToken: cancellationToken);
 }

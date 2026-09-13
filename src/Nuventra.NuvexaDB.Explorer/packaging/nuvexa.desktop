@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=NuvexaDB Explorer
+Name=Nuvexa Data Studio
 Comment=Browse encrypted NuvexaDB .nvx files
 Exec=nuvexa-explorer %f
-Icon=nuvexadb
+Icon=nuvexa-data-studio
 MimeType=application/x-nuvexadb;
 Terminal=false
 Categories=Development;Database;

@@ -14,13 +14,13 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        var builder = Host.CreateApplicationBuilder();
-        builder.Services.UseAvaloniaMvvmExpress(o => o.UseDialogs());
-        builder.Services.AddSingleton<ExplorerSession>();
-        builder.Services.AddSingleton<IExplorerShell, AvaloniaExplorerShell>();
-        builder.Services.AddTransient<MainWindowViewModel>();
-        builder.Services.AddSingleton<MainWindow>();
-        AppHost = builder.Build();
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            Console.Error.WriteLine(e.ExceptionObject);
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            Console.Error.WriteLine(e.Exception);
+            e.SetObserved();
+        };
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 
@@ -28,5 +28,17 @@ internal static class Program
         AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
-            .LogToTrace();
+            .LogToTrace()
+            .AfterSetup(_ => AppHost = CreateHost());
+
+    private static IHost CreateHost()
+    {
+        var builder = Host.CreateApplicationBuilder();
+        builder.Services.UseAvaloniaMvvmExpress(o => o.UseDialogs());
+        builder.Services.AddSingleton<ExplorerSession>();
+        builder.Services.AddSingleton<IExplorerShell, AvaloniaExplorerShell>();
+        builder.Services.AddTransient<MainWindowViewModel>();
+        builder.Services.AddSingleton<MainWindow>();
+        return builder.Build();
+    }
 }

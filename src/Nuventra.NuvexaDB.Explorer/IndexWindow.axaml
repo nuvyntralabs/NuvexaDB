@@ -1,0 +1,18 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Nuventra.NuvexaDB.Explorer.IndexWindow"
+        Title="Create index"
+        Width="440" Height="260"
+        WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="16" Spacing="8">
+    <TextBlock Text="Index a column so equality and range filters can avoid a full scan."
+               TextWrapping="Wrap" />
+    <TextBox x:Name="FieldBox" Watermark="Column or path, e.g. email or address.line1" />
+    <TextBox x:Name="NameBox" Watermark="Index name (optional)" />
+    <CheckBox x:Name="UniqueBox" Content="Unique" />
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Content="Cancel" Click="OnCancel" />
+      <Button Content="Create index" Click="OnOk" />
+    </StackPanel>
+  </StackPanel>
+</Window>

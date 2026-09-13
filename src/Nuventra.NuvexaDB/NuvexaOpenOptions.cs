@@ -14,6 +14,21 @@ public sealed class NuvexaOpenOptions
 
     /// <summary>Checkpoint the WAL after this many committed pages. Default 64.</summary>
     public int CheckpointThreshold { get; set; } = 64;
+
+    /// <summary>
+    /// When true (default), Open verifies the superblock and allocated pages
+    /// (CRC32, and AES-GCM when encrypted) unless the file is larger than
+    /// <see cref="IntegrityScanMaxBytes"/>. A mismatch throws
+    /// <see cref="NuvexaIntegrityException"/> and the file is not opened.
+    /// Pages are still checked when first read.
+    /// </summary>
+    public bool VerifyIntegrity { get; set; } = true;
+
+    /// <summary>
+    /// Full-page integrity scan runs only when the file is this size or smaller.
+    /// Default 64 MiB. Set 0 to always scan when <see cref="VerifyIntegrity"/> is true.
+    /// </summary>
+    public long IntegrityScanMaxBytes { get; set; } = 64L * 1024 * 1024;
 }
 
 /// <summary>Options for creating a new <c>.nvx</c> file.</summary>
@@ -36,6 +51,13 @@ public sealed class NuvexaCreateOptions
 
     /// <summary>Checkpoint the WAL after this many committed pages. Default 64.</summary>
     public int CheckpointThreshold { get; set; } = 64;
+
+    /// <summary>64 MiB Argon2id memory for desktop Explorer / CLI creates. Existing files keep their stored KDF parameters.</summary>
+    public static NuvexaCreateOptions ForDesktop(string? encryptionKey = null) => new()
+    {
+        EncryptionKey = encryptionKey,
+        Argon2MemoryKb = 64 * 1024
+    };
 }
 
 /// <summary>Live statistics for an open database.</summary>

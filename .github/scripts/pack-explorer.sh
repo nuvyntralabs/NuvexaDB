@@ -12,12 +12,24 @@ stage="$root/artifacts/explorer-stage-$rid"
 rm -rf "$publish" "$stage"
 mkdir -p "$publish" "$stage" "$outdir"
 
-dotnet publish "$proj" -c Release -r "$rid" --self-contained true -o "$publish" --nologo \
-  -p:PublishSingleFile=true \
-  -p:IncludeNativeLibrariesForSelfExtract=true \
-  -p:EnableCompressionInSingleFile=true \
-  -p:DebugType=embedded \
+publish_props=(
+  -p:DebugType=embedded
   -p:CopyOutputSymbolsToPublishDirectory=false
+)
+if [[ "$rid" == osx-* ]]; then
+  # Single-file + extracted natives is incompatible with macOS .app + ad-hoc sign.
+  # Keep Avalonia/Skia dylibs beside the host inside Contents/MacOS.
+  publish_props+=(-p:PublishSingleFile=false)
+else
+  publish_props+=(
+    -p:PublishSingleFile=true
+    -p:IncludeNativeLibrariesForSelfExtract=true
+    -p:EnableCompressionInSingleFile=true
+  )
+fi
+
+dotnet publish "$proj" -c Release -r "$rid" --self-contained true -o "$publish" --nologo \
+  "${publish_props[@]}"
 
 bin=""
 if [[ -f "$publish/Nuventra.NuvexaDB.Explorer.exe" ]]; then
@@ -32,7 +44,7 @@ fi
 
 case "$rid" in
   win-*)
-    cp "$bin" "$stage/NuvexaDB Explorer.exe"
+    cp "$bin" "$stage/Nuvexa Data Studio.exe"
     export PATH="$PATH:$HOME/.dotnet/tools"
     if ! command -v wix >/dev/null 2>&1; then
       echo "wix CLI not found. Install with: dotnet tool install -g wix" >&2
@@ -41,18 +53,18 @@ case "$rid" in
     wix build "$packaging/explorer.wxs" \
       -arch x64 \
       -d "ProductVersion=$version" \
-      -d "ExePath=$stage/NuvexaDB Explorer.exe" \
+      -d "ExePath=$stage/Nuvexa Data Studio.exe" \
       -o "$outdir/NuvexaDB-Explorer-${version}-${rid}.msi"
     ;;
   osx-*)
-    app="$stage/NuvexaDB Explorer.app"
+    app="$stage/Nuvexa Data Studio.app"
     mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
-    cp "$bin" "$app/Contents/MacOS/NuvexaDB Explorer"
-    chmod +x "$app/Contents/MacOS/NuvexaDB Explorer"
-    find "$publish" -maxdepth 1 -type f \
-      ! -name 'Nuventra.NuvexaDB.Explorer' ! -name 'Nuventra.NuvexaDB.Explorer.exe' \
-      ! -name '*.pdb' ! -name '*.xml' \
-      -exec cp {} "$app/Contents/MacOS/" \;
+    # Keep the published host name (no spaces). Finder still shows CFBundleDisplayName.
+    cp -a "$publish/." "$app/Contents/MacOS/"
+    find "$app/Contents/MacOS" \( -name '*.pdb' -o -name '*.xml' \) -delete
+    chmod +x "$app/Contents/MacOS/Nuventra.NuvexaDB.Explorer"
+    cp "$root/src/Nuventra.NuvexaDB.Explorer/Assets/nuvexa-data-studio.icns" \
+      "$app/Contents/Resources/nuvexa-data-studio.icns"
     python3 - "$packaging/Info.plist" "$app/Contents/Info.plist" "$version" <<'PY'
 from pathlib import Path
 import sys
@@ -69,8 +81,12 @@ PY
     payload="$stage/pkgroot"
     mkdir -p "$payload"
     cp -R "$app" "$payload/"
+    # Default pkgbuild marks .app bundles relocatable. Installer then "upgrades"
+    # any existing bundle with the same id (local artifacts/, Downloads, …)
+    # instead of writing /Applications.
     pkgbuild \
       --root "$payload" \
+      --component-plist "$packaging/explorer-component.plist" \
       --identifier nuventra.nuvexadb.explorer \
       --version "$version" \
       --install-location /Applications \
@@ -90,9 +106,12 @@ PY
         ;;
     esac
     rootfs="$stage/root"
-    mkdir -p "$rootfs/usr/bin" "$rootfs/usr/share/applications" "$rootfs/usr/share/mime/packages"
+    mkdir -p "$rootfs/usr/bin" "$rootfs/usr/share/applications" "$rootfs/usr/share/mime/packages" \
+      "$rootfs/usr/share/icons/hicolor/512x512/apps"
     cp "$bin" "$rootfs/usr/bin/nuvexa-explorer"
     chmod 0755 "$rootfs/usr/bin/nuvexa-explorer"
+    cp "$root/src/Nuventra.NuvexaDB.Explorer/Assets/nuvexa-data-studio.png" \
+      "$rootfs/usr/share/icons/hicolor/512x512/apps/nuvexa-data-studio.png"
     sed 's|^Exec=nuvexa-explorer %f|Exec=/usr/bin/nuvexa-explorer %f|' \
       "$packaging/nuvexa.desktop" > "$rootfs/usr/share/applications/nuvexa.desktop"
     cp "$packaging/nuvexa.xml" "$rootfs/usr/share/mime/packages/nuvexa.xml"
@@ -110,7 +129,7 @@ EOF
       -n nuvexadb-explorer
       -v "$version"
       --iteration 1
-      --description "NuvexaDB Explorer — browse encrypted .nvx files"
+      --description "Nuvexa Data Studio — browse encrypted .nvx files"
       --license MIT
       --url https://github.com/nuvyntralabs/NuvexaDB
       --maintainer "Niladri Prasad Padhy"

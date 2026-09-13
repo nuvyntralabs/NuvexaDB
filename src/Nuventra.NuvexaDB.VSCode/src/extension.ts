@@ -4,23 +4,41 @@ import { spawn } from "child_process";
 const keys = new Map<string, string>();
 
 export function activate(context: vscode.ExtensionContext): void {
+  const workbench = new NuvexaWorkbench();
+  context.subscriptions.push(workbench);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider("nuvexadb.browser", new NuvexaBrowserViewProvider(workbench), {
+      webviewOptions: { retainContextWhenHidden: true }
+    })
+  );
   context.subscriptions.push(
     vscode.window.registerCustomEditorProvider(
       "nuvexadb.explorer",
-      new NuvexaEditorProvider(),
+      new NuvexaEditorProvider(workbench),
       { webviewOptions: { retainContextWhenHidden: true } }
     )
   );
+  context.subscriptions.push(
+    vscode.commands.registerCommand("nuvexa.open", () => workbench.openDatabase())
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand("nuvexa.close", () => workbench.closeDatabase())
+  );
+  void vscode.commands.executeCommand("workbench.view.extension.nuvexadb");
+}
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand("nuvexa.find", () => runFindCommand())
-  );
-  context.subscriptions.push(
-    vscode.commands.registerCommand("nuvexa.changeKey", () => runChangeKeyCommand())
-  );
+class NuvexaBrowserViewProvider implements vscode.WebviewViewProvider {
+  constructor(private readonly workbench: NuvexaWorkbench) {}
+
+  resolveWebviewView(view: vscode.WebviewView): void {
+    view.title = "Database Browser";
+    this.workbench.attach(view.webview);
+  }
 }
 
 class NuvexaEditorProvider implements vscode.CustomReadonlyEditorProvider {
+  constructor(private readonly workbench: NuvexaWorkbench) {}
+
   async openCustomDocument(uri: vscode.Uri): Promise<vscode.CustomDocument> {
     return { uri, dispose: () => undefined };
   }
@@ -29,88 +47,159 @@ class NuvexaEditorProvider implements vscode.CustomReadonlyEditorProvider {
     document: vscode.CustomDocument,
     webviewPanel: vscode.WebviewPanel
   ): Promise<void> {
-    webviewPanel.webview.options = { enableScripts: true };
-    const path = document.uri.fsPath;
+    this.workbench.attach(webviewPanel.webview);
+    await this.workbench.load(document.uri.fsPath);
+  }
+}
 
+class NuvexaWorkbench implements vscode.Disposable {
+  private readonly views = new Set<vscode.Webview>();
+  private readonly subscriptions: vscode.Disposable[] = [];
+  private path: string | undefined;
+
+  dispose(): void {
+    for (const item of this.subscriptions) {
+      item.dispose();
+    }
+    this.views.clear();
+  }
+
+  attach(webview: vscode.Webview): void {
+    webview.options = { enableScripts: true };
+    webview.html = page();
+    this.views.add(webview);
+    this.subscriptions.push(
+      webview.onDidReceiveMessage(async (msg: WorkbenchMessage) => {
+        await this.onMessage(webview, msg);
+      })
+    );
+    if (this.path) {
+      void this.load(this.path);
+    }
+  }
+
+  async openDatabase(): Promise<void> {
+    await vscode.commands.executeCommand("workbench.view.extension.nuvexadb");
+    const picked = await vscode.window.showOpenDialog({
+      filters: { NuvexaDB: ["nvx"] },
+      canSelectMany: false,
+      title: "Open Database"
+    });
+    if (!picked?.[0]) {
+      return;
+    }
+
+    await this.load(picked[0].fsPath);
+  }
+
+  closeDatabase(): void {
+    if (this.path) {
+      keys.delete(this.path);
+    }
+    this.path = undefined;
+    this.post({ type: "closed" });
+  }
+
+  async load(path: string): Promise<void> {
+    const key = await ensureKey(path);
+    if (key === "cancelled") {
+      this.post({
+        type: "error",
+        surface: "browse",
+        body: "Open cancelled. Encryption key required."
+      });
+      return;
+    }
+
+    this.path = path;
+    const [treeJson, samplesJson] = await Promise.all([
+      runNuvexa(["tree", path], keys.get(path)),
+      runNuvexa(["samples"])
+    ]);
+    this.post({
+      type: "opened",
+      path,
+      tree: parseTree(treeJson),
+      samples: parseSamples(samplesJson)
+    });
+  }
+
+  private async onMessage(webview: vscode.Webview, msg: WorkbenchMessage): Promise<void> {
     try {
-      const key = await ensureKey(path);
-      if (key === "cancelled") {
-        webviewPanel.webview.html = page(path, [], "Open cancelled. Encryption key required.", "");
+      if (msg.type === "open") {
+        await this.openDatabase();
+        return;
+      }
+      if (msg.type === "close") {
+        this.closeDatabase();
+        return;
+      }
+      if (!this.path) {
+        await webview.postMessage({ type: "error", surface: "browse", body: "Open a database first." });
         return;
       }
 
-      const tree = parseTree(await runNuvexa(["tree", path], keys.get(path)));
-      webviewPanel.webview.html = page(path, tree, "[]", "db.users.find({}).limit(50)");
+      const key = keys.get(this.path);
+      if (msg.type === "query" && msg.query) {
+        const [result, explain] = await Promise.all([
+          runNuvexa(["query", this.path, msg.query], key),
+          runNuvexa(["explain", this.path, msg.query], key)
+        ]);
+        this.post({
+          type: "result",
+          documents: parseDocuments(result),
+          explain: readExplain(explain)
+        });
+        return;
+      }
 
-      webviewPanel.webview.onDidReceiveMessage(async (msg: { type: string; query?: string; collection?: string }) => {
-        try {
-          if (msg.type === "query" && msg.query) {
-            const result = await runNuvexa(["query", path, msg.query], keys.get(path));
-            await webviewPanel.webview.postMessage({ type: "result", body: result });
-          } else if (msg.type === "openCollection" && msg.collection) {
-            const result = await runNuvexa(["find", path, msg.collection, "{}"], keys.get(path));
-            const indexes = await runNuvexa(["indexes", path, msg.collection], keys.get(path));
-            await webviewPanel.webview.postMessage({
-              type: "collection",
-              collection: msg.collection,
-              body: result,
-              indexes
-            });
-          }
-        } catch (e) {
-          await webviewPanel.webview.postMessage({
-            type: "error",
-            body: e instanceof Error ? e.message : String(e)
-          });
+      if ((msg.type === "browse" || msg.type === "openCollection") && msg.collection) {
+        const args = ["browse", this.path, msg.collection, "--page", String(msg.page ?? 0)];
+        if (msg.filter) {
+          args.push("--filter", msg.filter);
         }
-      });
+        const result = await runNuvexa(args, key);
+        this.post({
+          type: "browse",
+          collection: msg.collection,
+          body: parseBrowse(result)
+        });
+      }
     } catch (e) {
-      webviewPanel.webview.html = page(
-        path,
-        [],
-        e instanceof Error ? e.message : String(e),
-        ""
-      );
+      this.post({
+        type: "error",
+        surface: msg.type === "query" ? "query" : "browse",
+        body: e instanceof Error ? e.message : String(e)
+      });
+    }
+  }
+
+  private post(message: Record<string, unknown>): void {
+    for (const view of this.views) {
+      void view.postMessage(message);
     }
   }
 }
 
-async function runFindCommand(): Promise<void> {
-  const file = await vscode.window.showOpenDialog({ filters: { NuvexaDB: ["nvx"] } });
-  if (!file?.[0]) {
-    return;
-  }
-  const query = await vscode.window.showInputBox({
-    prompt: "Mongo-style query",
-    value: "db.users.find({}).limit(20)"
-  });
-  if (!query) {
-    return;
-  }
-  const status = await ensureKey(file[0].fsPath);
-  if (status === "cancelled") {
-    return;
-  }
-  const result = await runNuvexa(["query", file[0].fsPath, query], keys.get(file[0].fsPath));
-  const doc = await vscode.workspace.openTextDocument({ language: "json", content: result });
-  await vscode.window.showTextDocument(doc);
+interface WorkbenchMessage {
+  type: string;
+  query?: string;
+  collection?: string;
+  filter?: string;
+  page?: number;
 }
 
-async function runChangeKeyCommand(): Promise<void> {
-  const file = await vscode.window.showOpenDialog({ filters: { NuvexaDB: ["nvx"] } });
-  if (!file?.[0]) {
-    return;
-  }
-  const current =
-    keys.get(file[0].fsPath) ??
-    (await vscode.window.showInputBox({ prompt: "Current encryption key", password: true }));
-  const next = await vscode.window.showInputBox({ prompt: "New encryption key", password: true });
-  if (!current || !next) {
-    return;
-  }
-  await runNuvexa(["changkey", file[0].fsPath, "--new", next], current);
-  keys.set(file[0].fsPath, next);
-  void vscode.window.showInformationMessage("NuvexaDB encryption key updated.");
+interface TreeNode {
+  Name: string;
+  Kind: string;
+  Caption?: string;
+  Detail?: string;
+  Children: TreeNode[];
+}
+
+interface QuerySample {
+  Title: string;
+  Query: string;
 }
 
 async function ensureKey(path: string): Promise<string | undefined> {
@@ -132,12 +221,6 @@ async function ensureKey(path: string): Promise<string | undefined> {
   return undefined;
 }
 
-interface TreeNode {
-  Name: string;
-  Kind: string;
-  Children: TreeNode[];
-}
-
 function parseTree(json: string): TreeNode[] {
   try {
     const parsed = JSON.parse(json) as TreeNode[];
@@ -147,57 +230,367 @@ function parseTree(json: string): TreeNode[] {
   }
 }
 
-function page(title: string, tree: TreeNode[], results: string, query: string): string {
-  const items = tree
-    .map((n) => {
-      const indexes = (n.Children ?? [])
-        .map((c) => `<div class="idx">${escapeHtml(c.Name)}</div>`)
-        .join("");
-      return `<button class="col" data-col="${escapeHtml(n.Name)}">${escapeHtml(n.Name)}</button>${indexes}`;
-    })
-    .join("");
+function parseSamples(json: string): QuerySample[] {
+  try {
+    const parsed = JSON.parse(json) as QuerySample[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseDocuments(json: string): unknown[] {
+  try {
+    const parsed = JSON.parse(json) as unknown;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseBrowse(json: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(json) as Record<string, unknown>;
+    return parsed && typeof parsed === "object" ? parsed : { Documents: [] };
+  } catch {
+    return { Documents: [], Status: json };
+  }
+}
+
+function readExplain(json: string): string {
+  try {
+    const parsed = JSON.parse(json) as { explain?: string };
+    return parsed.explain ?? json;
+  } catch {
+    return json;
+  }
+}
+
+function page(): string {
   return `<!DOCTYPE html>
 <html>
 <head>
 <style>
-  body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); margin: 0; display: flex; height: 100vh; }
-  aside { width: 240px; border-right: 1px solid var(--vscode-panel-border); padding: 12px; overflow: auto; }
-  main { flex: 1; padding: 12px; display: flex; flex-direction: column; min-width: 0; }
-  textarea, pre { width: 100%; box-sizing: border-box; background: var(--vscode-editor-background); color: var(--vscode-editor-foreground); }
-  textarea { height: 72px; }
-  pre { flex: 1; overflow: auto; }
+  html, body { height: 100%; }
+  body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); margin: 0; display: flex; flex-direction: column; }
+  .toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--vscode-panel-border); }
+  .toolbar button { margin: 0; }
+  .shell { flex: 1; min-height: 0; display: flex; }
+  aside { width: 280px; min-width: 180px; border-right: 1px solid var(--vscode-panel-border); padding: 10px 8px; overflow: auto; }
+  @media (max-width: 560px) {
+    .shell { flex-direction: column; }
+    aside { width: auto; max-height: 38%; border-right: 0; border-bottom: 1px solid var(--vscode-panel-border); }
+  }
+  main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .heading { font-weight: 600; margin: 0 0 6px; }
+  .hint, .status { opacity: 0.75; font-size: 12px; white-space: pre-wrap; }
+  .path { opacity: 0.8; font-size: 11px; margin: 0 0 10px; word-break: break-all; }
+  details { margin-left: 4px; }
+  details.collection { margin: 2px 0 6px; }
+  summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 4px; }
+  summary::-webkit-details-marker { display: none; }
+  .twist { width: 1em; opacity: 0.7; flex: none; }
+  details[open] > summary .twist { transform: rotate(90deg); }
+  .col { background: none; border: 0; color: inherit; text-align: left; padding: 2px 4px; cursor: pointer; flex: 1; }
+  .col:hover, .col.active { background: var(--vscode-list-hoverBackground); }
+  .g { opacity: 0.8; font-size: 12px; padding: 2px 0; }
+  .leaf { opacity: 0.75; font-size: 12px; padding: 1px 0 1px 22px; }
+  .tabs { display: flex; border-bottom: 1px solid var(--vscode-panel-border); }
+  .tab { padding: 8px 14px; cursor: pointer; background: none; border: 0; color: inherit; }
+  .tab.active { border-bottom: 2px solid var(--vscode-focusBorder); font-weight: 600; }
+  .panel { display: none; flex: 1; flex-direction: column; min-height: 0; padding: 12px; gap: 8px; }
+  .panel.active { display: flex; }
+  textarea, pre, input, select { width: 100%; box-sizing: border-box; background: var(--vscode-editor-background); color: var(--vscode-editor-foreground); }
+  textarea { height: 72px; font-family: var(--vscode-editor-font-family, monospace); }
+  pre { height: 120px; overflow: auto; margin: 0; }
   button { margin: 4px 8px 4px 0; }
-  .col { display: block; width: 100%; text-align: left; }
-  .idx { opacity: 0.7; padding-left: 12px; font-size: 12px; }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .row input, .row select { flex: 1; }
+  .error { color: #e07070; font-size: 12px; white-space: pre-wrap; }
+  .grid-wrap { flex: 1; overflow: auto; min-height: 120px; border: 1px solid var(--vscode-panel-border); }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  th, td { border: 1px solid var(--vscode-panel-border); padding: 4px 8px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  th { position: sticky; top: 0; background: var(--vscode-editor-background); text-align: left; }
+  tr.selected { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
+  tr { cursor: pointer; }
+  #status { padding: 6px 12px; border-top: 1px solid var(--vscode-panel-border); opacity: 0.8; font-size: 12px; }
 </style>
 </head>
 <body>
-  <aside>
-    <h3>NuvexaDB</h3>
-    <p>${escapeHtml(title)}</p>
-    <h4>Collections</h4>
-    <div id="tree">${items || "<p>No collections.</p>"}</div>
-  </aside>
-  <main>
-    <textarea id="q">${escapeHtml(query)}</textarea>
-    <div><button id="run">Run query</button></div>
-    <pre id="out">${escapeHtml(results)}</pre>
-    <pre id="idx"></pre>
-  </main>
+  <div class="toolbar">
+    <button id="openDb">Open Database</button>
+    <button id="closeDb">Close Database</button>
+  </div>
+  <div class="shell">
+    <aside>
+      <div class="heading">Collections (tables)</div>
+      <p class="path" id="dbPath">No database open.</p>
+      <div id="tree"><p class="hint">Open a .nvx database to browse collections and columns.</p></div>
+    </aside>
+    <main>
+      <div class="tabs">
+        <button class="tab active" data-tab="browse">Browse Data</button>
+        <button class="tab" data-tab="query">Execute Query</button>
+      </div>
+      <section id="browse" class="panel active">
+        <div class="row">
+          <label>Collection:</label>
+          <select id="browseCollection"><option value="">Select a collection</option></select>
+        </div>
+        <div class="row">
+          <label>Filter</label>
+          <input id="filter" placeholder='status: paid   or   { status: "paid" }' />
+          <button id="apply">Apply</button>
+        </div>
+        <div class="row">
+          <span class="status" id="browseStatus"></span>
+          <span class="status" id="page"></span>
+          <button id="prev" disabled>Previous</button>
+          <button id="next" disabled>Next</button>
+        </div>
+        <div class="hint" id="browseExplain"></div>
+        <div class="grid-wrap"><div id="browseGrid"><p class="hint">Select a collection to browse.</p></div></div>
+        <div class="hint">Selected record (JSON)</div>
+        <pre id="browseJson"></pre>
+      </section>
+      <section id="query" class="panel">
+        <div class="row">
+          <label>Examples</label>
+          <select id="samples"><option value="">Choose an example…</option></select>
+        </div>
+        <textarea id="q" placeholder="db.users.find({ }).limit(50)"></textarea>
+        <div class="row">
+          <button id="run">Execute</button>
+          <span class="hint">NQL: db.&lt;collection&gt;.find({ ... }).limit(n) — Ctrl+Enter</span>
+        </div>
+        <div class="error" id="queryError"></div>
+        <div class="hint" id="queryExplain"></div>
+        <div class="status" id="queryStatus"></div>
+        <div class="grid-wrap"><div id="queryGrid"><p class="hint">Execute a query to see results.</p></div></div>
+        <div class="hint">Selected record (JSON)</div>
+        <pre id="queryJson"></pre>
+      </section>
+    </main>
+  </div>
+  <div id="status">Closed.</div>
   <script>
     const vscode = acquireVsCodeApi();
-    document.getElementById('run').onclick = () =>
-      vscode.postMessage({ type: 'query', query: document.getElementById('q').value });
-    document.querySelectorAll('.col').forEach(btn => btn.addEventListener('click', () => {
-      const name = btn.getAttribute('data-col');
+    let collection = '';
+    let pageIndex = 0;
+    let browseDocs = [];
+    let queryDocs = [];
+    let samples = [];
+    document.getElementById('openDb').onclick = () => vscode.postMessage({ type: 'open' });
+    document.getElementById('closeDb').onclick = () => vscode.postMessage({ type: 'close' });
+    function showTab(name) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.getAttribute('data-tab') === name));
+      document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === name));
+    }
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.onclick = () => showTab(tab.getAttribute('data-tab'));
+    });
+    function esc(value) {
+      return String(value ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    }
+    function cellText(value) {
+      if (value === null || value === undefined) return '';
+      if (typeof value === 'object') return JSON.stringify(value);
+      return String(value);
+    }
+    function renderGrid(hostId, jsonId, docs, selected) {
+      const host = document.getElementById(hostId);
+      if (!Array.isArray(docs) || docs.length === 0) {
+        host.innerHTML = '<p class="hint">No rows.</p>';
+        document.getElementById(jsonId).textContent = '';
+        return;
+      }
+      const keys = [];
+      docs.forEach(doc => {
+        if (doc && typeof doc === 'object') {
+          Object.keys(doc).forEach(k => { if (!keys.includes(k)) keys.push(k); });
+        }
+      });
+      if (keys.includes('_id')) {
+        keys.splice(keys.indexOf('_id'), 1);
+        keys.unshift('_id');
+      }
+      let html = '<table><thead><tr>' + keys.map(k => '<th>' + esc(k) + '</th>').join('') + '</tr></thead><tbody>';
+      docs.forEach((doc, i) => {
+        html += '<tr data-i="' + i + '"' + (i === selected ? ' class="selected"' : '') + '>';
+        keys.forEach(k => { html += '<td>' + esc(cellText(doc ? doc[k] : '')) + '</td>'; });
+        html += '</tr>';
+      });
+      host.innerHTML = html + '</tbody></table>';
+      document.getElementById(jsonId).textContent = JSON.stringify(docs[selected] ?? docs[0], null, 2);
+      host.querySelectorAll('tr[data-i]').forEach(row => {
+        row.addEventListener('click', () => {
+          host.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+          row.classList.add('selected');
+          document.getElementById(jsonId).textContent = JSON.stringify(docs[Number(row.getAttribute('data-i'))], null, 2);
+        });
+      });
+    }
+    function renderTree(nodes) {
+      return (nodes || []).map(n => {
+        if (n.Kind === 'collection') {
+          const kids = (n.Children || []).map(g => {
+            if (g.Kind === 'group') {
+              const leaves = (g.Children || []).map(c => '<div class="leaf">' + esc(c.Caption || c.Name) + '</div>').join('');
+              return '<details class="group"><summary><span class="twist">▸</span><span class="g">' + esc(g.Caption || g.Name) + '</span></summary>' + leaves + '</details>';
+            }
+            return '<div class="leaf">' + esc(g.Caption || g.Name) + '</div>';
+          }).join('');
+          return '<details class="collection"><summary><span class="twist">▸</span><button class="col" data-col="' + esc(n.Name) + '">' + esc(n.Caption || n.Name) + '</button></summary>' + kids + '</details>';
+        }
+        return '';
+      }).join('') || '<p class="hint">No collections.</p>';
+    }
+    function fillCollections(nodes) {
+      const box = document.getElementById('browseCollection');
+      const current = collection;
+      box.innerHTML = '<option value="">Select a collection</option>' +
+        (nodes || []).filter(n => n.Kind === 'collection').map(n =>
+          '<option value="' + esc(n.Name) + '">' + esc(n.Caption || n.Name) + '</option>').join('');
+      box.value = current;
+    }
+    function fillSamples(items, collectionName) {
+      samples = items || [];
+      const name = collectionName || 'users';
+      document.getElementById('samples').innerHTML = '<option value="">Choose an example…</option>' +
+        samples.map(s => {
+          const q = String(s.Query || '').replace(/db\\.[A-Za-z0-9_]+\\./, 'db.' + name + '.');
+          return '<option value="' + esc(q) + '">' + esc(s.Title) + '</option>';
+        }).join('');
+    }
+    function bindTree() {
+      document.querySelectorAll('.col').forEach(btn => btn.addEventListener('click', ev => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const name = btn.getAttribute('data-col');
+        selectCollection(name, true);
+      }));
+    }
+    function selectCollection(name, browse) {
+      if (!name) return;
+      collection = name;
+      pageIndex = 0;
+      document.getElementById('browseCollection').value = name;
+      document.querySelectorAll('.col').forEach(b => b.classList.toggle('active', b.getAttribute('data-col') === name));
       document.getElementById('q').value = 'db.' + name + '.find({}).limit(200)';
-      vscode.postMessage({ type: 'openCollection', collection: name });
-    }));
+      fillSamples(samples, name);
+      if (browse) {
+        showTab('browse');
+        vscode.postMessage({ type: 'openCollection', collection: name, page: 0 });
+      }
+    }
+    function clearResults() {
+      collection = '';
+      pageIndex = 0;
+      browseDocs = [];
+      queryDocs = [];
+      document.getElementById('browseCollection').innerHTML = '<option value="">Select a collection</option>';
+      document.getElementById('browseGrid').innerHTML = '<p class="hint">Select a collection to browse.</p>';
+      document.getElementById('queryGrid').innerHTML = '<p class="hint">Execute a query to see results.</p>';
+      document.getElementById('browseJson').textContent = '';
+      document.getElementById('queryJson').textContent = '';
+      document.getElementById('browseStatus').textContent = '';
+      document.getElementById('page').textContent = '';
+      document.getElementById('browseExplain').textContent = '';
+      document.getElementById('queryExplain').textContent = '';
+      document.getElementById('queryStatus').textContent = '';
+      document.getElementById('queryError').textContent = '';
+      document.getElementById('filter').value = '';
+      document.getElementById('q').value = '';
+      document.getElementById('prev').disabled = true;
+      document.getElementById('next').disabled = true;
+    }
+    function runQuery() {
+      document.getElementById('queryError').textContent = '';
+      vscode.postMessage({ type: 'query', query: document.getElementById('q').value });
+    }
+    document.getElementById('run').onclick = runQuery;
+    document.getElementById('q').addEventListener('keydown', ev => {
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') {
+        ev.preventDefault();
+        runQuery();
+      }
+    });
+    document.getElementById('samples').onchange = ev => {
+      const value = ev.target.value;
+      if (value) document.getElementById('q').value = value;
+    };
+    document.getElementById('browseCollection').onchange = ev => {
+      if (ev.target.value) selectCollection(ev.target.value, true);
+    };
+    document.getElementById('apply').onclick = () => {
+      if (!collection) return;
+      pageIndex = 0;
+      vscode.postMessage({ type: 'browse', collection, filter: document.getElementById('filter').value, page: 0 });
+    };
+    document.getElementById('filter').addEventListener('keydown', ev => {
+      if (ev.key === 'Enter') document.getElementById('apply').click();
+    });
+    document.getElementById('prev').onclick = () => {
+      if (!collection || pageIndex <= 0) return;
+      pageIndex -= 1;
+      vscode.postMessage({ type: 'browse', collection, filter: document.getElementById('filter').value, page: pageIndex });
+    };
+    document.getElementById('next').onclick = () => {
+      if (!collection) return;
+      pageIndex += 1;
+      vscode.postMessage({ type: 'browse', collection, filter: document.getElementById('filter').value, page: pageIndex });
+    };
+    function showBrowse(data) {
+      pageIndex = data.Page ?? data.page ?? 0;
+      browseDocs = data.Documents ?? data.documents ?? [];
+      document.getElementById('browseStatus').textContent = data.Status ?? data.status ?? '';
+      document.getElementById('page').textContent = data.PageText ?? data.pageText ?? '';
+      document.getElementById('browseExplain').textContent = data.Explain ?? data.explain ?? '';
+      document.getElementById('prev').disabled = !(data.HasPrevious ?? data.hasPrevious);
+      document.getElementById('next').disabled = !(data.HasNext ?? data.hasNext);
+      renderGrid('browseGrid', 'browseJson', browseDocs, 0);
+      showTab('browse');
+    }
     window.addEventListener('message', ev => {
       const m = ev.data;
-      if (m.type === 'result' || m.type === 'collection') document.getElementById('out').textContent = m.body;
-      if (m.indexes) document.getElementById('idx').textContent = 'Indexes\\n' + m.indexes;
-      if (m.type === 'error') document.getElementById('out').textContent = m.body;
+      if (m.type === 'opened') {
+        document.getElementById('dbPath').textContent = m.path || '';
+        document.getElementById('status').textContent = (m.path || '') + ' (browse only)';
+        document.getElementById('tree').innerHTML = renderTree(m.tree);
+        fillSamples(m.samples);
+        fillCollections(m.tree);
+        bindTree();
+        const first = (m.tree || []).find(n => n.Kind === 'collection');
+        if (first) {
+          selectCollection(first.Name, true);
+        }
+      } else if (m.type === 'closed') {
+        document.getElementById('dbPath').textContent = 'No database open.';
+        document.getElementById('tree').innerHTML = '<p class="hint">Open a .nvx database to browse collections and columns.</p>';
+        document.getElementById('samples').innerHTML = '<option value="">Choose an example…</option>';
+        clearResults();
+        document.getElementById('status').textContent = 'Closed.';
+      } else if (m.type === 'browse') {
+        if (m.collection) collection = m.collection;
+        document.getElementById('browseCollection').value = collection;
+        showBrowse(m.body || {});
+      } else if (m.type === 'result') {
+        queryDocs = m.documents || [];
+        document.getElementById('queryError').textContent = '';
+        document.getElementById('queryExplain').textContent = m.explain || '';
+        document.getElementById('queryStatus').textContent = queryDocs.length + ' document(s).';
+        renderGrid('queryGrid', 'queryJson', queryDocs, 0);
+        showTab('query');
+      } else if (m.type === 'error') {
+        if (m.surface === 'browse') {
+          document.getElementById('browseStatus').textContent = m.body || '';
+          document.getElementById('status').textContent = m.body || '';
+          showTab('browse');
+        } else {
+          document.getElementById('queryError').textContent = m.body || '';
+          showTab('query');
+        }
+      }
     });
   </script>
 </body>
@@ -227,10 +620,6 @@ function runNuvexa(args: string[], key?: string): Promise<string> {
       )
     );
   });
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
 }
 
 export function deactivate(): void {

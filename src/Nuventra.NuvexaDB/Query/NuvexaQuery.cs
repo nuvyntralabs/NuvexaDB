@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace Nuventra.NuvexaDB.Query;
 
-/// <summary>Parsed Mongo-style query: find / sort / skip / limit / project.</summary>
+/// <summary>Parsed NQL (Nuvexa Query Language): find / sort / skip / limit / project.</summary>
 public sealed class NuvexaQuery
 {
     public string Collection { get; init; } = "";
@@ -70,7 +70,7 @@ public sealed class NuvexaQuery
         var limit = query.Limit;
         List<string>? projection = query.Projection;
 
-        foreach (Match call in Regex.Matches(tail, @"\.(sort|skip|limit|project)\s*\((.*?)\)", RegexOptions.Singleline))
+        foreach (Match call in Regex.Matches(tail, @"\.(sort|skip|limit|project|page)\s*\((.*?)\)", RegexOptions.Singleline))
         {
             var name = call.Groups[1].Value;
             var arg = call.Groups[2].Value.Trim();
@@ -80,10 +80,13 @@ public sealed class NuvexaQuery
                     sort = ParseSort(arg);
                     break;
                 case "skip":
-                    skip = int.Parse(arg);
+                    skip = int.Parse(arg, System.Globalization.CultureInfo.InvariantCulture);
                     break;
                 case "limit":
-                    limit = int.Parse(arg);
+                    limit = int.Parse(arg, System.Globalization.CultureInfo.InvariantCulture);
+                    break;
+                case "page":
+                    ApplyPage(arg, ref skip, ref limit);
                     break;
                 case "project":
                     projection = ParseProject(arg);
@@ -100,6 +103,33 @@ public sealed class NuvexaQuery
             Limit = limit,
             Projection = projection
         };
+    }
+
+    /// <summary>
+    /// 1-based page. <c>page(2)</c> uses the current limit (or 200). <c>page(2, 50)</c> sets both skip and limit.
+    /// </summary>
+    private static void ApplyPage(string arg, ref int skip, ref int limit)
+    {
+        var parts = arg.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length is 0 or > 2
+            || !int.TryParse(parts[0], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var page)
+            || page < 1)
+        {
+            throw new NuvexaException("page() needs a 1-based page number, for example page(2) or page(2, 200).");
+        }
+
+        var size = limit > 0 ? limit : 200;
+        if (parts.Length == 2)
+        {
+            if (!int.TryParse(parts[1], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out size)
+                || size < 1)
+            {
+                throw new NuvexaException("page(page, size) size must be a positive number.");
+            }
+        }
+
+        skip = (page - 1) * size;
+        limit = size;
     }
 
     private static int FindMatchingParen(string text, int openIndex)

@@ -7,8 +7,16 @@
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);NU1903</NoWarn>
     <RootNamespace>Nuventra.NuvexaDB.Explorer</RootNamespace>
+    <AssemblyTitle>Nuvexa Data Studio</AssemblyTitle>
+    <Product>Nuvexa Data Studio</Product>
+    <ApplicationTitle>Nuvexa Data Studio</ApplicationTitle>
+    <ApplicationIcon>Assets/nuvexa-data-studio.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.3.20" />

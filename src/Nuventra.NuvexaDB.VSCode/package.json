@@ -1,7 +1,7 @@
 {
   "name": "nuvexadb",
   "displayName": "NuvexaDB",
-  "description": "Open encrypted .nvx files, run Mongo-style queries, browse collections and indexes.",
+  "description": "Browse .nvx databases: Open / Close, collection tree, Browse Data, and Execute Query.",
   "version": "1.0.0",
   "publisher": "nuventra",
   "license": "MIT",
@@ -12,20 +12,40 @@
   "engines": { "vscode": "^1.90.0" },
   "categories": ["Other"],
   "activationEvents": [
+    "onView:nuvexadb.browser",
     "onCustomEditor:nuvexadb.explorer",
-    "onCommand:nuvexa.find",
-    "onCommand:nuvexa.changeKey"
+    "onCommand:nuvexa.open",
+    "onCommand:nuvexa.close"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
-      { "command": "nuvexa.find", "title": "NuvexaDB: Find in collection" },
-      { "command": "nuvexa.changeKey", "title": "NuvexaDB: Change encryption key" }
+      { "command": "nuvexa.open", "title": "NuvexaDB: Open Database" },
+      { "command": "nuvexa.close", "title": "NuvexaDB: Close Database" }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "nuvexadb",
+          "title": "NuvexaDB",
+          "icon": "media/database.svg"
+        }
+      ]
+    },
+    "views": {
+      "nuvexadb": [
+        {
+          "type": "webview",
+          "id": "nuvexadb.browser",
+          "name": "Database Browser",
+          "visibility": "visible"
+        }
+      ]
+    },
     "customEditors": [
       {
         "viewType": "nuvexadb.explorer",
-        "displayName": "NuvexaDB Explorer",
+        "displayName": "Nuvexa Data Studio",
         "selector": [{ "filenamePattern": "*.nvx" }]
       }
     ]

@@ -69,7 +69,8 @@ public sealed class PendingWorkTests : IDisposable
         await using var session = new ExplorerSession();
         await session.OpenAsync(path, null);
         var tree = await session.LoadTreeAsync();
-        Assert.Contains(tree, n => n.Name == "users" && n.Children.Any(c => c.Name == "age"));
+        Assert.Contains(tree, n => n.Name == "users" && n.Children.Any(c =>
+            c.Name == "Indexes" && c.Children.Any(i => i.Name == "age")));
         var rows = session.ToGrid(await session.ListAsync("users"));
         Assert.Single(rows);
         Assert.Contains("Ada", rows[0].Cells["name"]);
@@ -89,11 +90,20 @@ public sealed class PendingWorkTests : IDisposable
 
         await using var window = new NuvexaToolWindow();
         Assert.Equal("ok", await window.OpenOrPromptAsync(path, _ => Task.FromResult<string?>(null)));
+        var users = Assert.Single(window.Tree, n => n.Name == "users");
+        Assert.Equal("users  (1)", users.Caption);
         await window.LoadCollectionAsync("users");
         Assert.Single(window.Rows);
         Assert.Contains("Ada", window.ExportJson());
+        Assert.False(window.HasNextPage);
+        Assert.Contains("examined=", window.Explain);
+        Assert.Equal("db.users.find({}).page(2, 200)", window.ResolveSample(window.QuerySamples.Single(s => s.Title == "Page")));
         await window.QueryAsync("db.users.find({}).limit(10)");
         Assert.Equal("users", window.SelectedCollection);
+        Assert.Single(window.Rows);
+        Assert.Single(window.QueryRows);
+        Assert.Contains("Ada", window.ExportQueryJson());
+        Assert.Contains("examined=", window.QueryExplain);
     }
 
     [Fact]

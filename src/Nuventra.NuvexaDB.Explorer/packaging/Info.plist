@@ -3,13 +3,15 @@
 <plist version="1.0">
 <dict>
   <key>CFBundleName</key>
-  <string>NuvexaDB Explorer</string>
+  <string>Nuvexa Data Studio</string>
   <key>CFBundleDisplayName</key>
-  <string>NuvexaDB Explorer</string>
+  <string>Nuvexa Data Studio</string>
+  <key>CFBundleIconFile</key>
+  <string>nuvexa-data-studio</string>
   <key>CFBundleIdentifier</key>
   <string>nuventra.nuvexadb.explorer</string>
   <key>CFBundleExecutable</key>
-  <string>NuvexaDB Explorer</string>
+  <string>Nuventra.NuvexaDB.Explorer</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>

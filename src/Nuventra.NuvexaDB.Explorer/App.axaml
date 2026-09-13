@@ -1,9 +1,29 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Nuventra.NuvexaDB.Explorer.App"
-             RequestedThemeVariant="Dark">
+             Name="Nuvexa Data Studio"
+             RequestedThemeVariant="Default">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="NuvexaErrorBrush" Color="#C42B1C" />
+          <SolidColorBrush x:Key="NuvexaChromeBorderBrush" Color="#33000000" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="NuvexaErrorBrush" Color="#E07070" />
+          <SolidColorBrush x:Key="NuvexaChromeBorderBrush" Color="#44FFFFFF" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
   <Application.Styles>
     <FluentTheme />
     <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+    <Style Selector="DataGrid">
+      <Setter Property="GridLinesVisibility" Value="All" />
+      <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
+      <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+    </Style>
   </Application.Styles>
 </Application>

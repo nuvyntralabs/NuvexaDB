@@ -14,14 +14,14 @@ internal sealed class Wal : IDisposable
         var mode = File.Exists(path) ? FileMode.Open : readOnly ? FileMode.Open : FileMode.OpenOrCreate;
         if (readOnly && !File.Exists(path))
         {
-            _stream = new FileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read);
+            _stream = new FileStream(path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
             WriteHeader();
             _stream.Dispose();
-            _stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            _stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
             return;
         }
 
-        _stream = new FileStream(path, mode == FileMode.OpenOrCreate ? FileMode.OpenOrCreate : mode, access, FileShare.Read);
+        _stream = new FileStream(path, mode == FileMode.OpenOrCreate ? FileMode.OpenOrCreate : mode, access, FileShare.None);
         if (_stream.Length == 0)
         {
             WriteHeader();

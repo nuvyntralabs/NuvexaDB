@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Security.Cryptography;
 
 namespace Nuventra.NuvexaDB.Engine;
 
@@ -26,6 +27,28 @@ internal sealed class Superblock
     public bool Encrypted => (Flags & SuperblockFlags.Encrypted) != 0;
     public bool CompactNeeded => (Flags & SuperblockFlags.CompactNeeded) != 0;
 
+    public void CopyFrom(Superblock other)
+    {
+        Version = other.Version;
+        Flags = other.Flags;
+        PageSize = other.PageSize;
+        PageCount = other.PageCount;
+        FileId = other.FileId;
+        CatalogPageId = other.CatalogPageId;
+        NextPageId = other.NextPageId;
+        CommittedLsn = other.CommittedLsn;
+        KdfMemoryKb = other.KdfMemoryKb;
+        KdfIterations = other.KdfIterations;
+        KdfParallelism = other.KdfParallelism;
+        Salt = other.Salt;
+        VerifierNonce = other.VerifierNonce;
+        VerifierTag = other.VerifierTag;
+        VerifierCipher = other.VerifierCipher;
+        DekNonce = other.DekNonce;
+        DekTag = other.DekTag;
+        DekCipher = other.DekCipher;
+    }
+
     public static Superblock Read(ReadOnlySpan<byte> page)
     {
         if (page.Length < Constants.PageSize)
@@ -37,6 +60,8 @@ internal sealed class Superblock
         {
             throw new NuvexaException("Not a NuvexaDB .nvx file (missing NVX1 magic).");
         }
+
+        VerifyCrc(page);
 
         var s = new Superblock
         {
@@ -110,8 +135,41 @@ internal sealed class Superblock
         DekNonce.CopyTo(page[138..]);
         DekTag.CopyTo(page[150..]);
         DekCipher.CopyTo(page[166..]);
-        var crc = Crc32.Compute(page[..400]);
-        BinaryPrimitives.WriteUInt32LittleEndian(page[198..], crc);
+        var crc = Crc32.Compute(page[..Constants.SuperblockCrcLength]);
+        BinaryPrimitives.WriteUInt32LittleEndian(page[Constants.SuperblockCrcOffset..], crc);
+    }
+
+    public static void VerifyCrc(ReadOnlySpan<byte> page)
+    {
+        var stored = BinaryPrimitives.ReadUInt32LittleEndian(page[Constants.SuperblockCrcOffset..]);
+        Span<byte> prefix = stackalloc byte[Constants.SuperblockCrcLength];
+        page[..Constants.SuperblockCrcLength].CopyTo(prefix);
+        BinaryPrimitives.WriteUInt32LittleEndian(prefix[Constants.SuperblockCrcOffset..], 0);
+        if (stored != Crc32.Compute(prefix))
+        {
+            throw new NuvexaIntegrityException("The database file is corrupt or has been tampered with.");
+        }
+    }
+
+    public static void WriteIntegrityMac(Span<byte> page, ReadOnlySpan<byte> dek)
+    {
+        var mac = HMACSHA256.HashData(dek, page[..Constants.SuperblockCrcLength]);
+        mac.CopyTo(page.Slice(Constants.SuperblockMacOffset, Constants.SuperblockMacSize));
+    }
+
+    public static void VerifyIntegrityMac(ReadOnlySpan<byte> page, ReadOnlySpan<byte> dek)
+    {
+        var stored = page.Slice(Constants.SuperblockMacOffset, Constants.SuperblockMacSize);
+        if (stored.IndexOfAnyExcept((byte)0) < 0)
+        {
+            return;
+        }
+
+        var expected = HMACSHA256.HashData(dek, page[..Constants.SuperblockCrcLength]);
+        if (!CryptographicOperations.FixedTimeEquals(stored, expected))
+        {
+            throw new NuvexaIntegrityException("The database file is corrupt or has been tampered with.");
+        }
     }
 
     public static bool PeekEncrypted(ReadOnlySpan<byte> page)

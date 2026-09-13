@@ -4,7 +4,7 @@ Embedded Mongo-like document database for .NET and .NET MAUI. Package `Nuventra.
 
 ## When to consider
 
-Local document cache, encrypted application files, Mongo-style queries on device or desktop. Not a network server. Not a replacement for JobQueue or OfflineSync.
+Local document cache, encrypted application files, **NQL** (Nuvexa Query Language) on device or desktop. Not a network server. Not a replacement for JobQueue or OfflineSync.
 
 ## Constraints
 
@@ -26,3 +26,5 @@ src/Nuventra.NuvexaDB.VSCode
 tests/  benches/  samples/  docs/
 src/Nuventra.NuvexaDB.Explorer/packaging   .nvx file-association scripts
 ```
+
+When you add or change Explorer IDE behavior, update [docs/explorer.md](docs/explorer.md). That page is the white-paper capability list. Record unreleased engine, Explorer, and bench work in [docs/changelog.md](docs/changelog.md).

@@ -1,4 +1,6 @@
-# Query
+# NQL (Nuvexa Query Language)
+
+NuvexaDB’s query language. Write it in Nuvexa Data Studio’s **NQL** tab, `NuvexaDatabase.ExecuteAsync`, or `nuvexa query`.
 
 Shell:
 
@@ -24,10 +26,15 @@ LINQ (typed collection, AOT-safe visitor for comparisons / `StartsWith`; capture
 var adults = await db.GetCollection<Person>("people").ToListAsync(p => p.Age >= 21);
 ```
 
-Aggregation (in-memory after a collection scan): `$match $project $sort $skip $limit $count $lookup`.
+Aggregation (in-memory after a collection scan): `$match $project $sort $skip $limit $count $group $lookup`.
 
 ```javascript
 db.orders.aggregate([{ $lookup: { from: "users", localField: "userId", foreignField: "_id", as: "user" } }, { $count: "n" }])
+db.orders.aggregate([{ $group: { _id: "$city", n: { $sum: 1 }, total: { $sum: "$total" } } }])
 ```
+
+`$lookup` fails if the foreign collection is larger than `NuvexaDatabase.LookupMaxDocuments` (default `NuvexaLimits.DefaultLookupMaxDocuments`). Set `0` for unlimited. `$group` accumulators: `$sum $min $max $avg $first`.
+
+Compound indexes: `EnsureIndexAsync(["city", "status"])`. Equality on the prefix (or all fields) can `IXSCAN`. Numeric range keys are still not order-preserving (`n:` G17).
 
 GridFS-style files: `db.Files.UploadAsync` / `DownloadAsync` store chunks in `fs.files` / `fs.chunks`.
