@@ -1,4 +1,7 @@
-apply plugin: "com.android.library"
+plugins {
+    id "com.android.library" version "8.7.3"
+    id "org.jetbrains.kotlin.android" version "2.1.20"
+}
 
 android {
     namespace "nuventra.nuvexadb.rn"
@@ -6,16 +9,29 @@ android {
     defaultConfig {
         minSdk 26
     }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
     sourceSets {
         main {
             java.srcDirs += ["../../jvm/src/main/kotlin"]
             kotlin.srcDirs += ["../../jvm/src/main/kotlin"]
+            jniLibs.srcDir("src/main/jniLibs")
         }
     }
 }
 
+repositories {
+    google()
+    mavenCentral()
+}
+
 dependencies {
-    implementation "com.facebook.react:react-android"
+    compileOnly "com.facebook.react:react-android:0.76.6"
     api "net.java.dev.jna:jna:5.17.0@aar"
     api "org.json:json:20250107"
 }

@@ -88,7 +88,7 @@ C ABI `nuvexa_abi_version()` is **2**. Added catalog (`list` / `drop` / `rename`
 
 ### CI
 
-GitHub Actions still builds every library, IDE, and extension, runs their unit tests (C# Coverlet reports plus language interop suites), and uploads artifacts with the same job-summary download links as Explorer / VS Code / Visual Studio. **nuget.org, GitHub Packages, version alignment, and NuGet key/version validation are commented out** until multi-host publishing is decided. Language SDK jobs (`bindings-jvm`, `python`, `node`, `react-native`, `go`, `cpp`, `swift`, `flutter`, `android`) wait for the matching `native-<rid>` artifact.
+GitHub Actions still builds every library, IDE, and extension, runs their unit tests (C# Coverlet reports plus language interop suites), and uploads artifacts with the same job-summary download links as Explorer / VS Code / Visual Studio. **nuget.org, GitHub Packages, version alignment, and NuGet key/version validation are commented out** until multi-host publishing is decided. Language SDK jobs (`bindings-jvm`, `python`, `node`, `react-native`, `go`, `cpp`, `swift`, `flutter`, `android`) wait for the matching `native-<rid>` artifact and run that SDK’s interop suite before packing. Mobile native jobs publish `native-android-arm64` and `native-ios` (`Nuvexa.xcframework`) only after `abi_runner` passes the golden cases. The Android AAR and React Native Android/iOS modules run the same fixtures (JVM / `npm test` / iOS Simulator) before they assemble.
 
 ### Tests
 

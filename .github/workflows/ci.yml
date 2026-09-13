@@ -136,6 +136,13 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - name: Host C toolchain
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
       - name: Publish C ABI
         shell: bash
         run: |
@@ -145,6 +152,12 @@ jobs:
             "${{ needs.version.outputs.version }}" \
             "${{ matrix.rid }}" \
             "$PWD/artifacts/native"
+      - name: ABI test cases
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x .github/scripts/run-abi-tests.sh
+          .github/scripts/run-abi-tests.sh "$PWD/artifacts/native/${{ matrix.rid }}" host
       - name: Upload native library
         id: upload
         uses: actions/upload-artifact@v4
@@ -162,6 +175,113 @@ jobs:
             echo "Download: [native-${{ matrix.rid }}](${{ steps.upload.outputs.artifact-url }})"
             echo
             echo "Load \`libnuvexa\` / \`nuvexa.dll\` from the artifact. Kotlin/Java: \`NUVEXA_NATIVE_LIB\`. Swift: \`NUVEXA_NATIVE_DIR\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  native-android:
+    name: Native ABI android-arm64
+    needs: [version, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Android NDK and workload
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
+          echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT:-$ANDROID_HOME}/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=${ANDROID_SDK_ROOT:-$ANDROID_HOME}/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          dotnet workload install android
+      - name: QEMU for aarch64 tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user-static
+      - name: Publish C ABI
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x src/Nuventra.NuvexaDB.Native/publish.sh
+          src/Nuventra.NuvexaDB.Native/publish.sh \
+            "${{ needs.version.outputs.version }}" \
+            android-arm64 \
+            "$PWD/artifacts/native"
+      - name: ABI test cases
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x .github/scripts/run-abi-tests.sh
+          .github/scripts/run-abi-tests.sh "$PWD/artifacts/native/android-arm64" android-arm64
+      - name: Upload native library
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-android-arm64
+          path: artifacts/native/android-arm64/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Summary
+        shell: bash
+        run: |
+          {
+            echo "### Native ABI (android-arm64)"
+            echo
+            echo "Download: [native-android-arm64](${{ steps.upload.outputs.artifact-url }})"
+            echo
+            echo "Copy \`libnuvexa.so\` into \`jniLibs/arm64-v8a\` for the Android AAR and React Native Android module."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  native-ios:
+    name: Native ABI iOS xcframework
+    needs: [version, test]
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: iOS workload
+        run: dotnet workload install ios
+      - name: Publish xcframework
+        run: |
+          set -euo pipefail
+          chmod +x src/Nuventra.NuvexaDB.Native/pack-xcframework.sh
+          src/Nuventra.NuvexaDB.Native/pack-xcframework.sh \
+            "$PWD/artifacts/native" \
+            "${{ needs.version.outputs.version }}"
+      - name: ABI test cases
+        run: |
+          set -euo pipefail
+          chmod +x .github/scripts/run-abi-tests.sh
+          .github/scripts/run-abi-tests.sh "$PWD/artifacts/native" ios-simulator
+      - name: Upload native library
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-ios
+          path: |
+            artifacts/native/Nuvexa.xcframework
+            artifacts/native/ios-arm64
+            artifacts/native/iossimulator-arm64
+          if-no-files-found: error
+          retention-days: 14
+      - name: Summary
+        run: |
+          {
+            echo "### Native ABI (iOS xcframework)"
+            echo
+            echo "Download: [native-ios](${{ steps.upload.outputs.artifact-url }})"
+            echo
+            echo "Link \`Nuvexa.xcframework\` from \`ios-arm64\` and \`iossimulator-arm64\` static libraries."
           } >> "$GITHUB_STEP_SUMMARY"
 
   vscode:
@@ -540,7 +660,7 @@ jobs:
 
   android:
     name: Android AAR
-    needs: [version, test, native]
+    needs: [version, test, native, native-android]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -559,11 +679,16 @@ jobs:
           set -euo pipefail
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platforms;android-35" "build-tools;35.0.0"
-      - name: Download native ABI
+      - name: Download desktop ABI
         uses: actions/download-artifact@v4
         with:
           name: native-linux-x64
           path: artifacts/native/linux-x64
+      - name: Download Android ABI
+        uses: actions/download-artifact@v4
+        with:
+          name: native-android-arm64
+          path: artifacts/native/android-arm64
       - name: JVM unit tests (shared Android Kotlin)
         run: |
           set -euo pipefail
@@ -580,7 +705,8 @@ jobs:
           .github/scripts/run-sdk-ci.sh \
             android \
             "${{ needs.version.outputs.version }}" \
-            "$PWD/artifacts/sdk/android"
+            "$PWD/artifacts/sdk/android" \
+            "$PWD/artifacts/native/android-arm64"
       - name: Upload Android AAR
         id: upload
         uses: actions/upload-artifact@v4
@@ -596,5 +722,131 @@ jobs:
             echo
             echo "Download: [bindings-android](${{ steps.upload.outputs.artifact-url }})"
             echo
-            echo "Kotlin sources match the JVM library tests. Copy \`libnuvexa.so\` into \`jniLibs\` from a future \`native-android-arm64\` artifact before shipping."
+            echo "Kotlin sources match the JVM library tests. The AAR includes \`jni/arm64-v8a/libnuvexa.so\` from \`native-android-arm64\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  react-native-android:
+    name: React Native Android
+    needs: [version, test, native, native-android]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.12.1"
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Android platform
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: Download desktop ABI
+        uses: actions/download-artifact@v4
+        with:
+          name: native-linux-x64
+          path: artifacts/native/linux-x64
+      - name: Download Android ABI
+        uses: actions/download-artifact@v4
+        with:
+          name: native-android-arm64
+          path: artifacts/native/android-arm64
+      - name: Interop test cases
+        run: |
+          set -euo pipefail
+          chmod +x .github/scripts/run-sdk-ci.sh
+          .github/scripts/run-sdk-ci.sh \
+            react-native \
+            "${{ needs.version.outputs.version }}" \
+            "$PWD/artifacts/sdk/react-native-js" \
+            "$PWD/artifacts/native/linux-x64"
+      - name: Assemble React Native AAR
+        run: |
+          set -euo pipefail
+          chmod +x .github/scripts/run-sdk-ci.sh
+          .github/scripts/run-sdk-ci.sh \
+            react-native-android \
+            "${{ needs.version.outputs.version }}" \
+            "$PWD/artifacts/sdk/react-native-android" \
+            "$PWD/artifacts/native/android-arm64"
+      - name: Upload React Native Android
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: bindings-react-native-android
+          path: artifacts/sdk/react-native-android/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Summary
+        run: |
+          {
+            echo "### React Native Android"
+            echo
+            echo "Download: [bindings-react-native-android](${{ steps.upload.outputs.artifact-url }})"
+            echo
+            echo "Gradle \`assembleRelease\` of \`bindings/react-native/android\` with \`libnuvexa.so\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  react-native-ios:
+    name: React Native iOS
+    needs: [version, test, native, native-ios]
+    runs-on: macos-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download desktop ABI
+        uses: actions/download-artifact@v4
+        with:
+          name: native-osx-arm64
+          path: artifacts/native/osx-arm64
+      - name: Download iOS ABI
+        uses: actions/download-artifact@v4
+        with:
+          name: native-ios
+          path: artifacts/native
+      - name: Interop test cases
+        run: |
+          set -euo pipefail
+          chmod +x .github/scripts/run-sdk-ci.sh
+          .github/scripts/run-sdk-ci.sh \
+            react-native \
+            "${{ needs.version.outputs.version }}" \
+            "$PWD/artifacts/sdk/react-native-js" \
+            "$PWD/artifacts/native/osx-arm64"
+      - name: Compile iOS module
+        run: |
+          set -euo pipefail
+          chmod +x .github/scripts/run-sdk-ci.sh
+          .github/scripts/run-sdk-ci.sh \
+            react-native-ios \
+            "${{ needs.version.outputs.version }}" \
+            "$PWD/artifacts/sdk/react-native-ios" \
+            "$PWD/artifacts/native"
+      - name: Upload React Native iOS
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: bindings-react-native-ios
+          path: artifacts/sdk/react-native-ios/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Summary
+        run: |
+          {
+            echo "### React Native iOS"
+            echo
+            echo "Download: [bindings-react-native-ios](${{ steps.upload.outputs.artifact-url }})"
+            echo
+            echo "Compiled \`NuvexaDB.mm\` against the iOS simulator slice of \`Nuvexa.xcframework\`."
           } >> "$GITHUB_STEP_SUMMARY"

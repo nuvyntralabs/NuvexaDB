@@ -21,4 +21,4 @@ npm test
 node examples/sample.mjs
 ```
 
-Link `libnuvexa` into the iOS app (xcframework) and ship `jniLibs/**/libnuvexa.so` on Android. Do not publish this package from a local clone.
+CI publishes `bindings-react-native-android` (AAR + `libnuvexa.so`) and `bindings-react-native-ios` (`libnuvexadb-rn-ios.a` linked to the xcframework). Do not publish this package from a local clone.

@@ -20,6 +20,11 @@ bindings/jvm/build/
 bindings/jvm/.gradle/
 bindings/android/build/
 bindings/android/.gradle/
+bindings/android/src/main/jniLibs/**/*.so
+bindings/react-native/android/build/
+bindings/react-native/android/.gradle/
+bindings/react-native/android/src/main/jniLibs/**/*.so
+bindings/react-native/ios/build/
 bindings/swift/.build/
 bindings/flutter/.dart_tool/
 bindings/python/**/__pycache__/

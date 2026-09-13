@@ -31,13 +31,14 @@ resolve_lib() {
 }
 
 mkdir -p "$out"
+stage_jni="$root/.github/scripts/stage-jni-lib.sh"
 
-if [[ "$sdk" != "android" ]]; then
-  if [[ -z "$native_dir" || ! -d "$native_dir" ]]; then
-    echo "Native directory is required for $sdk" >&2
-    exit 1
-  fi
-  native_dir="$(cd "$native_dir" && pwd)"
+if [[ -z "$native_dir" || ! -d "$native_dir" ]]; then
+  echo "Native directory is required for $sdk" >&2
+  exit 1
+fi
+native_dir="$(cd "$native_dir" && pwd)"
+if [[ "$sdk" != "react-native-ios" ]]; then
   export NUVEXA_NATIVE_DIR="$native_dir"
   export NUVEXA_NATIVE_LIB="$(resolve_lib "$native_dir")"
   export DYLD_LIBRARY_PATH="$native_dir${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
@@ -54,16 +55,41 @@ case "$sdk" in
     cp "$root/bindings/jvm/build/libs/"*.jar "$out/"
     ;;
   android)
+    chmod +x "$stage_jni"
+    "$stage_jni" "$native_dir" "$root/bindings/android/src/main/jniLibs"
     gradle -p "$root/bindings/android" assembleRelease --no-daemon
     found=0
-    while IFS= read -r -d '' aar; do
+    for aar in "$root/bindings/android/build/outputs/aar/"*.aar; do
+      [[ -f "$aar" ]] || continue
       cp "$aar" "$out/"
       found=1
-    done < <(find "$root/bindings/android" -name '*.aar' -print0)
+      unzip -l "$aar" | grep -E 'jni/arm64-v8a/libnuvexa.so' >/dev/null
+    done
     if [[ "$found" -eq 0 ]]; then
       echo "No Android AAR was produced" >&2
       exit 1
     fi
+    ;;
+  react-native-android)
+    chmod +x "$stage_jni"
+    "$stage_jni" "$native_dir" "$root/bindings/react-native/android/src/main/jniLibs"
+    gradle -p "$root/bindings/react-native/android" assembleRelease --no-daemon
+    found=0
+    for aar in "$root/bindings/react-native/android/build/outputs/aar/"*.aar; do
+      [[ -f "$aar" ]] || continue
+      cp "$aar" "$out/"
+      found=1
+      unzip -l "$aar" | grep -E 'jni/arm64-v8a/libnuvexa.so' >/dev/null
+    done
+    if [[ "$found" -eq 0 ]]; then
+      echo "No React Native Android AAR was produced" >&2
+      exit 1
+    fi
+    ;;
+  react-native-ios)
+    chmod +x "$root/.github/scripts/compile-rn-ios.sh" "$root/.github/scripts/run-abi-tests.sh"
+    "$root/.github/scripts/compile-rn-ios.sh" "$native_dir" "$out"
+    "$root/.github/scripts/run-abi-tests.sh" "$native_dir" ios-simulator
     ;;
   python)
     (

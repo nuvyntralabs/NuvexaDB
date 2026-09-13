@@ -46,7 +46,7 @@ Publish (current desktop RID):
 src/Nuventra.NuvexaDB.Native/publish.sh
 ```
 
-Desktop CI RIDs: `osx-arm64`, `osx-x64`, `win-x64`, `linux-x64`. Mobile: `android-arm64`, `ios-arm64`, `iossimulator-arm64` (workloads required). iOS pack: `src/Nuventra.NuvexaDB.Native/pack-xcframework.sh`.
+Desktop CI RIDs: `osx-arm64`, `osx-x64`, `win-x64`, `linux-x64`. Mobile CI: `android-arm64` (`native-android-arm64`) and `pack-xcframework.sh` (`native-ios`). Workloads required locally: Android / iOS.
 
 ## Kotlin / Java
 

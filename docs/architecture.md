@@ -174,12 +174,12 @@ publish.sh  -r <rid>           (one native binary per RID)
 
 Unix consumers also look for `libnuvexa.*`. The publish script symlinks `nuvexa.dylib` → `libnuvexa.dylib` when Native AOT omits the `lib` prefix.
 
-CI uploads desktop native artifacts and language SDK packs. nuget.org / GitHub Packages push is commented out for now. Do not `dotnet nuget push`, `npm publish`, or `dart pub publish` from a local clone.
+CI uploads desktop native artifacts, `android-arm64`, `Nuvexa.xcframework`, and language SDK packs. nuget.org / GitHub Packages push is commented out for now. Do not `dotnet nuget push`, `npm publish`, or `dart pub publish` from a local clone.
 
 ## Testing the shared engine
 
 1. C# `InteropFixtureTests` — managed `NuvexaDatabase` and in-process `NuvexaAbi` (same cases, no dylib required).
-2. Language SDKs — load `NUVEXA_NATIVE_LIB` / `NUVEXA_NATIVE_DIR` and run [tests/interop/cases.json](../tests/interop/cases.json): encrypted create, insert, indexes, NQL, fail-closed open without a key.
+2. Language SDKs — load `NUVEXA_NATIVE_LIB` / `NUVEXA_NATIVE_DIR` and run [tests/interop/cases.json](../tests/interop/cases.json): encrypted create, insert, indexes, NQL, fail-closed open without a key. Every native / SDK pack job runs those cases (or `abi_runner.c`) before it uploads.
 3. Samples — .NET `samples/Console`, `Maui`, `Avalonia`, `Wpf`, `WinUI`, `Uno` (each has its own `.sln`; not in `NuvexaDB.sln`), and each binding’s in-tree example do create / NQL / fail-closed open.
 
 If a host disagrees on `expectNames`, the bug is in that SDK’s marshalling, not a second query engine.

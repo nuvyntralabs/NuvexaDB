@@ -26,7 +26,11 @@ After each CI run, the job summary lists a **Download** link for every artifact 
 | Artifact | Contents |
 | --- | --- |
 | `nuget-NuvexaDB` | `nupkg` + `snupkg` (not pushed) |
-| `native-<rid>` | C ABI (`libnuvexa` / `nuvexa.dll`) |
+| `native-<rid>` | Desktop C ABI (`libnuvexa` / `nuvexa.dll`) |
+| `native-android-arm64` | `libnuvexa.so` for the Android AAR |
+| `native-ios` | `Nuvexa.xcframework` + ios-arm64 / simulator `.a` |
+| `bindings-react-native-android` | React Native Android AAR + `libnuvexa.so` |
+| `bindings-react-native-ios` | Compiled `NuvexaDB.mm` + xcframework archive |
 | `explorer-<rid>` | Data Studio installer (msi / pkg / deb / rpm) |
 | `vscode-NuvexaDB` | VS Code / Cursor VSIX |
 | `vsix-NuvexaDB` | Visual Studio VSIX |
@@ -133,7 +137,7 @@ await db.insert("users", JSON.stringify({ name: "Ada", age: 36 }));
 await db.execute("db.users.find({ age: { $gte: 21 } }).limit(20)");
 ```
 
-Desktop RIDs ship first (`osx-*`, `win-x64`, `linux-x64`). Android `libnuvexa.so` and the iOS xcframework need those workloads. ABI v2 adds catalog, transactions, and path-based GridFS. Details: [docs/bindings.md](docs/bindings.md). Language samples live inside each binding project.
+Desktop RIDs ship first (`osx-*`, `win-x64`, `linux-x64`). CI also publishes `android-arm64` and `Nuvexa.xcframework` (iOS workload on macOS). ABI v2 adds catalog, transactions, and path-based GridFS. Details: [docs/bindings.md](docs/bindings.md). Language samples live inside each binding project.
 
 ## Samples
 

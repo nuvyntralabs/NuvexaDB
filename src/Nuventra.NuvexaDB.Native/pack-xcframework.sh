@@ -3,12 +3,13 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 out="${1:-$root/artifacts/native}"
+version="${2:-}"
 device="$out/ios-arm64"
 sim="$out/iossimulator-arm64"
 
 chmod +x "$root/src/Nuventra.NuvexaDB.Native/publish.sh"
-"$root/src/Nuventra.NuvexaDB.Native/publish.sh" "" ios-arm64 "$out"
-"$root/src/Nuventra.NuvexaDB.Native/publish.sh" "" iossimulator-arm64 "$out"
+"$root/src/Nuventra.NuvexaDB.Native/publish.sh" "$version" ios-arm64 "$out"
+"$root/src/Nuventra.NuvexaDB.Native/publish.sh" "$version" iossimulator-arm64 "$out"
 
 header="$root/src/Nuventra.NuvexaDB.Native/include/nuvexa.h"
 headers="$out/headers"
