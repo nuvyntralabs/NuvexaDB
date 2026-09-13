@@ -88,7 +88,7 @@ C ABI `nuvexa_abi_version()` is **2**. Added catalog (`list` / `drop` / `rename`
 
 ### CI
 
-GitHub Actions runs the C# unit tests first, then builds every library, IDE, and extension. Test result / coverage artifacts are not uploaded. Product artifacts keep the same job-summary download links as Explorer / VS Code / Visual Studio. **nuget.org, GitHub Packages, version alignment, and NuGet key/version validation are commented out** until multi-host publishing is decided. Language SDK jobs (`bindings-jvm`, `python`, `node`, `react-native`, `go`, `cpp`, `swift`, `flutter`, `android`) wait for the matching `native-<rid>` artifact and run that SDK’s interop suite before packing. Android native is `linux-bionic-arm64` (JNI `.so`); `ios-arm64` Native AOT is not supported by the .NET 10 SDK. The Android AAR and React Native modules run the golden fixtures before they assemble.
+GitHub Actions runs the C# unit tests first, then builds every library, IDE, and extension. Test result / coverage artifacts are not uploaded. Product artifacts keep the same job-summary download links as Explorer / VS Code / Visual Studio. **nuget.org, GitHub Packages, version alignment, and NuGet key/version validation are commented out** until multi-host publishing is decided. Language SDK jobs (`NuvexaDB-Java`, `Python`, `Node`, `React-Native`, `Go`, `Cpp`, `Swift`, `Flutter`, `Android`) wait for the matching `NuvexaDB-Native-<rid>` artifact and run that SDK’s interop suite before packing. Android native is `linux-bionic-arm64` (JNI `.so`); `ios-arm64` Native AOT is not supported by the .NET 10 SDK. The Android AAR and React Native modules run the golden fixtures before they assemble.
 
 ### Tests
 

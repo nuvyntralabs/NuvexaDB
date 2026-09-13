@@ -16,4 +16,4 @@ cpp/           CMake INTERFACE library + tests/ + examples/
 
 .NET samples stay under `samples/` (`Console`, `Maui`, `Avalonia`, `Wpf`, `WinUI`, `Uno`). Each has its own `.sln`; they are not in `NuvexaDB.sln`.
 
-CI runs each SDK’s unit tests against `native-<rid>` and uploads `bindings-<sdk>-<rid>` with the same job-summary download link as Explorer / VSIX. Host registries stay unpublished.
+CI runs each SDK’s unit tests against `NuvexaDB-Native-<rid>` and uploads `NuvexaDB-<Library>-<rid>` with the same job-summary download link as Data Studio / VSIX. Host registries stay unpublished.

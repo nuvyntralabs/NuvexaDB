@@ -25,16 +25,24 @@ After each CI run, the job summary lists a **Download** link for every artifact 
 
 | Artifact | Contents |
 | --- | --- |
-| `nuget-NuvexaDB` | `nupkg` + `snupkg` (not pushed) |
-| `native-<rid>` | Desktop C ABI (`libnuvexa` / `nuvexa.dll`) |
-| `native-android-arm64` | Bionic `libnuvexa.so` (`linux-bionic-arm64`) for the Android AAR |
-| `native-ios` | `nuvexa.h` + compiled `NuvexaDB.o` (no xcframework; SDK rejects `ios-arm64` AOT) |
-| `bindings-react-native-android` | React Native Android AAR + `libnuvexa.so` |
-| `bindings-react-native-ios` | Compiled `NuvexaDB.mm` + host ABI tests |
-| `explorer-<rid>` | Data Studio installer (msi / pkg / deb / rpm) |
-| `vscode-NuvexaDB` | VS Code / Cursor VSIX |
-| `vsix-NuvexaDB` | Visual Studio VSIX |
-| `bindings-<sdk>-<rid>` | Language SDK pack after that SDK’s unit tests |
+| `NuvexaDB-NuGet` | Engine `nupkg` + `snupkg` (not pushed) |
+| `NuvexaDB-Native-<rid>` | C ABI (`libnuvexa` / `nuvexa.dll`) |
+| `NuvexaDB-Native-android-arm64` | Bionic `libnuvexa.so` for the Android AAR |
+| `NuvexaDB-Native-iOS` | `nuvexa.h` + compiled `NuvexaDB.o` (no xcframework) |
+| `NuvexaDB-Data-Studio-<rid>` | Data Studio installer (msi / pkg / deb / rpm) |
+| `NuvexaDB-VS-Code` | VS Code / Cursor VSIX |
+| `NuvexaDB-Visual-Studio` | Visual Studio VSIX |
+| `NuvexaDB-Java-<rid>` | Java / Kotlin library |
+| `NuvexaDB-Python-<rid>` | Python library |
+| `NuvexaDB-Node-<rid>` | Node.js library |
+| `NuvexaDB-Go-<rid>` | Go library |
+| `NuvexaDB-Cpp-<rid>` | C++ library |
+| `NuvexaDB-Flutter-<rid>` | Flutter / Dart library |
+| `NuvexaDB-Swift-osx-arm64` | Swift library |
+| `NuvexaDB-Android` | Android AAR |
+| `NuvexaDB-React-Native-<rid>` | React Native JS pack |
+| `NuvexaDB-React-Native-Android` | React Native Android AAR + `libnuvexa.so` |
+| `NuvexaDB-React-Native-iOS` | Compiled `NuvexaDB.mm` + host ABI tests |
 
 Explorer installers (single-file app inside a native package):
 

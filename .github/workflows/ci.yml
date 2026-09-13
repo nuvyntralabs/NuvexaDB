@@ -137,7 +137,7 @@ jobs:
         id: upload
         uses: actions/upload-artifact@v4
         with:
-          name: native-${{ matrix.rid }}
+          name: NuvexaDB-Native-${{ matrix.rid }}
           path: artifacts/native/${{ matrix.rid }}/
           if-no-files-found: error
           retention-days: 14
@@ -147,7 +147,7 @@ jobs:
           {
             echo "### Native ABI (${{ matrix.rid }})"
             echo
-            echo "Download: [native-${{ matrix.rid }}](${{ steps.upload.outputs.artifact-url }})"
+            echo "Download: [NuvexaDB-Native-${{ matrix.rid }}](${{ steps.upload.outputs.artifact-url }})"
             echo
             echo "Load \`libnuvexa\` / \`nuvexa.dll\` from the artifact. Kotlin/Java: \`NUVEXA_NATIVE_LIB\`. Swift: \`NUVEXA_NATIVE_DIR\`."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -194,7 +194,7 @@ jobs:
         id: upload
         uses: actions/upload-artifact@v4
         with:
-          name: native-android-arm64
+          name: NuvexaDB-Native-android-arm64
           path: artifacts/native/android-arm64/
           if-no-files-found: error
           retention-days: 14
@@ -204,7 +204,7 @@ jobs:
           {
             echo "### Native ABI (android-arm64)"
             echo
-            echo "Download: [native-android-arm64](${{ steps.upload.outputs.artifact-url }})"
+            echo "Download: [NuvexaDB-Native-android-arm64](${{ steps.upload.outputs.artifact-url }})"
             echo
             echo "Bionic Native AOT (\`linux-bionic-arm64\`) as \`libnuvexa.so\` for \`jniLibs/arm64-v8a\`."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -229,7 +229,7 @@ jobs:
         id: upload
         uses: actions/upload-artifact@v4
         with:
-          name: native-ios
+          name: NuvexaDB-Native-iOS
           path: artifacts/native/ios/
           if-no-files-found: error
           retention-days: 14
@@ -238,7 +238,7 @@ jobs:
           {
             echo "### iOS module"
             echo
-            echo "Download: [native-ios](${{ steps.upload.outputs.artifact-url }})"
+            echo "Download: [NuvexaDB-Native-iOS](${{ steps.upload.outputs.artifact-url }})"
             echo
             echo ".NET Native AOT cannot publish \`ios-arm64\` (NETSDK1203). This artifact is \`nuvexa.h\` plus a compiled \`NuvexaDB.o\`. Golden ABI cases for Apple run on the \`osx-arm64\` dylib."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -270,7 +270,7 @@ jobs:
         id: upload
         uses: actions/upload-artifact@v4
         with:
-          name: vscode-NuvexaDB
+          name: NuvexaDB-VS-Code
           path: artifacts/nuventra.nuvexadb-*.vsix
           if-no-files-found: error
           retention-days: 14
@@ -279,7 +279,7 @@ jobs:
           {
             echo "### VS Code VSIX"
             echo
-            echo "Download: [vscode-NuvexaDB](${{ steps.upload.outputs.artifact-url }})"
+            echo "Download: [NuvexaDB-VS-Code](${{ steps.upload.outputs.artifact-url }})"
             echo
             echo "Then update the Visual Studio Code listing at [Marketplace manage](https://marketplace.visualstudio.com/manage)."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -313,7 +313,7 @@ jobs:
         id: upload
         uses: actions/upload-artifact@v4
         with:
-          name: vsix-NuvexaDB
+          name: NuvexaDB-Visual-Studio
           path: artifacts/Nuventra.NuvexaDB.VisualStudio.*.vsix
           if-no-files-found: error
           retention-days: 14
@@ -322,13 +322,13 @@ jobs:
           {
             echo "### Visual Studio VSIX"
             echo
-            echo "Download: [vsix-NuvexaDB](${{ steps.upload.outputs.artifact-url }})"
+            echo "Download: [NuvexaDB-Visual-Studio](${{ steps.upload.outputs.artifact-url }})"
             echo
             echo "Then update **NuvexaDB Explorer for Visual Studio** at [Marketplace manage](https://marketplace.visualstudio.com/manage). Do not create a new listing."
           } >> "$GITHUB_STEP_SUMMARY"
 
   explorer:
-    name: Explorer ${{ matrix.rid }}
+    name: Data Studio ${{ matrix.rid }}
     needs: [version, test]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
@@ -379,7 +379,7 @@ jobs:
         id: upload
         uses: actions/upload-artifact@v4
         with:
-          name: explorer-${{ matrix.rid }}
+          name: NuvexaDB-Data-Studio-${{ matrix.rid }}
           path: |
             artifacts/NuvexaDB-Explorer-*.msi
             artifacts/NuvexaDB-Explorer-*.pkg
@@ -391,9 +391,9 @@ jobs:
         shell: bash
         run: |
           {
-            echo "### Explorer (${{ matrix.rid }})"
+            echo "### Data Studio (${{ matrix.rid }})"
             echo
-            echo "Download: [explorer-${{ matrix.rid }}](${{ steps.upload.outputs.artifact-url }})"
+            echo "Download: [NuvexaDB-Data-Studio-${{ matrix.rid }}](${{ steps.upload.outputs.artifact-url }})"
             echo
             case "${{ matrix.rid }}" in
               win-*) echo "Install **NuvexaDB-Explorer-*-win-x64.msi** (Start Menu + \`.nvx\` association)." ;;
@@ -428,7 +428,7 @@ jobs:
         id: upload
         uses: actions/upload-artifact@v4
         with:
-          name: nuget-NuvexaDB
+          name: NuvexaDB-NuGet
           path: |
             artifacts/*.nupkg
             artifacts/*.snupkg
@@ -446,7 +446,7 @@ jobs:
           {
             echo "### NuGet packages"
             echo
-            echo "Download: [nuget-NuvexaDB](${{ steps.upload.outputs.artifact-url }})"
+            echo "Download: [NuvexaDB-NuGet](${{ steps.upload.outputs.artifact-url }})"
             echo
             echo "Artifacts only. nuget.org and GitHub Packages push is commented out until multi-host publishing is decided. \`Nuventra.NuvexaDB.Cli\` is PackAsTool and has no snupkg."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -463,74 +463,92 @@ jobs:
           - os: ubuntu-latest
             rid: linux-x64
             sdk: jvm
-            title: JVM library (linux-x64)
+            product: Java
+            title: Java library (linux-x64)
           - os: macos-latest
             rid: osx-arm64
             sdk: jvm
-            title: JVM library (osx-arm64)
+            product: Java
+            title: Java library (osx-arm64)
           - os: windows-latest
             rid: win-x64
             sdk: jvm
-            title: JVM library (win-x64)
+            product: Java
+            title: Java library (win-x64)
           - os: ubuntu-latest
             rid: linux-x64
             sdk: python
+            product: Python
             title: Python library (linux-x64)
           - os: macos-latest
             rid: osx-arm64
             sdk: python
+            product: Python
             title: Python library (osx-arm64)
           - os: windows-latest
             rid: win-x64
             sdk: python
+            product: Python
             title: Python library (win-x64)
           - os: ubuntu-latest
             rid: linux-x64
             sdk: node
+            product: Node
             title: Node library (linux-x64)
           - os: macos-latest
             rid: osx-arm64
             sdk: node
+            product: Node
             title: Node library (osx-arm64)
           - os: windows-latest
             rid: win-x64
             sdk: node
+            product: Node
             title: Node library (win-x64)
           - os: ubuntu-latest
             rid: linux-x64
             sdk: react-native
+            product: React-Native
             title: React Native library (linux-x64)
           - os: macos-latest
             rid: osx-arm64
             sdk: react-native
+            product: React-Native
             title: React Native library (osx-arm64)
           - os: ubuntu-latest
             rid: linux-x64
             sdk: go
+            product: Go
             title: Go library (linux-x64)
           - os: macos-latest
             rid: osx-arm64
             sdk: go
+            product: Go
             title: Go library (osx-arm64)
           - os: ubuntu-latest
             rid: linux-x64
             sdk: cpp
+            product: Cpp
             title: C++ library (linux-x64)
           - os: macos-latest
             rid: osx-arm64
             sdk: cpp
+            product: Cpp
             title: C++ library (osx-arm64)
           - os: macos-latest
             rid: osx-arm64
             sdk: swift
+            product: Swift
             title: Swift library (osx-arm64)
           - os: ubuntu-latest
             rid: linux-x64
             sdk: flutter
+            product: Flutter
             title: Flutter library (linux-x64)
           - os: macos-latest
             rid: osx-arm64
             sdk: flutter
+            product: Flutter
             title: Flutter library (osx-arm64)
     steps:
       - uses: actions/checkout@v4
@@ -570,7 +588,7 @@ jobs:
       - name: Download native ABI
         uses: actions/download-artifact@v4
         with:
-          name: native-${{ matrix.rid }}
+          name: NuvexaDB-Native-${{ matrix.rid }}
           path: artifacts/native/${{ matrix.rid }}
       - name: Test and pack ${{ matrix.sdk }}
         shell: bash
@@ -586,7 +604,7 @@ jobs:
         id: upload
         uses: actions/upload-artifact@v4
         with:
-          name: bindings-${{ matrix.sdk }}-${{ matrix.rid }}
+          name: NuvexaDB-${{ matrix.product }}-${{ matrix.rid }}
           path: artifacts/sdk/${{ matrix.sdk }}-${{ matrix.rid }}/
           if-no-files-found: error
           retention-days: 14
@@ -596,9 +614,9 @@ jobs:
           {
             echo "### ${{ matrix.title }}"
             echo
-            echo "Download: [bindings-${{ matrix.sdk }}-${{ matrix.rid }}](${{ steps.upload.outputs.artifact-url }})"
+            echo "Download: [NuvexaDB-${{ matrix.product }}-${{ matrix.rid }}](${{ steps.upload.outputs.artifact-url }})"
             echo
-            echo "Unit tests passed against \`native-${{ matrix.rid }}\`. Host publish (Maven, npm, PyPI, pub.dev, Swift) stays commented out."
+            echo "Unit tests passed against \`NuvexaDB-Native-${{ matrix.rid }}\`. Host publish (Maven, npm, PyPI, pub.dev, Swift) stays commented out."
           } >> "$GITHUB_STEP_SUMMARY"
 
   android:
@@ -625,12 +643,12 @@ jobs:
       - name: Download desktop ABI
         uses: actions/download-artifact@v4
         with:
-          name: native-linux-x64
+          name: NuvexaDB-Native-linux-x64
           path: artifacts/native/linux-x64
       - name: Download Android ABI
         uses: actions/download-artifact@v4
         with:
-          name: native-android-arm64
+          name: NuvexaDB-Native-android-arm64
           path: artifacts/native/android-arm64
       - name: JVM unit tests (shared Android Kotlin)
         run: |
@@ -654,7 +672,7 @@ jobs:
         id: upload
         uses: actions/upload-artifact@v4
         with:
-          name: bindings-android
+          name: NuvexaDB-Android
           path: artifacts/sdk/android/
           if-no-files-found: error
           retention-days: 14
@@ -663,9 +681,9 @@ jobs:
           {
             echo "### Android AAR"
             echo
-            echo "Download: [bindings-android](${{ steps.upload.outputs.artifact-url }})"
+            echo "Download: [NuvexaDB-Android](${{ steps.upload.outputs.artifact-url }})"
             echo
-            echo "Kotlin sources match the JVM library tests. The AAR includes \`jni/arm64-v8a/libnuvexa.so\` from \`native-android-arm64\`."
+            echo "Kotlin sources match the Java library tests. The AAR includes \`jni/arm64-v8a/libnuvexa.so\` from \`NuvexaDB-Native-android-arm64\`."
           } >> "$GITHUB_STEP_SUMMARY"
 
   react-native-android:
@@ -695,12 +713,12 @@ jobs:
       - name: Download desktop ABI
         uses: actions/download-artifact@v4
         with:
-          name: native-linux-x64
+          name: NuvexaDB-Native-linux-x64
           path: artifacts/native/linux-x64
       - name: Download Android ABI
         uses: actions/download-artifact@v4
         with:
-          name: native-android-arm64
+          name: NuvexaDB-Native-android-arm64
           path: artifacts/native/android-arm64
       - name: Interop test cases
         run: |
@@ -724,7 +742,7 @@ jobs:
         id: upload
         uses: actions/upload-artifact@v4
         with:
-          name: bindings-react-native-android
+          name: NuvexaDB-React-Native-Android
           path: artifacts/sdk/react-native-android/
           if-no-files-found: error
           retention-days: 14
@@ -733,7 +751,7 @@ jobs:
           {
             echo "### React Native Android"
             echo
-            echo "Download: [bindings-react-native-android](${{ steps.upload.outputs.artifact-url }})"
+            echo "Download: [NuvexaDB-React-Native-Android](${{ steps.upload.outputs.artifact-url }})"
             echo
             echo "Gradle \`assembleRelease\` of \`bindings/react-native/android\` with \`libnuvexa.so\`."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -751,7 +769,7 @@ jobs:
       - name: Download desktop ABI
         uses: actions/download-artifact@v4
         with:
-          name: native-osx-arm64
+          name: NuvexaDB-Native-osx-arm64
           path: artifacts/native/osx-arm64
       - name: Interop test cases
         run: |
@@ -775,7 +793,7 @@ jobs:
         id: upload
         uses: actions/upload-artifact@v4
         with:
-          name: bindings-react-native-ios
+          name: NuvexaDB-React-Native-iOS
           path: artifacts/sdk/react-native-ios/
           if-no-files-found: error
           retention-days: 14
@@ -784,7 +802,7 @@ jobs:
           {
             echo "### React Native iOS"
             echo
-            echo "Download: [bindings-react-native-ios](${{ steps.upload.outputs.artifact-url }})"
+            echo "Download: [NuvexaDB-React-Native-iOS](${{ steps.upload.outputs.artifact-url }})"
             echo
             echo "Compiled \`NuvexaDB.mm\` for the iOS Simulator. Golden cases ran against the \`osx-arm64\` dylib (\`.NET\` cannot PublishAot \`ios-arm64\`)."
           } >> "$GITHUB_STEP_SUMMARY"

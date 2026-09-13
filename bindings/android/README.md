@@ -8,4 +8,4 @@ cp artifacts/native/android-arm64/libnuvexa.so \
   bindings/android/src/main/jniLibs/arm64-v8a/
 ```
 
-CI publishes `native-android-arm64` and packs it into the AAR (`jni/arm64-v8a/libnuvexa.so`). Desktop JVM samples work without the Android workload.
+CI publishes `NuvexaDB-Native-android-arm64` and packs it into the AAR (`jni/arm64-v8a/libnuvexa.so`). Desktop Java samples work without the Android workload.

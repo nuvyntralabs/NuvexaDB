@@ -46,7 +46,7 @@ Publish (current desktop RID):
 src/Nuventra.NuvexaDB.Native/publish.sh
 ```
 
-Desktop CI RIDs: `osx-arm64`, `osx-x64`, `win-x64`, `linux-x64`. Android CI publishes `linux-bionic-arm64` as `native-android-arm64` (NDK on `PATH`; Native AOT cannot target `android-arm64`). `ios-arm64` PublishAot is rejected by the SDK (`NETSDK1203`).
+Desktop CI RIDs: `osx-arm64`, `osx-x64`, `win-x64`, `linux-x64`. Android CI publishes `linux-bionic-arm64` as `NuvexaDB-Native-android-arm64` (NDK on `PATH`; Native AOT cannot target `android-arm64`). `ios-arm64` PublishAot is rejected by the SDK (`NETSDK1203`).
 
 ## Kotlin / Java
 
@@ -149,4 +149,4 @@ Language samples live inside each SDK project (same idea as `samples/Console` fo
 - [bindings/go](../bindings/go) — `examples/sample`
 - [bindings/cpp](../bindings/cpp) — `examples/sample.cpp`
 
-Publishing Maven, Swift Package, npm, pub.dev, PyPI, or NuGet from a local clone is not allowed. CI tests each SDK against the published C ABI and uploads GitHub artifacts (`bindings-<sdk>-<rid>`, same download-link summary as Explorer / VSIX). Host publish stays commented out in `.github/workflows/ci.yml`.
+Publishing Maven, Swift Package, npm, pub.dev, PyPI, or NuGet from a local clone is not allowed. CI tests each SDK against the published C ABI and uploads GitHub artifacts (`NuvexaDB-Java-<rid>`, `NuvexaDB-Python-<rid>`, …, same download-link summary as Data Studio / VSIX). Host publish stays commented out in `.github/workflows/ci.yml`.
