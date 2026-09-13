@@ -11,8 +11,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Group by commit, not branch. A Yes-release push updates main and then
+# tags v* on the same SHA; the tag run cancels the duplicate main run.
+# Only the tag run can create a GitHub Release.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.sha }}
   cancel-in-progress: true
 
 permissions:
