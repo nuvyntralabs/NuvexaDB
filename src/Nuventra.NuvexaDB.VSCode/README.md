@@ -5,7 +5,7 @@ Browse-only workbench for `*.nvx` files. Same `nuvexa` CLI as Explorer for tree 
 - Activity Bar icon (**NuvexaDB**) opens **Database Browser**
 - **Open Database** / **Close Database**
 - Collapsible collections with **Columns** (and Indexes)
-- **Browse Data**: filter, 200-row Previous / Next, read-only grid
+- **Browse Data**: filter (`status: paid` or NQL JSON), **Build filter**, find-in-page, JSON/Tree, 200-row Previous / Next, read-only grid
 - **Execute Query**: NQL `find` / `aggregate`, examples, explain, read-only grid
 
 Requires the CLI:

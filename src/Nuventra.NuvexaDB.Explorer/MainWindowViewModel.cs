@@ -8,7 +8,7 @@ using Nuventra.NuvexaDB.Tools;
 
 namespace Nuventra.NuvexaDB.Explorer;
 
-public sealed class MainWindowViewModel : PageViewModel
+public sealed partial class MainWindowViewModel : PageViewModel
 {
     private readonly IExplorerShell _shell;
     private readonly ExplorerSession _session;
@@ -60,31 +60,31 @@ public sealed class MainWindowViewModel : PageViewModel
         OpenCommand = new AsyncModelCommand(_ => OpenAsync());
         CloseCommand = new AsyncModelCommand(_ => CloseAsync(), () => _session.IsOpen);
         RunQueryCommand = new AsyncModelCommand(_ => RunQueryAsync(), () => _session.IsOpen);
-        ImportCommand = new AsyncModelCommand(_ => ImportAsync(), () => _session.IsOpen && SelectedCollection is not null);
+        ImportCommand = new AsyncModelCommand(_ => ImportAsync(), () => CanMutate && SelectedCollection is not null);
         ExportCommand = new AsyncModelCommand(_ => ExportAsync(), () => _session.IsOpen && SelectedCollection is not null);
         ExportQueryCommand = new AsyncModelCommand(_ => ExportQueryAsync(), () => _session.IsOpen && QueryRows.Count > 0);
         ApplyBrowseFilterCommand = new AsyncModelCommand(_ => ApplyBrowseFilterAsync(), () => _session.IsOpen && SelectedCollection is not null);
         BrowsePreviousCommand = new AsyncModelCommand(_ => MoveBrowsePageAsync(-1), () => CanBrowsePrevious);
         BrowseNextCommand = new AsyncModelCommand(_ => MoveBrowsePageAsync(1), () => CanBrowseNext);
-        CreateIndexCommand = new AsyncModelCommand(_ => CreateIndexAsync(), () => _session.IsOpen && SelectedCollection is not null);
+        CreateIndexCommand = new AsyncModelCommand(_ => CreateIndexAsync(), () => CanMutate && SelectedCollection is not null);
         DropIndexCommand = new AsyncModelCommand(_ => DropIndexAsync(), () => CanDropIndex);
-        NewCollectionCommand = new AsyncModelCommand(_ => NewCollectionAsync(), () => _session.IsOpen);
-        NewColumnCommand = new AsyncModelCommand(_ => NewColumnAsync(), () => _session.IsOpen && SelectedCollection is not null);
+        NewCollectionCommand = new AsyncModelCommand(_ => NewCollectionAsync(), () => CanMutate);
+        NewColumnCommand = new AsyncModelCommand(_ => NewColumnAsync(), () => CanMutate && SelectedCollection is not null);
         EditColumnCommand = new AsyncModelCommand(_ => EditColumnAsync(), () => CanEditColumn);
-        DeleteColumnCommand = new AsyncModelCommand(_ => DeleteColumnAsync(), () => _session.IsOpen && SelectedCollection is not null);
-        NewDocumentCommand = new AsyncModelCommand(_ => NewDocumentAsync(), () => _session.IsOpen && SelectedCollection is not null);
-        DeleteDocumentCommand = new AsyncModelCommand(_ => DeleteDocumentAsync(), () => _session.IsOpen && SelectedCollection is not null && SelectedRow is not null);
-        ChangeKeyCommand = new AsyncModelCommand(_ => ChangeKeyAsync(), () => _session.IsOpen);
-        CompactCommand = new AsyncModelCommand(_ => CompactAsync(), () => _session.IsOpen);
+        DeleteColumnCommand = new AsyncModelCommand(_ => DeleteColumnAsync(), () => CanMutate && SelectedCollection is not null);
+        NewDocumentCommand = new AsyncModelCommand(_ => NewDocumentAsync(), () => CanMutate && SelectedCollection is not null);
+        DeleteDocumentCommand = new AsyncModelCommand(_ => DeleteDocumentAsync(), () => CanMutate && SelectedCollection is not null && HasBrowseSelection);
+        ChangeKeyCommand = new AsyncModelCommand(_ => ChangeKeyAsync(), () => CanMutate);
+        CompactCommand = new AsyncModelCommand(_ => CompactAsync(), () => CanMutate);
         RefreshTreeCommand = new AsyncModelCommand(_ => RefreshAsync());
         BrowseCollectionCommand = new AsyncModelCommand(_ => BrowseSelectedAsync(), () => _session.IsOpen && SelectedCollection is not null);
         GoToStructureCommand = new ModelCommand(() => SelectedTabIndex = 0);
         GoToBrowseCommand = new AsyncModelCommand(_ => BrowseSelectedAsync(), () => _session.IsOpen && SelectedCollection is not null);
         GoToQueryCommand = new ModelCommand(() => SelectedTabIndex = 2, () => _session.IsOpen);
-        DeleteCollectionCommand = new AsyncModelCommand(_ => DeleteCollectionAsync(), () => _session.IsOpen && SelectedCollection is not null);
-        RenameCollectionCommand = new AsyncModelCommand(_ => RenameCollectionAsync(), () => _session.IsOpen && SelectedCollection is not null);
+        DeleteCollectionCommand = new AsyncModelCommand(_ => DeleteCollectionAsync(), () => CanMutate && SelectedCollection is not null);
+        RenameCollectionCommand = new AsyncModelCommand(_ => RenameCollectionAsync(), () => CanMutate && SelectedCollection is not null);
         ClearRecentCommand = new ModelCommand(ClearRecentFiles);
-        EditRecordCommand = new AsyncModelCommand(_ => EditRecordAsync(), () => _session.IsOpen && SelectedCollection is not null && SelectedRow is not null);
+        EditRecordCommand = new AsyncModelCommand(_ => EditRecordAsync(), () => CanMutate && SelectedCollection is not null && SelectedRow is not null);
         CopyCellCommand = new AsyncModelCommand(_ => CopyCellAsync(), () => SelectedRow is not null);
         CopyRowCommand = new AsyncModelCommand(_ => CopyRowAsync(), () => SelectedRow is not null);
         CopyQueryRowCommand = new AsyncModelCommand(_ => CopyQueryRowAsync(), () => SelectedQueryRow is not null);
@@ -98,6 +98,8 @@ public sealed class MainWindowViewModel : PageViewModel
         {
             RecentFiles.Add(item);
         }
+
+        InitializeWorkbench();
     }
 
     public ObservableCollection<ExplorerNode> Tree { get; } = [];
@@ -162,8 +164,10 @@ public sealed class MainWindowViewModel : PageViewModel
     public bool HasRecentFiles => RecentFiles.Count > 0;
     public IReadOnlyDictionary<string, string> BrowseColumnTypes { get; private set; } =
         new Dictionary<string, string>(StringComparer.Ordinal);
+    private bool HasBrowseSelection => SelectedRow is not null || _selectedBrowseRows.Count > 0;
+
     private bool CanEditColumn =>
-        _session.IsOpen && SelectedCollection is not null &&
+        CanMutate && SelectedCollection is not null &&
         ActiveColumnName is not null && ActiveColumnName != "_id";
 
     private string? ActiveColumnName =>
@@ -171,7 +175,7 @@ public sealed class MainWindowViewModel : PageViewModel
         : SelectedNode?.Kind == "field" ? SelectedNode.Name
         : null;
     private bool CanDropIndex =>
-        _session.IsOpen && SelectedCollection is not null && SelectedNode?.Kind == "index" && SelectedNode.Name != "_id_";
+        CanMutate && SelectedCollection is not null && SelectedNode?.Kind == "index" && SelectedNode.Name != "_id_";
 
     public string StatusText
     {
@@ -188,7 +192,13 @@ public sealed class MainWindowViewModel : PageViewModel
     public string DocumentJson
     {
         get => _documentJson;
-        set => SetProperty(ref _documentJson, value);
+        set
+        {
+            if (SetProperty(ref _documentJson, value))
+            {
+                RebuildDocumentTree();
+            }
+        }
     }
 
     public string ExplainText
@@ -524,11 +534,13 @@ public sealed class MainWindowViewModel : PageViewModel
 
     private async Task CloseAsync()
     {
+        var closedPath = _session.Path;
         await _session.DisposeAsync();
         Tree.Clear();
         CollectionNames.Clear();
         GridRows.Clear();
         QueryRows.Clear();
+        ClearWorkbenchState();
         DocumentJson = "";
         QueryErrorText = "";
         ExplainText = "";
@@ -545,7 +557,7 @@ public sealed class MainWindowViewModel : PageViewModel
         ClearCollectionSelection();
         SelectedRow = null;
         SelectedQueryRow = null;
-        StatusText = "Database closed.";
+        StatusText = ClosedDatabaseHint(closedPath) ?? "Database closed.";
         NotifyCrudCommands();
     }
 
@@ -589,6 +601,7 @@ public sealed class MainWindowViewModel : PageViewModel
         finally
         {
             ExportQueryCommand.NotifyCanExecuteChanged();
+            ExportQueryCsvCommand.NotifyCanExecuteChanged();
         }
     }
 
@@ -921,7 +934,7 @@ public sealed class MainWindowViewModel : PageViewModel
 
     private async Task NewDocumentAsync()
     {
-        if (SelectedCollection is null || !_session.IsOpen)
+        if (SelectedCollection is null || !CanMutate)
         {
             StatusText = "Select a collection first.";
             return;
@@ -962,7 +975,7 @@ public sealed class MainWindowViewModel : PageViewModel
 
     public async Task CommitGridCellAsync(DocumentRow row, string field)
     {
-        if (SelectedCollection is null || !_session.IsOpen || field is "_id" || string.IsNullOrWhiteSpace(field))
+        if (SelectedCollection is null || !CanMutate || field is "_id" || string.IsNullOrWhiteSpace(field))
         {
             return;
         }
@@ -993,24 +1006,40 @@ public sealed class MainWindowViewModel : PageViewModel
 
     private async Task DeleteDocumentAsync()
     {
-        if (SelectedCollection is null || SelectedRow is null || !_session.IsOpen)
+        if (SelectedCollection is null || !CanMutate)
         {
             StatusText = "Select a record to delete.";
             return;
         }
 
-        var id = SelectedRow.Id;
+        var ids = _selectedBrowseRows.Count > 0
+            ? _selectedBrowseRows.Select(r => r.Id).Distinct(StringComparer.Ordinal).ToList()
+            : SelectedRow is null ? [] : [SelectedRow.Id];
+        if (ids.Count == 0)
+        {
+            StatusText = "Select a record to delete.";
+            return;
+        }
+
+        var prompt = ids.Count == 1
+            ? $"Delete record '{ids[0]}'?"
+            : $"Delete {ids.Count} selected records?";
         if (Dialogs is not null &&
-            !await Dialogs.ConfirmAsync("Delete Record", $"Delete record '{id}'?", "Delete", "Cancel"))
+            !await Dialogs.ConfirmAsync("Delete Record", prompt, "Delete", "Cancel"))
         {
             return;
         }
 
         try
         {
-            await _session.DeleteDocumentAsync(SelectedCollection, id);
+            foreach (var id in ids)
+            {
+                await _session.DeleteDocumentAsync(SelectedCollection, id);
+            }
+
             SelectedRow = null;
             DocumentJson = "";
+            _selectedBrowseRows.Clear();
             RefreshCollectionCaptions();
             await LoadCollectionAsync(SelectedCollection);
             if (GridRows.Count == 0 && _browsePage > 0)
@@ -1019,7 +1048,7 @@ public sealed class MainWindowViewModel : PageViewModel
                 await LoadCollectionAsync(SelectedCollection);
             }
 
-            StatusText = $"Deleted {id}.";
+            StatusText = ids.Count == 1 ? $"Deleted {ids[0]}." : $"Deleted {ids.Count} records.";
         }
         catch (Exception ex)
         {
@@ -1056,6 +1085,7 @@ public sealed class MainWindowViewModel : PageViewModel
         CopyCellCommand.NotifyCanExecuteChanged();
         CopyRowCommand.NotifyCanExecuteChanged();
         CopyQueryRowCommand.NotifyCanExecuteChanged();
+        NotifyWorkbenchCommands();
         Notify(nameof(IsDatabaseOpen));
         Notify(nameof(HasCollections));
         Notify(nameof(NavigatorHint));
@@ -1128,6 +1158,7 @@ public sealed class MainWindowViewModel : PageViewModel
             }
 
             _browseColumns = await ColumnsForEditorAsync(collection);
+            RefreshBrowseFilterFields();
             BrowseColumnTypes = _browseColumns.ToDictionary(
                 c => c.Name,
                 c => TableColumnTypes.Normalize(c.Type),
@@ -1175,16 +1206,7 @@ public sealed class MainWindowViewModel : PageViewModel
         var keepId = SelectedRow?.Id;
         var fields = _session.MergeFields(docs, declaredFields);
         var rows = _session.ToGrid(docs, declaredFields);
-        GridAboutToReset?.Invoke();
-        GridRows.Clear();
-        GridSchemaChanged?.Invoke(fields);
-        foreach (var row in rows)
-        {
-            GridRows.Add(row);
-        }
-
-        SelectedRow = GridRows.FirstOrDefault(r => r.Id == keepId) ?? GridRows.FirstOrDefault();
-        DocumentJson = SelectedRow?.Json ?? "";
+        ApplyPageRows(rows, fields, keepId);
     }
 
     public async Task BrowseNodeAsync(ExplorerNode? node)
@@ -1328,7 +1350,7 @@ public sealed class MainWindowViewModel : PageViewModel
 
     private async Task EditRecordAsync()
     {
-        if (SelectedCollection is null || SelectedRow is null || !_session.IsOpen)
+        if (SelectedCollection is null || SelectedRow is null || !CanMutate)
         {
             StatusText = "Select a record first.";
             return;
@@ -1408,6 +1430,7 @@ public sealed class MainWindowViewModel : PageViewModel
         StructureSummary = "";
         ShowStructureEditor = false;
         _pendingStructureField = null;
+        SchemaSampleRows.Clear();
     }
 
     private async Task LoadStructureAsync(string? collection)
@@ -1458,6 +1481,7 @@ public sealed class MainWindowViewModel : PageViewModel
             : $"{StructureColumns.Count} column(s) · {records} record(s). Select a column to edit or delete it.";
         ShowStructureEditor = true;
         NotifyCrudCommands();
+        _ = LoadSchemaSampleAsync(collection, version);
     }
 
     private async Task<IReadOnlyList<TableColumnDefinition>> ColumnsForEditorAsync(

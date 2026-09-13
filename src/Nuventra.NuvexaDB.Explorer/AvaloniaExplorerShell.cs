@@ -58,6 +58,42 @@ public sealed class AvaloniaExplorerShell : IExplorerShell
         return path is null ? null : EnsureJsonExtension(path);
     }
 
+    public async Task<string?> PickOpenCsvAsync()
+    {
+        var files = await Window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Import CSV",
+            AllowMultiple = false,
+            FileTypeFilter = [CsvType]
+        });
+        return files.Count == 0 ? null : files[0].Path.LocalPath;
+    }
+
+    public async Task<string?> PickSaveCsvAsync()
+    {
+        var file = await Window.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Export CSV file",
+            SuggestedFileName = "results.csv",
+            DefaultExtension = "csv",
+            FileTypeChoices = [CsvType]
+        });
+        var path = file?.Path.LocalPath;
+        return path is null ? null : EnsureCsvExtension(path);
+    }
+
+    public async Task<string?> PickSaveBackupAsync()
+    {
+        var file = await Window.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Backup NuvexaDB file",
+            SuggestedFileName = "backup.nvx",
+            DefaultExtension = "nvx",
+            FileTypeChoices = [NvxType]
+        });
+        return file?.Path.LocalPath;
+    }
+
     public Task<string?> PromptKeyAsync(string message) => UnlockWindow.AskAsync(Window, message);
 
     public Task<string?> PromptTextAsync(string message, string? initial = null) =>
@@ -99,6 +135,15 @@ public sealed class AvaloniaExplorerShell : IExplorerShell
         MimeTypes = ["application/json"]
     };
 
+    private static FilePickerFileType CsvType => new("CSV file")
+    {
+        Patterns = ["*.csv"],
+        MimeTypes = ["text/csv"]
+    };
+
     internal static string EnsureJsonExtension(string path) =>
         path.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? path : path + ".json";
+
+    internal static string EnsureCsvExtension(string path) =>
+        path.EndsWith(".csv", StringComparison.OrdinalIgnoreCase) ? path : path + ".csv";
 }

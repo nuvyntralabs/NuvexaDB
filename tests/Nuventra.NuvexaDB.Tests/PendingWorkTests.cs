@@ -95,6 +95,14 @@ public sealed class PendingWorkTests : IDisposable
         await window.LoadCollectionAsync("users");
         Assert.Single(window.Rows);
         Assert.Contains("Ada", window.ExportJson());
+        window.ApplyGridFind("no-such-row");
+        Assert.Empty(window.Rows);
+        window.ApplyGridFind("");
+        Assert.Single(window.Rows);
+        await window.ApplyBuiltFilterAsync("name", "equals", "Ada");
+        Assert.Equal("name: Ada", window.BrowseFilter);
+        Assert.Single(window.Rows);
+        Assert.NotEmpty(window.DocumentTree);
         Assert.False(window.HasNextPage);
         Assert.Contains("examined=", window.Explain);
         Assert.Equal("db.users.find({}).page(2, 200)", window.ResolveSample(window.QuerySamples.Single(s => s.Title == "Page")));

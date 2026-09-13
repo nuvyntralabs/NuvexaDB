@@ -12,6 +12,7 @@ public sealed class NuvexaToolWindow : IAsyncDisposable
 {
     public ExplorerSession Session { get; } = new();
     public IReadOnlyList<ExplorerNode> Tree { get; private set; } = [];
+    public IReadOnlyList<DocumentRow> PageRows { get; private set; } = [];
     public IReadOnlyList<DocumentRow> Rows { get; private set; } = [];
     public IReadOnlyList<DocumentRow> QueryRows { get; private set; } = [];
     public IReadOnlyList<ExplorerQuerySample> QuerySamples { get; } = ExplorerQuerySample.All;
@@ -20,6 +21,10 @@ public sealed class NuvexaToolWindow : IAsyncDisposable
     public string QueryExplain { get; private set; } = "";
     public string QueryStatus { get; private set; } = "";
     public string BrowseFilter { get; set; } = "";
+    public string GridFindText { get; set; } = "";
+    public string BrowseFindStatus { get; private set; } = "";
+    public IReadOnlyList<string> BrowseFields { get; private set; } = ["_id"];
+    public IReadOnlyList<JsonDocumentNode> DocumentTree { get; private set; } = [];
     public string BrowsePageText { get; private set; } = "";
     public string BrowseStatus { get; private set; } = "";
     public bool HasPreviousPage { get; private set; }
@@ -30,6 +35,8 @@ public sealed class NuvexaToolWindow : IAsyncDisposable
     public DocumentRow? SelectedQueryRow { get; private set; }
     public string DocumentJson => SelectedRow?.Json ?? "";
     public string QueryDocumentJson => SelectedQueryRow?.Json ?? "";
+    private string? _browseSortField;
+    private bool _browseSortDescending;
 
     public async Task<string> OpenOrPromptAsync(string path, Func<string, Task<string?>> askKey)
     {
@@ -119,6 +126,36 @@ public sealed class NuvexaToolWindow : IAsyncDisposable
             : LoadCollectionAsync(SelectedCollection, cancellationToken);
     }
 
+    public Task ApplyBuiltFilterAsync(string? field, string? op, string? value, CancellationToken cancellationToken = default)
+    {
+        BrowseFilter = BrowseFilterBuilder.Build(field, op, value);
+        BrowsePage = 0;
+        return SelectedCollection is null
+            ? Task.CompletedTask
+            : LoadCollectionAsync(SelectedCollection, cancellationToken);
+    }
+
+    public void ApplyGridFind(string? text)
+    {
+        GridFindText = text ?? "";
+        ShowDisplayedRows(SelectedRow?.Id);
+    }
+
+    public void SortBrowsePage(string field)
+    {
+        if (string.Equals(_browseSortField, field, StringComparison.Ordinal))
+        {
+            _browseSortDescending = !_browseSortDescending;
+        }
+        else
+        {
+            _browseSortField = field;
+            _browseSortDescending = false;
+        }
+
+        ShowDisplayedRows(SelectedRow?.Id);
+    }
+
     public Task BrowsePreviousAsync(CancellationToken cancellationToken = default)
     {
         if (!HasPreviousPage || SelectedCollection is null)
@@ -155,7 +192,11 @@ public sealed class NuvexaToolWindow : IAsyncDisposable
         RefreshCaptions();
     }
 
-    public void SelectRow(DocumentRow? row) => SelectedRow = row;
+    public void SelectRow(DocumentRow? row)
+    {
+        SelectedRow = row;
+        DocumentTree = JsonDocumentTree.Parse(DocumentJson);
+    }
 
     public void SelectQueryRow(DocumentRow? row) => SelectedQueryRow = row;
 
@@ -183,9 +224,47 @@ public sealed class NuvexaToolWindow : IAsyncDisposable
         HasPreviousPage = page.HasPrevious;
         HasNextPage = page.HasNext;
         Explain = page.Explain;
-        Rows = Session.ToGrid(page.Documents);
-        SelectedRow = Rows.Count == 0 ? null : Rows[0];
+        PageRows = Session.ToGrid(page.Documents);
+        BrowseFields = MergeFieldNames(PageRows);
+        ShowDisplayedRows(SelectedRow?.Id);
         Status = SelectedCollection is null ? page.Status : $"{SelectedCollection}: {page.Status}";
+    }
+
+    private void ShowDisplayedRows(string? keepId)
+    {
+        IEnumerable<DocumentRow> ordered = _browseSortField is "_id"
+            ? PageRows.OrderBy(r => r.Id, StringComparer.Ordinal)
+            : string.IsNullOrEmpty(_browseSortField)
+                ? PageRows
+                : PageRows.OrderBy(r => r.Cells[_browseSortField], StringComparer.Ordinal);
+        if (_browseSortDescending && !string.IsNullOrEmpty(_browseSortField))
+        {
+            ordered = ordered.Reverse();
+        }
+
+        Rows = BrowseFilterBuilder.FindInPage(ordered, GridFindText);
+        SelectedRow = Rows.FirstOrDefault(r => r.Id == keepId) ?? Rows.FirstOrDefault();
+        DocumentTree = JsonDocumentTree.Parse(DocumentJson);
+        BrowseFindStatus = string.IsNullOrWhiteSpace(GridFindText)
+            ? ""
+            : $"Find: {Rows.Count} of {PageRows.Count} on this page.";
+    }
+
+    private static IReadOnlyList<string> MergeFieldNames(IReadOnlyList<DocumentRow> rows)
+    {
+        var names = new List<string> { "_id" };
+        foreach (var row in rows)
+        {
+            foreach (var key in row.Cells.Keys)
+            {
+                if (!names.Contains(key, StringComparer.Ordinal))
+                {
+                    names.Add(key);
+                }
+            }
+        }
+
+        return names;
     }
 
     private void RefreshCaptions()

@@ -61,7 +61,11 @@ Existing files without an HMAC still open if CRC and pages verify. The next chec
 
 - Desktop app name is **Nuvexa Data Studio**, with a window / dock / installer icon.
 - Theme follows the OS (light / dark). **View → Theme** can pin System, Light, or Dark.
-- Database Structure right pane lists the selected collection’s columns and can add, edit, or delete them.
+- Database Structure right pane lists the selected collection’s columns and can add, edit, or delete them. **Observed fields** samples up to 200 documents (types, coverage, examples).
+- Browse: JSON **Tree** tab, clone record, multi-select delete, find-in-page, click-to-sort this page, field/operator **Build filter** (still runs through `BrowsePageAsync`).
+- File: CSV import/export and query-result CSV. Tools: backup, restore, database properties. View: **Read-only**. Drag-and-drop a `.nvx` to open. Close reports a leftover WAL file when present.
+- NQL: named **Saved** queries (`explorer-saved-queries.json`).
+- VS Code / Visual Studio Browse Data: **Build filter**, find-in-page, JSON **Tree**, click-to-sort this page. Still browse-only. `BrowseFilterBuilder` / `JsonDocumentTree` live on `Nuventra.NuvexaDB.Tools`.
 
 - **Structure tree counts** update after insert / delete / browse reload (`customers  (6)`). The node is updated in place so the tree does not collapse.
 - **Browse Data pagination**: 200 rows per page, **Previous** / **Next**, status `Showing A–B of T` / `Page X of Y`. A new unfiltered record opens the last page. Deleting the last row on a page steps back one page. Small collections still show `N record(s).` with no pager.

@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Nuventra.NuvexaDB.Tools;
@@ -36,11 +37,84 @@ public partial class MainWindow : Window
         viewModel.TreeSelectionRequested += node => SelectTreeNode(node);
         BrowseGrid.BeginningEdit += OnBrowseBeginningEdit;
         BrowseGrid.CellEditEnded += OnBrowseCellEditEnded;
+        AddHandler(DragDrop.DragOverEvent, OnWindowDragOver);
+        AddHandler(DragDrop.DropEvent, OnWindowDrop);
         Opened += (_, _) => RebuildRecentMenu(viewModel);
     }
 
     public void OpenFromCommandLine(string path) =>
         _ = ((MainWindowViewModel)DataContext!).OpenPathAsync(path);
+
+    private void OnWindowDragOver(object? sender, DragEventArgs e)
+    {
+        e.DragEffects = TryGetDroppedNvx(e) is null ? DragDropEffects.None : DragDropEffects.Copy;
+        e.Handled = true;
+    }
+
+    private void OnWindowDrop(object? sender, DragEventArgs e)
+    {
+        var path = TryGetDroppedNvx(e);
+        if (path is not null && DataContext is MainWindowViewModel viewModel)
+        {
+            _ = viewModel.OpenPathAsync(path);
+        }
+
+        e.Handled = true;
+    }
+
+    private static string? TryGetDroppedNvx(DragEventArgs e)
+    {
+        var items = e.DataTransfer?.TryGetFiles();
+        if (items is null)
+        {
+            return null;
+        }
+
+        foreach (var item in items)
+        {
+            var path = item.TryGetLocalPath();
+            if (path is not null &&
+                path.EndsWith(".nvx", StringComparison.OrdinalIgnoreCase) &&
+                File.Exists(path))
+            {
+                return path;
+            }
+        }
+
+        return null;
+    }
+
+    private void OnBrowseSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel viewModel)
+        {
+            viewModel.SetBrowseSelection(BrowseGrid.SelectedItems.OfType<DocumentRow>().ToList());
+        }
+    }
+
+    private string? _browseSortField;
+    private bool _browseSortDescending;
+
+    private void OnBrowseSorting(object? sender, DataGridColumnEventArgs e)
+    {
+        var field = e.Column.Header?.ToString();
+        if (string.IsNullOrEmpty(field) || DataContext is not MainWindowViewModel viewModel)
+        {
+            return;
+        }
+
+        if (string.Equals(_browseSortField, field, StringComparison.Ordinal))
+        {
+            _browseSortDescending = !_browseSortDescending;
+        }
+        else
+        {
+            _browseSortField = field;
+            _browseSortDescending = false;
+        }
+
+        viewModel.SortBrowsePage(field, _browseSortDescending);
+    }
 
     private void OnBrowseCollectionBoxLoaded(object? sender, RoutedEventArgs e)
     {
@@ -336,7 +410,15 @@ public partial class MainWindow : Window
             VerticalAlignment = VerticalAlignment.Center
         };
         box.IsCheckedChanged += (_, _) =>
+        {
+            if (TopLevel.GetTopLevel(box) is Window { DataContext: MainWindowViewModel { IsReadOnlyMode: true } })
+            {
+                box.IsChecked = TableColumnTypes.IsTrue(row.Cells[field]);
+                return;
+            }
+
             CommitCell(box, row, field, box.IsChecked == true ? "true" : "false");
+        };
         return box;
     }
 
@@ -351,6 +433,11 @@ public partial class MainWindow : Window
         picker.SelectedDateChanged += (_, _) =>
         {
             if (picker.SelectedDate is not { } next)
+            {
+                return;
+            }
+
+            if (TopLevel.GetTopLevel(picker) is Window { DataContext: MainWindowViewModel { IsReadOnlyMode: true } })
             {
                 return;
             }

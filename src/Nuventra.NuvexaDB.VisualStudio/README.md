@@ -3,7 +3,7 @@
 `NuvexaToolWindow` opens a `.nvx` file through `ExplorerSession`. It uses the same browse, query, and sample APIs as the Avalonia Explorer:
 
 - Structure tree with Columns / Indexes and live row-count captions (`customers  (6)`)
-- **Browse Data** tab: filter (NQL JSON or `status: paid`), 200-row Previous / Next, results grid
+- **Browse Data** tab: filter (NQL JSON or `status: paid`), field/operator **Build filter**, find-in-page, JSON/Tree, 200-row Previous / Next, results grid
 - **Execute Query** tab: NQL examples, explain (`IXSCAN` / `COLLSCAN`), read-only results grid
 - Import / export JSON, compact, encryption-key prompt (up to three attempts)
 

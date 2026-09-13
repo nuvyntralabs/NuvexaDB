@@ -90,6 +90,7 @@ class NuvexaWorkbench implements vscode.Disposable {
     }
 
     await this.load(picked[0].fsPath);
+    await vscode.commands.executeCommand("vscode.openWith", picked[0], "nuvexadb.explorer");
   }
 
   closeDatabase(): void {
@@ -296,8 +297,8 @@ function page(): string {
   .g { opacity: 0.8; font-size: 12px; padding: 2px 0; }
   .leaf { opacity: 0.75; font-size: 12px; padding: 1px 0 1px 22px; }
   .tabs { display: flex; border-bottom: 1px solid var(--vscode-panel-border); }
-  .tab { padding: 8px 14px; cursor: pointer; background: none; border: 0; color: inherit; }
-  .tab.active { border-bottom: 2px solid var(--vscode-focusBorder); font-weight: 600; }
+  .tab, .doc-tab { padding: 8px 14px; cursor: pointer; background: none; border: 0; color: inherit; }
+  .tab.active, .doc-tab.active { border-bottom: 2px solid var(--vscode-focusBorder); font-weight: 600; }
   .panel { display: none; flex: 1; flex-direction: column; min-height: 0; padding: 12px; gap: 8px; }
   .panel.active { display: flex; }
   textarea, pre, input, select { width: 100%; box-sizing: border-box; background: var(--vscode-editor-background); color: var(--vscode-editor-foreground); }
@@ -343,15 +344,42 @@ function page(): string {
           <button id="apply">Apply</button>
         </div>
         <div class="row">
+          <label>Build</label>
+          <select id="filterField"><option value="">field</option></select>
+          <select id="filterOp">
+            <option value="equals">equals</option>
+            <option value="not equals">not equals</option>
+            <option value=">">&gt;</option>
+            <option value=">=">&gt;=</option>
+            <option value="<">&lt;</option>
+            <option value="<=">&lt;=</option>
+            <option value="contains">contains</option>
+            <option value="exists">exists</option>
+          </select>
+          <input id="filterValue" placeholder="value" />
+          <button id="buildFilter">Build filter</button>
+        </div>
+        <div class="row">
+          <label>Find in page</label>
+          <input id="find" placeholder="Search _id, cells, or JSON on this page" />
+          <button id="applyFind">Find</button>
+        </div>
+        <div class="row">
           <span class="status" id="browseStatus"></span>
+          <span class="status" id="findStatus"></span>
           <span class="status" id="page"></span>
           <button id="prev" disabled>Previous</button>
           <button id="next" disabled>Next</button>
         </div>
         <div class="hint" id="browseExplain"></div>
+        <div class="error" id="browseError"></div>
         <div class="grid-wrap"><div id="browseGrid"><p class="hint">Select a collection to browse.</p></div></div>
-        <div class="hint">Selected record (JSON)</div>
+        <div class="row">
+          <button class="doc-tab active" data-doc="json">JSON</button>
+          <button class="doc-tab" data-doc="tree">Tree</button>
+        </div>
         <pre id="browseJson"></pre>
+        <div id="browseTree" class="hint" style="display:none;max-height:160px;overflow:auto"></div>
       </section>
       <section id="query" class="panel">
         <div class="row">
@@ -380,6 +408,9 @@ function page(): string {
     let browseDocs = [];
     let queryDocs = [];
     let samples = [];
+    let findText = '';
+    let sortField = '';
+    let sortDesc = false;
     document.getElementById('openDb').onclick = () => vscode.postMessage({ type: 'open' });
     document.getElementById('closeDb').onclick = () => vscode.postMessage({ type: 'close' });
     function showTab(name) {
@@ -397,11 +428,12 @@ function page(): string {
       if (typeof value === 'object') return JSON.stringify(value);
       return String(value);
     }
-    function renderGrid(hostId, jsonId, docs, selected) {
+    function renderGrid(hostId, jsonId, docs, selected, sortable) {
       const host = document.getElementById(hostId);
       if (!Array.isArray(docs) || docs.length === 0) {
         host.innerHTML = '<p class="hint">No rows.</p>';
         document.getElementById(jsonId).textContent = '';
+        if (hostId === 'browseGrid') setBrowseDoc({});
         return;
       }
       const keys = [];
@@ -414,21 +446,116 @@ function page(): string {
         keys.splice(keys.indexOf('_id'), 1);
         keys.unshift('_id');
       }
-      let html = '<table><thead><tr>' + keys.map(k => '<th>' + esc(k) + '</th>').join('') + '</tr></thead><tbody>';
+      let html = '<table><thead><tr>' + keys.map(k => '<th data-k="' + esc(k) + '">' + esc(k) + '</th>').join('') + '</tr></thead><tbody>';
       docs.forEach((doc, i) => {
         html += '<tr data-i="' + i + '"' + (i === selected ? ' class="selected"' : '') + '>';
         keys.forEach(k => { html += '<td>' + esc(cellText(doc ? doc[k] : '')) + '</td>'; });
         html += '</tr>';
       });
       host.innerHTML = html + '</tbody></table>';
-      document.getElementById(jsonId).textContent = JSON.stringify(docs[selected] ?? docs[0], null, 2);
+      const current = docs[selected] ?? docs[0];
+      document.getElementById(jsonId).textContent = JSON.stringify(current, null, 2);
+      if (hostId === 'browseGrid') setBrowseDoc(current || {});
       host.querySelectorAll('tr[data-i]').forEach(row => {
         row.addEventListener('click', () => {
           host.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
           row.classList.add('selected');
-          document.getElementById(jsonId).textContent = JSON.stringify(docs[Number(row.getAttribute('data-i'))], null, 2);
+          const doc = docs[Number(row.getAttribute('data-i'))];
+          document.getElementById(jsonId).textContent = JSON.stringify(doc, null, 2);
+          if (hostId === 'browseGrid') setBrowseDoc(doc || {});
         });
       });
+      if (sortable) {
+        host.querySelectorAll('th[data-k]').forEach(th => {
+          th.addEventListener('click', () => {
+            const field = th.getAttribute('data-k');
+            if (sortField === field) sortDesc = !sortDesc;
+            else { sortField = field; sortDesc = false; }
+            renderBrowseGrid();
+          });
+        });
+      }
+    }
+    function visibleBrowseDocs() {
+      let docs = (browseDocs || []).slice();
+      if (sortField) {
+        docs.sort((a, b) => {
+          const av = sortField === '_id' ? String(a && a._id || '') : cellText(a ? a[sortField] : '');
+          const bv = sortField === '_id' ? String(b && b._id || '') : cellText(b ? b[sortField] : '');
+          return av.localeCompare(bv, undefined, { numeric: true, sensitivity: 'base' });
+        });
+        if (sortDesc) docs.reverse();
+      }
+      const needle = (findText || '').trim().toLowerCase();
+      if (!needle) return docs;
+      return docs.filter(doc => JSON.stringify(doc || {}).toLowerCase().includes(needle));
+    }
+    function renderBrowseGrid() {
+      const visible = visibleBrowseDocs();
+      const findBox = document.getElementById('findStatus');
+      findBox.textContent = findText.trim() ? ('Find: ' + visible.length + ' of ' + browseDocs.length + ' on this page.') : '';
+      fillFilterFields(browseDocs);
+      renderGrid('browseGrid', 'browseJson', visible, 0, true);
+    }
+    function fillFilterFields(docs) {
+      const box = document.getElementById('filterField');
+      const keep = box.value;
+      const keys = [];
+      (docs || []).forEach(doc => {
+        if (doc && typeof doc === 'object') {
+          Object.keys(doc).forEach(k => { if (!keys.includes(k)) keys.push(k); });
+        }
+      });
+      if (keys.includes('_id')) {
+        keys.splice(keys.indexOf('_id'), 1);
+        keys.unshift('_id');
+      } else {
+        keys.unshift('_id');
+      }
+      box.innerHTML = keys.map(k => '<option value="' + esc(k) + '">' + esc(k) + '</option>').join('') || '<option value="">field</option>';
+      box.value = keys.includes(keep) ? keep : (keys[1] || keys[0] || '');
+    }
+    function jsonToken(value) {
+      const trimmed = String(value || '').trim();
+      if (trimmed === 'true' || trimmed === 'false' || trimmed === 'null') return trimmed;
+      if (trimmed !== '' && !Number.isNaN(Number(trimmed))) return trimmed;
+      return JSON.stringify(value || '');
+    }
+    function buildFilter(field, op, value) {
+      field = String(field || '').trim();
+      if (!field) throw new Error('Choose a field for the filter.');
+      if (!/^[A-Za-z0-9_.]+$/.test(field)) throw new Error('Field names may contain letters, digits, underscore, or dots.');
+      value = value == null ? '' : String(value);
+      if (op === 'equals') return value.trim() ? (field + ': ' + value.trim()) : ('{ ' + field + ': "" }');
+      if (op === 'not equals') return '{ ' + field + ': { $ne: ' + jsonToken(value) + ' } }';
+      if (op === '>' || op === '>=' || op === '<' || op === '<=') return '{ ' + field + ': { $' + (op === '>' ? 'gt' : op === '>=' ? 'gte' : op === '<' ? 'lt' : 'lte') + ': ' + jsonToken(value) + ' } }';
+      if (op === 'contains') {
+        if (!value.trim()) throw new Error('Enter text to match.');
+        return '{ ' + field + ': { $regex: ' + JSON.stringify(value.trim()) + ' } }';
+      }
+      if (op === 'exists') return '{ ' + field + ': { $exists: true } }';
+      throw new Error("Unknown filter operator '" + op + "'.");
+    }
+    function renderJsonTree(value, name) {
+      if (value === null) return '<details open><summary>' + esc(name) + ': null</summary></details>';
+      if (Array.isArray(value)) {
+        return '<details open><summary>' + esc(name) + ' [' + value.length + ']</summary>' +
+          value.map((item, i) => renderJsonTree(item, '[' + i + ']')).join('') + '</details>';
+      }
+      if (value && typeof value === 'object') {
+        return '<details open><summary>' + esc(name) + '</summary>' +
+          Object.keys(value).map(k => renderJsonTree(value[k], k)).join('') + '</details>';
+      }
+      return '<div class="leaf">' + esc(name) + ': ' + esc(value) + '</div>';
+    }
+    function setBrowseDoc(doc) {
+      document.getElementById('browseJson').textContent = Object.keys(doc || {}).length ? JSON.stringify(doc, null, 2) : '';
+      document.getElementById('browseTree').innerHTML = Object.keys(doc || {}).length ? renderJsonTree(doc, '(root)') : '';
+    }
+    function showDoc(name) {
+      document.querySelectorAll('.doc-tab').forEach(t => t.classList.toggle('active', t.getAttribute('data-doc') === name));
+      document.getElementById('browseJson').style.display = name === 'json' ? 'block' : 'none';
+      document.getElementById('browseTree').style.display = name === 'tree' ? 'block' : 'none';
     }
     function renderTree(nodes) {
       return (nodes || []).map(n => {
@@ -496,11 +623,19 @@ function page(): string {
       document.getElementById('browseStatus').textContent = '';
       document.getElementById('page').textContent = '';
       document.getElementById('browseExplain').textContent = '';
+      document.getElementById('browseError').textContent = '';
+      document.getElementById('findStatus').textContent = '';
       document.getElementById('queryExplain').textContent = '';
       document.getElementById('queryStatus').textContent = '';
       document.getElementById('queryError').textContent = '';
       document.getElementById('filter').value = '';
+      document.getElementById('filterValue').value = '';
+      document.getElementById('find').value = '';
+      document.getElementById('browseTree').innerHTML = '';
       document.getElementById('q').value = '';
+      findText = '';
+      sortField = '';
+      sortDesc = false;
       document.getElementById('prev').disabled = true;
       document.getElementById('next').disabled = true;
     }
@@ -525,10 +660,38 @@ function page(): string {
     document.getElementById('apply').onclick = () => {
       if (!collection) return;
       pageIndex = 0;
+      document.getElementById('browseError').textContent = '';
       vscode.postMessage({ type: 'browse', collection, filter: document.getElementById('filter').value, page: 0 });
     };
     document.getElementById('filter').addEventListener('keydown', ev => {
       if (ev.key === 'Enter') document.getElementById('apply').click();
+    });
+    document.getElementById('buildFilter').onclick = () => {
+      try {
+        const text = buildFilter(
+          document.getElementById('filterField').value,
+          document.getElementById('filterOp').value,
+          document.getElementById('filterValue').value
+        );
+        document.getElementById('filter').value = text;
+        document.getElementById('browseError').textContent = '';
+        document.getElementById('apply').click();
+      } catch (err) {
+        document.getElementById('browseError').textContent = err.message || String(err);
+      }
+    };
+    document.getElementById('filterValue').addEventListener('keydown', ev => {
+      if (ev.key === 'Enter') document.getElementById('buildFilter').click();
+    });
+    document.getElementById('applyFind').onclick = () => {
+      findText = document.getElementById('find').value;
+      renderBrowseGrid();
+    };
+    document.getElementById('find').addEventListener('keydown', ev => {
+      if (ev.key === 'Enter') document.getElementById('applyFind').click();
+    });
+    document.querySelectorAll('.doc-tab').forEach(tab => {
+      tab.onclick = () => showDoc(tab.getAttribute('data-doc'));
     });
     document.getElementById('prev').onclick = () => {
       if (!collection || pageIndex <= 0) return;
@@ -548,7 +711,8 @@ function page(): string {
       document.getElementById('browseExplain').textContent = data.Explain ?? data.explain ?? '';
       document.getElementById('prev').disabled = !(data.HasPrevious ?? data.hasPrevious);
       document.getElementById('next').disabled = !(data.HasNext ?? data.hasNext);
-      renderGrid('browseGrid', 'browseJson', browseDocs, 0);
+      document.getElementById('browseError').textContent = '';
+      renderBrowseGrid();
       showTab('browse');
     }
     window.addEventListener('message', ev => {
@@ -584,6 +748,7 @@ function page(): string {
       } else if (m.type === 'error') {
         if (m.surface === 'browse') {
           document.getElementById('browseStatus').textContent = m.body || '';
+          document.getElementById('browseError').textContent = m.body || '';
           document.getElementById('status').textContent = m.body || '';
           showTab('browse');
         } else {

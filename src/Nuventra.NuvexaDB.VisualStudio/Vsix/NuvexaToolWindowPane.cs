@@ -1,4 +1,5 @@
 #if VSSDK
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -28,8 +29,15 @@ public sealed class NuvexaVsControl : UserControl
     private readonly TreeView _tree = new();
     private readonly TabControl _tabs = new();
     private readonly TextBox _filter = new() { MinHeight = 24 };
+    private readonly ComboBox _filterField = new() { MinWidth = 120 };
+    private readonly ComboBox _filterOp = new() { MinWidth = 110 };
+    private readonly TextBox _filterValue = new() { MinHeight = 24 };
+    private readonly TextBox _find = new() { MinHeight = 24 };
+    private readonly TextBlock _findStatus = CreateHint();
     private readonly DataGrid _browseGrid = CreateGrid();
     private readonly TextBox _browseJson = CreateJsonBox();
+    private readonly TreeView _browseTree = new();
+    private readonly TabControl _browseDocTabs = new();
     private readonly TextBlock _browseExplain = CreateHint();
     private readonly TextBlock _browseStatus = CreateHint();
     private readonly TextBlock _page = new() { VerticalAlignment = VerticalAlignment.Center, Opacity = 0.8, Margin = new Thickness(8, 0, 8, 0) };
@@ -61,18 +69,52 @@ public sealed class NuvexaVsControl : UserControl
             }
         };
 
+        foreach (var op in BrowseFilterBuilder.Operators)
+        {
+            _filterOp.Items.Add(op);
+        }
+
+        _filterOp.SelectedIndex = 0;
+
         var apply = new Button { Content = "Apply", Width = 72, Margin = new Thickness(8, 0, 0, 0) };
-        apply.Click += async (_, _) =>
+        apply.Click += async (_, _) => await ApplyFilterAsync().ConfigureAwait(true);
+        var build = new Button { Content = "Build filter", Width = 96, Margin = new Thickness(8, 0, 0, 0) };
+        build.Click += async (_, _) =>
         {
             try
             {
-                await _host.ApplyBrowseFilterAsync(_filter.Text).ConfigureAwait(true);
+                await _host.ApplyBuiltFilterAsync(
+                    _filterField.SelectedItem as string,
+                    _filterOp.SelectedItem as string,
+                    _filterValue.Text).ConfigureAwait(true);
+                _filter.Text = _host.BrowseFilter;
                 Reload(rebuildTree: false);
             }
             catch (Exception ex)
             {
                 _browseStatus.Text = ex.Message;
                 _status.Text = ex.Message;
+            }
+        };
+        var find = new Button { Content = "Find", Width = 72, Margin = new Thickness(8, 0, 0, 0) };
+        find.Click += (_, _) =>
+        {
+            _host.ApplyGridFind(_find.Text);
+            Reload(rebuildTree: false);
+        };
+        _find.KeyDown += (_, e) =>
+        {
+            if (e.Key == System.Windows.Input.Key.Enter)
+            {
+                _host.ApplyGridFind(_find.Text);
+                Reload(rebuildTree: false);
+            }
+        };
+        _filter.KeyDown += async (_, e) =>
+        {
+            if (e.Key == System.Windows.Input.Key.Enter)
+            {
+                await ApplyFilterAsync().ConfigureAwait(true);
             }
         };
 
@@ -109,6 +151,16 @@ public sealed class NuvexaVsControl : UserControl
         {
             _host.SelectRow(_browseGrid.SelectedItem as DocumentRow);
             _browseJson.Text = _host.DocumentJson;
+            BindJsonTree();
+        };
+        _browseGrid.Sorting += (_, e) =>
+        {
+            if (e.Column.Header is string field)
+            {
+                e.Handled = true;
+                _host.SortBrowsePage(field);
+                Reload(rebuildTree: false);
+            }
         };
         _queryGrid.SelectionChanged += (_, _) =>
         {
@@ -124,27 +176,54 @@ public sealed class NuvexaVsControl : UserControl
         filterRow.Children.Add(apply);
         filterRow.Children.Add(_filter);
 
+        var buildRow = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
+        var buildLabel = new TextBlock { Text = "Build:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+        var buildFields = new StackPanel { Orientation = Orientation.Horizontal };
+        buildFields.Children.Add(_filterField);
+        buildFields.Children.Add(_filterOp);
+        buildFields.Children.Add(_filterValue);
+        DockPanel.SetDock(buildLabel, Dock.Left);
+        DockPanel.SetDock(build, Dock.Right);
+        buildRow.Children.Add(buildLabel);
+        buildRow.Children.Add(build);
+        buildRow.Children.Add(buildFields);
+
+        var findRow = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
+        var findLabel = new TextBlock { Text = "Find in page:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+        DockPanel.SetDock(findLabel, Dock.Left);
+        DockPanel.SetDock(find, Dock.Right);
+        findRow.Children.Add(findLabel);
+        findRow.Children.Add(find);
+        findRow.Children.Add(_find);
+
         var pager = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
         var pagerButtons = new StackPanel { Orientation = Orientation.Horizontal };
         pagerButtons.Children.Add(_previous);
         pagerButtons.Children.Add(_page);
         pagerButtons.Children.Add(_next);
         DockPanel.SetDock(pagerButtons, Dock.Right);
+        var pagerText = new StackPanel { Orientation = Orientation.Horizontal };
+        pagerText.Children.Add(_browseStatus);
+        pagerText.Children.Add(_findStatus);
         pager.Children.Add(pagerButtons);
-        pager.Children.Add(_browseStatus);
+        pager.Children.Add(pagerText);
 
-        var browseJsonLabel = new TextBlock { Text = "Selected record (JSON)", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) };
+        _browseDocTabs.Height = 160;
+        _browseDocTabs.Items.Add(new TabItem { Header = "JSON", Content = _browseJson });
+        _browseDocTabs.Items.Add(new TabItem { Header = "Tree", Content = _browseTree });
         var browse = new DockPanel { Margin = new Thickness(8) };
         DockPanel.SetDock(filterRow, Dock.Top);
+        DockPanel.SetDock(buildRow, Dock.Top);
+        DockPanel.SetDock(findRow, Dock.Top);
         DockPanel.SetDock(pager, Dock.Top);
         DockPanel.SetDock(_browseExplain, Dock.Top);
-        DockPanel.SetDock(_browseJson, Dock.Bottom);
-        DockPanel.SetDock(browseJsonLabel, Dock.Bottom);
+        DockPanel.SetDock(_browseDocTabs, Dock.Bottom);
         browse.Children.Add(filterRow);
+        browse.Children.Add(buildRow);
+        browse.Children.Add(findRow);
         browse.Children.Add(pager);
         browse.Children.Add(_browseExplain);
-        browse.Children.Add(_browseJson);
-        browse.Children.Add(browseJsonLabel);
+        browse.Children.Add(_browseDocTabs);
         browse.Children.Add(_browseGrid);
 
         var sampleRow = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
@@ -220,10 +299,13 @@ public sealed class NuvexaVsControl : UserControl
         BindGrid(_browseGrid, _host.Rows, _host.SelectedRow);
         BindGrid(_queryGrid, _host.QueryRows, _host.SelectedQueryRow);
         _browseJson.Text = _host.DocumentJson;
+        BindJsonTree();
+        FillFilterFields();
         _queryJson.Text = _host.QueryDocumentJson;
         _status.Text = _host.Status;
         _browseExplain.Text = _host.Explain;
         _browseStatus.Text = _host.BrowseStatus;
+        _findStatus.Text = _host.BrowseFindStatus;
         _queryExplain.Text = _host.QueryExplain;
         _queryStatus.Text = _host.QueryStatus;
         _page.Text = string.IsNullOrEmpty(_host.BrowsePageText) ? _host.BrowseStatus : _host.BrowsePageText;
@@ -233,6 +315,59 @@ public sealed class NuvexaVsControl : UserControl
         {
             _filter.Text = _host.BrowseFilter;
         }
+    }
+
+    private async Task ApplyFilterAsync()
+    {
+        try
+        {
+            await _host.ApplyBrowseFilterAsync(_filter.Text).ConfigureAwait(true);
+            Reload(rebuildTree: false);
+        }
+        catch (Exception ex)
+        {
+            _browseStatus.Text = ex.Message;
+            _status.Text = ex.Message;
+        }
+    }
+
+    private void FillFilterFields()
+    {
+        var keep = _filterField.SelectedItem as string;
+        _filterField.Items.Clear();
+        foreach (var name in _host.BrowseFields)
+        {
+            _filterField.Items.Add(name);
+        }
+
+        if (keep is not null && _host.BrowseFields.Contains(keep, StringComparer.Ordinal))
+        {
+            _filterField.SelectedItem = keep;
+        }
+        else if (_filterField.Items.Count > 0)
+        {
+            _filterField.SelectedIndex = Math.Min(1, _filterField.Items.Count - 1);
+        }
+    }
+
+    private void BindJsonTree()
+    {
+        _browseTree.Items.Clear();
+        foreach (var node in _host.DocumentTree)
+        {
+            _browseTree.Items.Add(ToJsonItem(node));
+        }
+    }
+
+    private static TreeViewItem ToJsonItem(JsonDocumentNode node)
+    {
+        var item = new TreeViewItem { Header = node.Caption, IsExpanded = node.Children.Count > 0 && node.Children.Count <= 12 };
+        foreach (var child in node.Children)
+        {
+            item.Items.Add(ToJsonItem(child));
+        }
+
+        return item;
     }
 
     private async Task RunQueryAsync()

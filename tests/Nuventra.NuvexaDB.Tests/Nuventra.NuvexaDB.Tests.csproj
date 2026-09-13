@@ -19,4 +19,10 @@
     <ProjectReference Include="..\Nuventra.NuvexaDB.CrashHarness\Nuventra.NuvexaDB.CrashHarness.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="..\..\src\Nuventra.NuvexaDB.Explorer\ExplorerCsv.cs" Link="ExplorerCsv.cs" />
+    <Compile Include="..\..\src\Nuventra.NuvexaDB.Explorer\ExplorerInfoText.cs" Link="ExplorerInfoText.cs" />
+    <Compile Include="..\..\src\Nuventra.NuvexaDB.Explorer\SchemaSampler.cs" Link="SchemaSampler.cs" />
+  </ItemGroup>
+
 </Project>

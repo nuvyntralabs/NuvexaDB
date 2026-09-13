@@ -9,6 +9,9 @@ public interface IExplorerShell
     Task<string?> PickSaveNvxAsync();
     Task<string?> PickOpenJsonAsync();
     Task<string?> PickSaveJsonAsync();
+    Task<string?> PickOpenCsvAsync();
+    Task<string?> PickSaveCsvAsync();
+    Task<string?> PickSaveBackupAsync();
     Task<string?> PromptKeyAsync(string message);
     Task<string?> PromptTextAsync(string message, string? initial = null);
     Task<(string Current, string Next)?> PromptChangeKeyAsync();
