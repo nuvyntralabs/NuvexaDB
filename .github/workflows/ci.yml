@@ -82,14 +82,6 @@ jobs:
         run: dotnet test tests/Nuventra.NuvexaDB.Tests/Nuventra.NuvexaDB.Tests.csproj -c Release --nologo
       - name: SLO gate
         run: dotnet run --project benches/Nuventra.NuvexaDB.Benchmarks -c Release -- --gate
-      - name: Summary
-        shell: bash
-        run: |
-          {
-            echo "### Unit tests (${{ matrix.os }})"
-            echo
-            echo "Engine, Explorer IDE, and Visual Studio tests passed. Builds start after this job."
-          } >> "$GITHUB_STEP_SUMMARY"
 
   native:
     name: Native ABI ${{ matrix.rid }}
@@ -120,6 +112,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential
+      - name: Host C toolchain
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          echo "C:\\mingw64\\bin" >> "$GITHUB_PATH"
+          /c/mingw64/bin/gcc -dumpmachine
       - name: Publish C ABI
         shell: bash
         run: |

@@ -146,21 +146,37 @@ windows_msvc() {
   MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' "$@"
 }
 
-windows_link_and_run() {
+write_crlf() {
+  local dest="$1"
+  shift
+  printf '%s\r\n' "$@" > "$dest"
+}
+
+mingw_gcc() {
+  local candidate
+  for candidate in "$(command -v gcc || true)" /c/mingw64/bin/gcc /mingw64/bin/gcc; do
+    if [[ -n "$candidate" && -x "$candidate" ]] && "$candidate" -dumpmachine 2>/dev/null | grep -qi mingw; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+windows_msvc_link() {
   local dll="$1"
   local out="$2"
-  if ! command -v dumpbin >/dev/null 2>&1 || ! command -v lib >/dev/null 2>&1 || ! command -v cl >/dev/null 2>&1; then
-    echo "dumpbin, lib, and cl from the MSVC tools are required on Windows" >&2
+  if ! command -v dumpbin >/dev/null 2>&1 || ! command -v lib >/dev/null 2>&1 || ! command -v cl >/dev/null 2>&1 || ! command -v link >/dev/null 2>&1; then
+    echo "dumpbin, lib, cl, and link from the MSVC tools are required when MinGW gcc is absent" >&2
     exit 1
   fi
+
   local exports="$build/nuvexa.exports.txt"
   local def="$build/nuvexa.def"
-  local implib="$native_dir/nuvexa.lib"
+  local implib="$build/nuvexa.lib"
   local obj="$build/abi_runner.obj"
-  local bindir testdir count
-  bindir="$(dirname "$out")"
-  testdir="$build/tmp"
-  mkdir -p "$bindir" "$testdir"
+  local script="$build/link-abi.cmd"
+  local count dll_win def_win lib_win inc_win src_win obj_win out_win
 
   echo "dumpbin $(to_win "$dll")"
   windows_msvc dumpbin /EXPORTS "$(to_win "$dll")" | tr -d '\r' > "$exports"
@@ -176,10 +192,45 @@ windows_link_and_run() {
   fi
   echo "import lib: $count nuvexa_* exports"
 
-  windows_msvc lib /nologo /def:"$(to_win "$def")" /machine:X64 /out:"$(to_win "$implib")"
-  windows_msvc cl /nologo /O1 /I "$(to_win "$include")" "$(to_win "$src")" \
-    /Fe"$(to_win "$out")" /Fo"$(to_win "$obj")" \
-    /link /LIBPATH:"$(to_win "$native_dir")" nuvexa.lib
+  dll_win="$(to_win "$dll")"
+  def_win="$(to_win "$def")"
+  lib_win="$(to_win "$implib")"
+  inc_win="$(to_win "$include")"
+  src_win="$(to_win "$src")"
+  obj_win="$(to_win "$obj")"
+  out_win="$(to_win "$out")"
+  # Every MSVC switch lives in this .cmd so Git Bash cannot rewrite /c, /link, or /OUT.
+  write_crlf "$script" \
+    "@echo off" \
+    "setlocal" \
+    "lib /nologo /def:\"$def_win\" /machine:X64 /out:\"$lib_win\"" \
+    "if errorlevel 1 exit /b 1" \
+    "cl /nologo /c /O1 /I \"$inc_win\" \"$src_win\" /Fo\"$obj_win\"" \
+    "if errorlevel 1 exit /b 1" \
+    "link /nologo /OUT:\"$out_win\" \"$obj_win\" \"$lib_win\"" \
+    "if errorlevel 1 exit /b 1"
+  echo "MSVC link via $(to_win "$script")"
+  windows_msvc cmd.exe /c "$(to_win "$script")"
+}
+
+windows_link_and_run() {
+  local dll="$1"
+  local out="$2"
+  local bindir testdir gcc
+  bindir="$(dirname "$out")"
+  testdir="$build/tmp"
+  mkdir -p "$bindir" "$testdir"
+
+  # MinGW ld can consume the Native AOT DLL. MSVC link.exe cannot (LNK1107),
+  # and `cl /link` from Git Bash drops nuvexa.lib (LNK2019).
+  if gcc="$(mingw_gcc)"; then
+    echo "link with MinGW $gcc ($("$gcc" -dumpmachine))"
+    "$gcc" -O1 -I "$include" "$src" "$dll" -o "$out"
+  else
+    echo "MinGW gcc not found; falling back to MSVC via cmd.exe"
+    windows_msvc_link "$dll" "$out"
+  fi
+
   cp -f "$dll" "$bindir/"
   export NUVEXA_TEST_DIR
   NUVEXA_TEST_DIR="$(to_win "$testdir")"
