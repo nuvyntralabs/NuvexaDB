@@ -132,6 +132,20 @@ run_ios() {
   xcrun simctl spawn booted "$out"
 }
 
+to_win() {
+  if command -v cygpath >/dev/null 2>&1; then
+    cygpath -w "$1"
+  else
+    printf '%s\n' "$1"
+  fi
+}
+
+# Git Bash rewrites a single-slash flag (/EXPORTS) into a drive path (E:\XPORTS).
+# Keep MSVC switches intact for this function and its child processes.
+windows_msvc() {
+  MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' "$@"
+}
+
 windows_link_and_run() {
   local dll="$1"
   local out="$2"
@@ -142,33 +156,35 @@ windows_link_and_run() {
   local exports="$build/nuvexa.exports.txt"
   local def="$build/nuvexa.def"
   local implib="$native_dir/nuvexa.lib"
-  dumpbin /EXPORTS "$dll" > "$exports"
-  local py=python3
-  command -v python3 >/dev/null 2>&1 || py=python
-  "$py" - "$exports" "$def" <<'PY'
-import re
-import sys
+  local obj="$build/abi_runner.obj"
+  local bindir testdir count
+  bindir="$(dirname "$out")"
+  testdir="$build/tmp"
+  mkdir -p "$bindir" "$testdir"
 
-src, dest = sys.argv[1], sys.argv[2]
-names = []
-for line in open(src, encoding="utf-8", errors="replace"):
-    match = re.match(r"\s+\d+\s+[0-9A-Fa-f]+\s+[0-9A-Fa-f]+\s+(\S+)", line)
-    if not match:
-        continue
-    name = match.group(1).split("=")[0].strip()
-    if name.startswith("nuvexa_"):
-        names.append(name)
-if not names:
-    raise SystemExit("dumpbin reported no nuvexa_* exports")
-with open(dest, "w", encoding="ascii", newline="\r\n") as handle:
-    handle.write("LIBRARY nuvexa\nEXPORTS\n")
-    for name in names:
-        handle.write(f"    {name}\n")
-print(f"import lib: {len(names)} nuvexa_* exports")
-PY
-  lib /nologo /def:"$def" /machine:X64 /out:"$implib"
-  cl /nologo /O1 /I "$include" "$src" /Fe"$out" /link /LIBPATH:"$native_dir" nuvexa.lib
-  PATH="$native_dir:${PATH:-}" "$out"
+  echo "dumpbin $(to_win "$dll")"
+  windows_msvc dumpbin /EXPORTS "$(to_win "$dll")" | tr -d '\r' > "$exports"
+  {
+    printf 'LIBRARY nuvexa\r\nEXPORTS\r\n'
+    awk '$1 ~ /^[0-9]+$/ && $NF ~ /^nuvexa_[A-Za-z0-9_]+$/ { printf "    %s\r\n", $NF }' "$exports"
+  } > "$def"
+  count="$(awk '$1 ~ /^[0-9]+$/ && $NF ~ /^nuvexa_[A-Za-z0-9_]+$/ { n++ } END { print n+0 }' "$exports")"
+  if [[ "$count" -lt 1 ]]; then
+    echo "dumpbin reported no nuvexa_* exports" >&2
+    cat "$exports" >&2
+    exit 1
+  fi
+  echo "import lib: $count nuvexa_* exports"
+
+  windows_msvc lib /nologo /def:"$(to_win "$def")" /machine:X64 /out:"$(to_win "$implib")"
+  windows_msvc cl /nologo /O1 /I "$(to_win "$include")" "$(to_win "$src")" \
+    /Fe"$(to_win "$out")" /Fo"$(to_win "$obj")" \
+    /link /LIBPATH:"$(to_win "$native_dir")" nuvexa.lib
+  cp -f "$dll" "$bindir/"
+  export NUVEXA_TEST_DIR
+  NUVEXA_TEST_DIR="$(to_win "$testdir")"
+  echo "running $(to_win "$out")"
+  windows_msvc cmd.exe /c "$(to_win "$out")"
 }
 
 verify_android_exports() {

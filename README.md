@@ -19,7 +19,7 @@ Use **SQLite** when you need SQL joins or an existing sqlite-net model. Use **Nu
 dotnet add package Nuventra.NuvexaDB
 ```
 
-Do not publish this package from a local clone. CI on `main` / tags / PRs **builds, tests, and uploads GitHub artifacts** (nupkg + snupkg, native ABI, Explorer installers, VS Code / Visual Studio VSIX, and language SDK packs). nuget.org, GitHub Packages, and the version / NuGet validation jobs are commented out until multi-host publishing (.NET, Maven, npm, …) is decided. Uncomment those steps in `NuvexaDB/.github/workflows/ci.yml` to restore them.
+Do not publish this package from a local clone. CI on `main` / tags / PRs **runs all C# tests first**, then builds and uploads GitHub artifacts (nupkg + snupkg, native ABI, Explorer installers, VS Code / Visual Studio VSIX, and language SDK packs). Coverage / test-result zips are not uploaded. nuget.org, GitHub Packages, and the version / NuGet validation jobs are commented out until multi-host publishing (.NET, Maven, npm, …) is decided. Uncomment those steps in `NuvexaDB/.github/workflows/ci.yml` to restore them.
 
 After each CI run, the job summary lists a **Download** link for every artifact (same pattern as the IDE / extensions):
 
@@ -35,7 +35,6 @@ After each CI run, the job summary lists a **Download** link for every artifact 
 | `vscode-NuvexaDB` | VS Code / Cursor VSIX |
 | `vsix-NuvexaDB` | Visual Studio VSIX |
 | `bindings-<sdk>-<rid>` | Language SDK pack after that SDK’s unit tests |
-| `coverage-<os>` | Coverlet cobertura for engine + Explorer + Visual Studio |
 
 Explorer installers (single-file app inside a native package):
 

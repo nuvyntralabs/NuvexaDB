@@ -79,39 +79,16 @@ jobs:
             9.0.x
             10.0.x
       - name: Test engine, Explorer IDE, and Visual Studio
-        run: >
-          dotnet test tests/Nuventra.NuvexaDB.Tests/Nuventra.NuvexaDB.Tests.csproj
-          -c Release --nologo
-          --settings tests/Coverage.runsettings
-          --collect:"XPlat Code Coverage"
-          --results-directory coverage
+        run: dotnet test tests/Nuventra.NuvexaDB.Tests/Nuventra.NuvexaDB.Tests.csproj -c Release --nologo
       - name: SLO gate
         run: dotnet run --project benches/Nuventra.NuvexaDB.Benchmarks -c Release -- --gate
-      - name: Summarize coverage
-        id: coverage
-        shell: bash
-        run: |
-          chmod +x .github/scripts/summarize-coverage.py
-          python3 .github/scripts/summarize-coverage.py --root coverage
-      - name: Upload coverage
-        id: upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-${{ matrix.os }}
-          path: coverage/**
-          if-no-files-found: warn
-          retention-days: 14
       - name: Summary
         shell: bash
         run: |
           {
             echo "### Unit tests (${{ matrix.os }})"
             echo
-            if [ -n "${{ steps.upload.outputs.artifact-url }}" ]; then
-              echo "Download: [coverage-${{ matrix.os }}](${{ steps.upload.outputs.artifact-url }})"
-              echo
-            fi
-            echo "Engine, Explorer IDE, and Visual Studio tests passed. Line coverage: ${{ steps.coverage.outputs.line_rate }}."
+            echo "Engine, Explorer IDE, and Visual Studio tests passed. Builds start after this job."
           } >> "$GITHUB_STEP_SUMMARY"
 
   native:
@@ -327,14 +304,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Visual Studio unit tests
-        run: >
-          dotnet test tests/Nuventra.NuvexaDB.Tests/Nuventra.NuvexaDB.Tests.csproj
-          -c Release --nologo
-          --filter FullyQualifiedName~VisualStudio
-          --settings tests/Coverage.runsettings
-          --collect:"XPlat Code Coverage"
-          --results-directory coverage-vsix
       - name: Pack VSIX
         run: |
           set -euo pipefail
@@ -385,14 +354,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Explorer IDE unit tests
-        run: >
-          dotnet test tests/Nuventra.NuvexaDB.Tests/Nuventra.NuvexaDB.Tests.csproj
-          -c Release --nologo
-          --filter "FullyQualifiedName~Explorer"
-          --settings tests/Coverage.runsettings
-          --collect:"XPlat Code Coverage"
-          --results-directory coverage-explorer
       - name: Install WiX
         if: startsWith(matrix.rid, 'win-')
         shell: bash
