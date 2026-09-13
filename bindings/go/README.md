@@ -1,6 +1,6 @@
 # Go library
 
-cgo SDK over `nuvexa.h`. ABI v2. The library ignores `SIGUSR1` / `SIGUSR2` so Native AOT GC signals do not terminate the Go process.
+cgo SDK over `nuvexa.h`. ABI v2. On Linux the library ignores `SIGUSR1` / `SIGUSR2`. On Darwin the Go runtime cannot host Native AOT GC signals (`signal.Ignore` deadlocks `nuvexa_create`; the default handler dies with SIGUSR1). Runtime interop tests run on Linux; the native ABI job covers macOS golden cases.
 
 | Piece | Path |
 | --- | --- |
@@ -12,9 +12,9 @@ cgo SDK over `nuvexa.h`. ABI v2. The library ignores `SIGUSR1` / `SIGUSR2` so Na
 ```bash
 # from the NuvexaDB repo root
 src/Nuventra.NuvexaDB.Native/publish.sh
-export NUVEXA_NATIVE_DIR="$(pwd)/artifacts/native/osx-arm64"
+export NUVEXA_NATIVE_DIR="$(pwd)/artifacts/native/linux-x64"  # Darwin go test skips runtime interop
 export CGO_LDFLAGS="-L$NUVEXA_NATIVE_DIR -lnuvexa"
-export DYLD_LIBRARY_PATH="$NUVEXA_NATIVE_DIR${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH="$NUVEXA_NATIVE_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 cd bindings/go
 go test
 cd examples/sample && go run .

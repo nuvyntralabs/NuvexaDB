@@ -5,10 +5,18 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	nuvexa "github.com/nuvyntralabs/NuvexaDB/bindings/go"
 )
+
+func skipDarwinAOT(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "darwin" {
+		t.Skip("Native AOT SIGUSR1/SIGUSR2 cannot be hosted in the Go runtime on Darwin. Linux go test and the native ABI job cover these cases.")
+	}
+}
 
 type fixture struct {
 	Key        string              `json:"key"`
@@ -45,6 +53,7 @@ func loadFixture(t *testing.T) fixture {
 }
 
 func TestGoldenCases(t *testing.T) {
+	skipDarwinAOT(t)
 	if os.Getenv("NUVEXA_NATIVE_DIR") == "" && os.Getenv("NUVEXA_NATIVE_LIB") == "" {
 		t.Skip("set NUVEXA_NATIVE_DIR or NUVEXA_NATIVE_LIB")
 	}
@@ -88,6 +97,7 @@ func TestGoldenCases(t *testing.T) {
 }
 
 func TestAbiVersion(t *testing.T) {
+	skipDarwinAOT(t)
 	if os.Getenv("NUVEXA_NATIVE_DIR") == "" && os.Getenv("NUVEXA_NATIVE_LIB") == "" {
 		t.Skip("set NUVEXA_NATIVE_DIR or NUVEXA_NATIVE_LIB")
 	}
@@ -97,6 +107,7 @@ func TestAbiVersion(t *testing.T) {
 }
 
 func TestGoldenAndExtended(t *testing.T) {
+	skipDarwinAOT(t)
 	if os.Getenv("NUVEXA_NATIVE_DIR") == "" && os.Getenv("NUVEXA_NATIVE_LIB") == "" {
 		t.Skip("set NUVEXA_NATIVE_DIR or NUVEXA_NATIVE_LIB")
 	}

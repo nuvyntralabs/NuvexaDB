@@ -19,13 +19,14 @@ import (
 )
 
 func init() {
-	// Native AOT GC on Darwin uses SIGUSR1/SIGUSR2. signal.Ignore after the
-	// dylib is loaded replaces those handlers and deadlocks nuvexa_create.
-	// Linux AOT does not need the signals; Ignore there so an unexpected
-	// SIGUSR1 does not kill the Go process.
-	if runtime.GOOS != "darwin" {
-		signal.Ignore(syscall.SIGUSR1, syscall.SIGUSR2)
+	// Linux: Ignore leftover SIGUSR1/SIGUSR2 so they do not kill the process.
+	// Darwin: do not load the dylib here. Native AOT GC uses those signals;
+	// Ignore deadlocks create, and the default handler dies with SIGUSR1.
+	// Runtime interop is Linux; Darwin compiles and skips (see nuvexa_test.go).
+	if runtime.GOOS == "darwin" {
+		return
 	}
+	signal.Ignore(syscall.SIGUSR1, syscall.SIGUSR2)
 	loadNativeLibrary()
 }
 

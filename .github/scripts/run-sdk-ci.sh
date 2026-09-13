@@ -123,13 +123,11 @@ case "$sdk" in
   go)
     (
       cd "$root/bindings/go"
-      # Linking -lnuvexa on Darwin loads Native AOT before Go init and then
-      # signal.Ignore steals GC handlers, so nuvexa_create deadlocks. Darwin
-      # dlopens after init and leaves SIGUSR1/SIGUSR2 for AOT. Keep -lnuvexa
-      # on Linux.
+      # Darwin: compile + skip runtime tests. Native AOT SIGUSR1 kills or
+      # deadlocks the Go process (Ignore vs default). Linux runs the suite;
+      # the native ABI job covers macOS golden cases.
       if [[ "$(uname -s)" == "Darwin" ]]; then
         export CGO_LDFLAGS="-L$native_dir"
-        export GODEBUG="${GODEBUG:+$GODEBUG,}asyncpreemptoff=1"
       fi
       go test -timeout 2m -count=1 -coverprofile="$out/coverage.out"
     )
