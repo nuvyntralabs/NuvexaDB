@@ -1,29 +1,50 @@
 # C++ library
 
-Header-only RAII overlay over `nuvexa.h`. ABI v2. CMake builds the tests and the in-tree sample.
+Header-only RAII (`nuvexa.hpp`) over `nuvexa.h`. CMake target `nuvexadb`.
 
-| Piece | Path |
-| --- | --- |
-| Library | `include/nuvexa.hpp` + `include/nuvexa.h` (`CMakeLists.txt`) |
-| Tests | `tests/interop.cpp` |
-| Sample | [examples/sample.cpp](examples/sample.cpp) |
-| This file | `README.md` |
+## Integration
+
+Do not publish a C++ package from this clone. Headers from this tree or CI `NuvexaDB-Cpp-<rid>` plus `NuvexaDB-Native-<rid>`.
+
+### Package / CMake reference
+
+```cmake
+add_subdirectory(NuvexaDB/bindings/cpp)
+target_link_libraries(your_app PRIVATE nuvexadb)
+```
 
 ```bash
-# from the NuvexaDB repo root
-src/Nuventra.NuvexaDB.Native/publish.sh
 export NUVEXA_NATIVE_DIR="$(pwd)/artifacts/native/osx-arm64"
-export NUVEXA_NATIVE_LIB="$NUVEXA_NATIVE_DIR/libnuvexa.dylib"
+```
+
+```cpp
+#include "nuvexa.hpp"
+```
+
+### Create DB, collection, CRUD, queries
+
+```cpp
+auto db = nuvexa::database::create("app.nvx", "sample-key");
+auto id = db.insert("users", R"({"name":"Ada","age":36,"status":"active","address":{"city":"London"}})");
+db.replace("users", std::string(R"({"_id":")") + id + R"(","name":"Ada Lovelace","age":36,"status":"active","address":{"city":"London"}})");
+db.delete_by_id("users", scratch_id);
+db.ensure_index("users", "\"age\"");
+db.execute("db.users.find({ age: { $gte: 21 } }).sort({ name: 1 }).limit(10)");
+db.execute(R"(db.users.find({ $and: [ { "address.city": "London" }, { status: "active" } ] }).sort({ age: -1 }))");
+db.execute(R"(db.users.find({ $or: [ { age: { $lt: 30 } }, { "address.city": "New York" } ] }))");
+```
+
+`ensure_index` takes **fields JSON** (`"age"` or `["address.city","status"]`). First insert creates `users`. Failures throw `nuvexa::encryption_error` / `integrity_error` / `error`.
+
+## In-repo sample
+
+[examples/sample.cpp](examples/sample.cpp)
+
+```bash
 cmake -S bindings/cpp -B bindings/cpp/build
 cmake --build bindings/cpp/build
 ctest --test-dir bindings/cpp/build --output-on-failure
 ./bindings/cpp/build/nuvexa_sample
 ```
 
-```cpp
-auto db = nuvexa::database::create("app.nvx", "correct-horse");
-db.insert("users", R"({"name":"Ada","age":36})");
-auto rows = db.execute("db.users.find({ age: { $gte: 21 } }).limit(20)");
-```
-
-Do not publish a C++ package from this clone.
+See [docs/bindings.md](../../docs/bindings.md).

@@ -32,6 +32,7 @@ resolve_lib() {
 
 mkdir -p "$out"
 stage_jni="$root/.github/scripts/stage-jni-lib.sh"
+python3 "$root/.github/scripts/check-versions.py" --repo-root "$root" --write
 
 if [[ -z "$native_dir" || ! -d "$native_dir" ]]; then
   echo "Native directory is required for $sdk" >&2
@@ -132,7 +133,7 @@ case "$sdk" in
       go test -timeout 2m -count=1 -coverprofile="$out/coverage.out"
     )
     tar -C "$root/bindings/go" -czf "$out/nuvexadb-go-${version}.tgz" \
-      go.mod nuvexa.go nuvexa_darwin.go nuvexa_noload.go nuvexa_test.go include README.md examples
+      go.mod version.go nuvexa.go nuvexa_darwin.go nuvexa_noload.go nuvexa_test.go include README.md examples
     ;;
   cpp)
     cmake -S "$root/bindings/cpp" -B "$root/bindings/cpp/build"

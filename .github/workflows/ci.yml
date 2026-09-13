@@ -1,5 +1,9 @@
 name: ci
 
+# Everyday pushes and PRs only upload Actions artifacts. They never create or
+# update github.com/nuvyntralabs/NuvexaDB/releases. A GitHub Release is created
+# only when you push a version tag (v1.0.0) AND every CI job on that run
+# succeeded. That is the release control.
 on:
   push:
     branches: [main]
@@ -16,27 +20,12 @@ permissions:
   # packages: write  # required when nuget.org / GitHub Packages push is uncommented
 
 jobs:
-  # ---------------------------------------------------------------------------
-  # Paused: version alignment + nuget.org validation.
-  # NuvexaDB will later publish to more than one host (.NET NuGet, Maven
-  # Central, npm, pub.dev, …). Uncomment these jobs and the pack push step
-  # when those hosts are decided. Until then CI builds, tests, and uploads
-  # GitHub artifacts the same way Explorer / VS Code / Visual Studio already do.
-  # ---------------------------------------------------------------------------
-  # version-align:
-  #   name: Version alignment
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 5
-  #   outputs:
-  #     version: ${{ steps.check.outputs.version }}
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - id: check
-  #       run: python3 .github/scripts/check-versions.py --repo-root .
-  #
+  # nuget.org / GitHub Packages validation stays paused. Version alignment
+  # runs on every CI so NuGet, bindings, Data Studio, and both IDEs share
+  # Directory.Build.props <Version>.
   # version-check:
   #   name: NuGet release
-  #   needs: [version-align]
+  #   needs: [version]
   #   runs-on: ubuntu-latest
   #   timeout-minutes: 10
   #   steps:
@@ -47,19 +36,15 @@ jobs:
   #       run: python3 .github/scripts/check-nuget-release.py --plugin-root .
 
   version:
-    name: Read version
+    name: Version alignment
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      version: ${{ steps.read.outputs.version }}
+      version: ${{ steps.check.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-      - id: read
-        run: |
-          set -euo pipefail
-          version="$(python3 -c "import re, pathlib; text=pathlib.Path('Directory.Build.props').read_text(); print(re.search(r'<Version>([^<]+)</Version>', text).group(1))")"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "Using Directory.Build.props Version=$version (alignment / NuGet validation commented out)"
+      - id: check
+        run: python3 .github/scripts/check-versions.py --repo-root .
       - if: always()
         shell: bash
         run: |
@@ -739,6 +724,59 @@ jobs:
           path: artifacts/sdk/react-native-ios/
           if-no-files-found: error
           retention-days: 14
+      - if: always()
+        shell: bash
+        run: |
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then : > "$GITHUB_STEP_SUMMARY"; fi
+
+  publish-release:
+    name: GitHub Release
+    # A custom if: replaces GitHub's default "needs succeeded" check.
+    # success() is required so a red tag run never creates or updates a Release.
+    if: github.ref_type == 'tag' && success()
+    needs:
+      - version
+      - test
+      - native
+      - native-android
+      - native-ios
+      - vscode
+      - vsix
+      - explorer
+      - pack
+      - sdk
+      - android
+      - react-native-android
+      - react-native-ios
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download CI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: NuvexaDB-*
+          path: release-artifacts
+          merge-multiple: false
+      - name: Zip artifacts for the release
+        run: |
+          set -euo pipefail
+          chmod +x .github/scripts/stage-release-assets.sh
+          .github/scripts/stage-release-assets.sh "$PWD/release-artifacts" "$PWD/dist"
+      - name: Publish GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="${{ github.ref_name }}"
+          version="${{ needs.version.outputs.version }}"
+          gh release create "$tag" dist/*.zip \
+            --repo "${{ github.repository }}" \
+            --title "NuvexaDB ${version}" \
+            --generate-notes \
+            --verify-tag
       - if: always()
         shell: bash
         run: |

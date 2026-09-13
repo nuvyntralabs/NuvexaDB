@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Nuventra.NuvexaDB\Nuventra.NuvexaDB.csproj" />
+    <Compile Include="..\Shared\SampleTour.cs" Link="SampleTour.cs" />
   </ItemGroup>
 
 </Project>

@@ -8,6 +8,7 @@ publish="$root/artifacts/vsix-publish"
 
 dotnet publish "$proj" -c Release -f net8.0-windows -o "$publish" --nologo
 
+python3 "$root/.github/scripts/check-versions.py" --repo-root "$root" --write
 python3 - "$root" "$publish" "$output" <<'PY'
 import sys
 import zipfile

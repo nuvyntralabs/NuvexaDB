@@ -6,6 +6,7 @@
   <ScrollView>
     <VerticalStackLayout Padding="16" Spacing="8">
       <Entry x:Name="KeyEntry" Placeholder="Encryption key (optional)" IsPassword="True" />
+      <Button Text="Run integration tour" Clicked="OnTour" />
       <Button Text="Create / open cache.nvx" Clicked="OnOpen" />
       <Button Text="Insert sample users" Clicked="OnInsert" />
       <Button Text="Query age &gt;= 21" Clicked="OnQuery" />

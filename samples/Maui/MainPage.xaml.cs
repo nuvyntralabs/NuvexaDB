@@ -1,3 +1,4 @@
+using NuvexaDB.Samples;
 using Nuventra.NuvexaDB;
 
 namespace NuvexaDB.Samples.Maui;
@@ -7,6 +8,18 @@ public partial class MainPage : ContentPage
     private string DbPath => Path.Combine(FileSystem.AppDataDirectory, "cache.nvx");
 
     public MainPage() => InitializeComponent();
+
+    private async void OnTour(object? sender, EventArgs e)
+    {
+        try
+        {
+            Output.Text = await SampleTour.RunAsync(DbPath);
+        }
+        catch (Exception ex)
+        {
+            Output.Text = ex.Message;
+        }
+    }
 
     private void OnOpen(object? sender, EventArgs e)
     {

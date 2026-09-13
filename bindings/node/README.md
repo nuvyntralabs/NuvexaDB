@@ -1,31 +1,56 @@
 # Node.js library
 
-Standalone Node SDK over `nuvexa.h` (koffi). ABI v2.
+ESM package `@nuventra/nuvexadb-node` (koffi). ABI v2. All methods are **async**.
 
-| Piece | Path |
-| --- | --- |
-| Library | `src/` (`package.json`) |
-| Tests | `test/interop.test.mjs` |
-| Sample | [examples/sample.mjs](examples/sample.mjs) |
-| This file | `README.md` |
+## Integration
+
+Do not `npm publish` from this clone. Use a path install or CI `NuvexaDB-Node-<rid>` plus `NuvexaDB-Native-<rid>`.
+
+### Package reference
+
+`NUVEXA_NATIVE_LIB` is **required**.
 
 ```bash
-# from the NuvexaDB repo root
 src/Nuventra.NuvexaDB.Native/publish.sh
 export NUVEXA_NATIVE_LIB="$(pwd)/artifacts/native/osx-arm64/libnuvexa.dylib"
-cd bindings/node
-npm install
-npm test
-npm run sample
+npm install ../NuvexaDB/bindings/node
 ```
 
 ```js
 import { NuvexaDatabase } from "@nuventra/nuvexadb-node";
+```
 
-const db = await NuvexaDatabase.create("app.nvx", "correct-horse");
-await db.insert("users", JSON.stringify({ name: "Ada", age: 36 }));
-await db.execute("db.users.find({ age: { $gte: 21 } }).limit(20)");
+### Create the database and a collection
+
+```js
+const db = await NuvexaDatabase.create("app.nvx", "sample-key");
+const adaId = await db.insert("users", JSON.stringify({ name: "Ada", age: 36, status: "active", address: { city: "London" } }));
+console.log(await db.listCollections());
+```
+
+### CRUD
+
+`insert` / `insertMany` → `findById` → `replace` (JSON includes `_id`) → `deleteById`.
+
+### Complex queries
+
+```js
+await db.ensureIndex("users", "age");
+await db.execute("db.users.find({ age: { $gte: 21 } }).sort({ name: 1 }).limit(10)");
+await db.execute('db.users.find({ $and: [ { "address.city": "London" }, { status: "active" } ] }).sort({ age: -1 })');
+await db.execute('db.users.find({ $or: [ { age: { $lt: 30 } }, { "address.city": "New York" } ] })');
 await db.close();
 ```
 
-Do not `npm publish` from this clone.
+Opening without a key rejects with `NuvexaEncryptionException`.
+
+## In-repo sample
+
+[examples/sample.mjs](examples/sample.mjs)
+
+```bash
+cd bindings/node
+npm install && npm test && npm run sample
+```
+
+See [docs/bindings.md](../../docs/bindings.md).

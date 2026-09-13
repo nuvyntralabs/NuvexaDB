@@ -4,7 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="NuvexaDB Uno sample">
   <StackPanel Padding="16" Spacing="8">
-    <Button Click="OnRun">Create, query, fail-closed open</Button>
+    <Button Click="OnRun">Run integration tour</Button>
     <TextBlock x:Name="Output" TextWrapping="Wrap" />
   </StackPanel>
 </Window>

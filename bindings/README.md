@@ -1,6 +1,6 @@
 # NuvexaDB bindings
 
-Shared Native AOT C ABI plus thin SDKs. Each language folder has a **library**, **tests**, a **sample**, and **README.md** — the same layout as the .NET library (`src/Nuventra.NuvexaDB` + `samples/Console`). See [docs/bindings.md](../docs/bindings.md).
+Shared Native AOT C ABI plus thin SDKs. Each language folder has a **library**, **tests**, a **sample**, and **README.md** with an **Integration** section: package reference, create DB, create collection, CRUD, and complex NQL. .NET samples under `samples/` share [samples/Shared/SampleTour.cs](../samples/Shared/SampleTour.cs). See [docs/bindings.md](../docs/bindings.md).
 
 ```
 jvm/           Kotlin/Java library + tests + src/sampleJava + src/sampleKotlin

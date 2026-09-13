@@ -19,9 +19,9 @@ Use **SQLite** when you need SQL joins or an existing sqlite-net model. Use **Nu
 dotnet add package Nuventra.NuvexaDB
 ```
 
-Do not publish this package from a local clone. CI on `main` / tags / PRs **runs all C# tests first**, then builds and uploads GitHub artifacts (nupkg + snupkg, native ABI, Explorer installers, VS Code / Visual Studio VSIX, and language SDK packs). Coverage / test-result zips are not uploaded. nuget.org, GitHub Packages, and the version / NuGet validation jobs are commented out until multi-host publishing (.NET, Maven, npm, …) is decided. Uncomment those steps in `NuvexaDB/.github/workflows/ci.yml` to restore them.
+Do not publish this package from a local clone. CI on `main` and PRs **runs all C# tests first**, then builds and uploads GitHub artifacts (nupkg + snupkg, native ABI, Explorer installers, VS Code / Visual Studio VSIX, and language SDK packs). Coverage / test-result zips are not uploaded. Those everyday runs **do not** create or update [Releases](https://github.com/nuvyntralabs/NuvexaDB/releases). nuget.org, GitHub Packages, and the version / NuGet validation jobs are commented out until multi-host publishing (.NET, Maven, npm, …) is decided. Uncomment those steps in `NuvexaDB/.github/workflows/ci.yml` to restore them.
 
-After each CI run, downloads are on the run’s **Artifacts** list:
+After each CI run, downloads are on that run’s **Artifacts** list (temporary; they expire):
 
 | Artifact | Contents |
 | --- | --- |
@@ -49,6 +49,25 @@ Explorer installers (single-file app inside a native package):
 - **Windows** — `NuvexaDB-Explorer-*-win-x64.msi`
 - **macOS** — `NuvexaDB-Explorer-*-osx-*.pkg` (unsigned for now; always installs to `/Applications`)
 - **Linux** — `nuvexadb-explorer_*_amd64.deb` (Debian/Ubuntu/Mint) and `nuvexadb-explorer-*-x86_64.rpm` (Fedora/RHEL/CentOS/openSUSE)
+
+### Public downloads (you control this)
+
+https://github.com/nuvyntralabs/NuvexaDB/releases stays empty (or on the last version you published) until you **choose** to release.
+
+A push to `main` never updates that page. To publish a version, bump `<Version>` and `<PackageVersion>` in `Directory.Build.props` (keep them equal), then run:
+
+```bash
+python3 .github/scripts/check-versions.py --repo-root . --write
+```
+
+That copies the same version onto NuGet, Java, Android (`versionName` + `versionCode` = major×10000+minor×100+patch), Python, Node, React Native, Flutter, Go, C++, Swift, Data Studio installers, VS Code, and Visual Studio. CI fails if any of those drift. Then push `main` and tag:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+That tagged CI run copies the same zips onto the release **only after every CI job is green**. If any job fails, the run is red and [Releases](https://github.com/nuvyntralabs/NuvexaDB/releases) is not created or updated. Fix the failure and push the tag again (or a new tag) when the run succeeds. The public URL is then `https://github.com/nuvyntralabs/NuvexaDB/releases/tag/v1.0.0`. Users download only the zip they need.
 
 ## Quick start
 

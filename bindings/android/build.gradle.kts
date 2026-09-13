@@ -3,6 +3,9 @@ plugins {
     kotlin("android") version "2.1.20"
 }
 
+group = "nuventra"
+version = "1.0.0"
+
 android {
     namespace = "nuventra.nuvexadb"
     compileSdk = 35

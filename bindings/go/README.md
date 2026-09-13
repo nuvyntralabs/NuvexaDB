@@ -1,29 +1,51 @@
 # Go library
 
-cgo SDK over `nuvexa.h`. ABI v2. On Linux the library ignores `SIGUSR1` / `SIGUSR2`. On Darwin the Go runtime cannot host Native AOT GC signals (`signal.Ignore` deadlocks `nuvexa_create`; the default handler dies with SIGUSR1). Runtime interop tests run on Linux; the native ABI job covers macOS golden cases.
+cgo package `nuvexa` (`github.com/nuvyntralabs/NuvexaDB/bindings/go`). ABI v2.
 
-| Piece | Path |
-| --- | --- |
-| Library | `nuvexa.go` + `include/nuvexa.h` (`go.mod`) |
-| Tests | `nuvexa_test.go` |
-| Sample | [examples/sample](examples/sample) |
-| This file | `README.md` |
+Linux ignores `SIGUSR1` / `SIGUSR2`. Darwin cannot host Native AOT GC signals — **runtime interop tests run on Linux**. Darwin `init` does not `dlopen`.
+
+## Integration
+
+Do not publish a Go module from this clone. `replace` this folder or CI `NuvexaDB-Go-<rid>` plus `NuvexaDB-Native-<rid>`.
+
+### Package reference
+
+```go
+import nuvexa "github.com/nuvyntralabs/NuvexaDB/bindings/go"
+// go.mod: replace github.com/nuvyntralabs/NuvexaDB/bindings/go => ../NuvexaDB/bindings/go
+```
 
 ```bash
-# from the NuvexaDB repo root
-src/Nuventra.NuvexaDB.Native/publish.sh
-export NUVEXA_NATIVE_DIR="$(pwd)/artifacts/native/linux-x64"  # Darwin go test skips runtime interop
+export NUVEXA_NATIVE_DIR="$(pwd)/artifacts/native/linux-x64"
 export CGO_LDFLAGS="-L$NUVEXA_NATIVE_DIR -lnuvexa"
-export LD_LIBRARY_PATH="$NUVEXA_NATIVE_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH="$NUVEXA_NATIVE_DIR"
+```
+
+`CGO_ENABLED=1`.
+
+### Create DB, collection, CRUD, queries
+
+```go
+db, err := nuvexa.Create("app.nvx", "sample-key")
+adaID, err := db.Insert("users", `{"name":"Ada","age":36,"status":"active","address":{"city":"London"}}`)
+_, err = db.FindByID("users", adaID)
+err = db.Replace("users", `{"_id":"...","name":"Ada Lovelace",...}`)
+_, err = db.DeleteByID("users", scratchID)
+rows, err := db.Execute(`db.users.find({ age: { $gte: 21 } }).sort({ name: 1 }).limit(10)`)
+rows, err = db.Execute(`db.users.find({ $and: [ { "address.city": "London" }, { status: "active" } ] }).sort({ age: -1 })`)
+rows, err = db.Execute(`db.users.find({ $or: [ { age: { $lt: 30 } }, { "address.city": "New York" } ] })`)
+```
+
+First `Insert` creates `users`. Close the handle before `Open`. Failures wrap `ErrEncryption` / `ErrIntegrity` / `ErrNotFound`.
+
+## In-repo sample
+
+[examples/sample](examples/sample)
+
+```bash
 cd bindings/go
 go test
 cd examples/sample && go run .
 ```
 
-```go
-db, err := nuvexa.Create("app.nvx", "correct-horse")
-_, err = db.Insert("users", `{"name":"Ada","age":36}`)
-rows, err := db.Execute(`db.users.find({ age: { $gte: 21 } }).limit(20)`)
-```
-
-Do not publish a Go module from this clone.
+See [docs/bindings.md](../../docs/bindings.md).
