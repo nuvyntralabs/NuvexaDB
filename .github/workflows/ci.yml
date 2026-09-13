@@ -134,23 +134,12 @@ jobs:
           chmod +x .github/scripts/run-abi-tests.sh
           .github/scripts/run-abi-tests.sh "$PWD/artifacts/native/${{ matrix.rid }}" host
       - name: Upload native library
-        id: upload
         uses: actions/upload-artifact@v4
         with:
           name: NuvexaDB-Native-${{ matrix.rid }}
           path: artifacts/native/${{ matrix.rid }}/
           if-no-files-found: error
           retention-days: 14
-      - name: Summary
-        shell: bash
-        run: |
-          {
-            echo "### Native ABI (${{ matrix.rid }})"
-            echo
-            echo "Artifact: \`NuvexaDB-Native-${{ matrix.rid }}\`"
-            echo
-            echo "Load \`libnuvexa\` / \`nuvexa.dll\` from the artifact. Kotlin/Java: \`NUVEXA_NATIVE_LIB\`. Swift: \`NUVEXA_NATIVE_DIR\`."
-          } >> "$GITHUB_STEP_SUMMARY"
 
   native-android:
     name: Native ABI android-arm64
@@ -191,23 +180,12 @@ jobs:
           chmod +x .github/scripts/run-abi-tests.sh
           .github/scripts/run-abi-tests.sh "$PWD/artifacts/native/android-arm64" android-arm64
       - name: Upload native library
-        id: upload
         uses: actions/upload-artifact@v4
         with:
           name: NuvexaDB-Native-android-arm64
           path: artifacts/native/android-arm64/
           if-no-files-found: error
           retention-days: 14
-      - name: Summary
-        shell: bash
-        run: |
-          {
-            echo "### Native ABI (android-arm64)"
-            echo
-            echo "Artifact: \`NuvexaDB-Native-android-arm64\`"
-            echo
-            echo "Bionic Native AOT (\`linux-bionic-arm64\`) as \`libnuvexa.so\` for \`jniLibs/arm64-v8a\`."
-          } >> "$GITHUB_STEP_SUMMARY"
 
   native-ios:
     name: iOS module compile
@@ -226,22 +204,12 @@ jobs:
             src/Nuventra.NuvexaDB.Native \
             "$PWD/artifacts/native/ios"
       - name: Upload iOS headers and module
-        id: upload
         uses: actions/upload-artifact@v4
         with:
           name: NuvexaDB-Native-iOS
           path: artifacts/native/ios/
           if-no-files-found: error
           retention-days: 14
-      - name: Summary
-        run: |
-          {
-            echo "### iOS module"
-            echo
-            echo "Artifact: \`NuvexaDB-Native-iOS\`"
-            echo
-            echo ".NET Native AOT cannot publish \`ios-arm64\` (NETSDK1203). This artifact is \`nuvexa.h\` plus a compiled \`NuvexaDB.o\`. Golden ABI cases for Apple run on the \`osx-arm64\` dylib."
-          } >> "$GITHUB_STEP_SUMMARY"
 
   vscode:
     name: VS Code extension
@@ -267,22 +235,12 @@ jobs:
           chmod +x .github/scripts/pack-vscode.sh
           .github/scripts/pack-vscode.sh "$version" "$PWD/artifacts/nuventra.nuvexadb-${version}.vsix"
       - name: Upload VS Code VSIX
-        id: upload
         uses: actions/upload-artifact@v4
         with:
           name: NuvexaDB-VS-Code
           path: artifacts/nuventra.nuvexadb-*.vsix
           if-no-files-found: error
           retention-days: 14
-      - name: Summary
-        run: |
-          {
-            echo "### VS Code VSIX"
-            echo
-            echo "Artifact: \`NuvexaDB-VS-Code\`"
-            echo
-            echo "Then update the Visual Studio Code listing at [Marketplace manage](https://marketplace.visualstudio.com/manage)."
-          } >> "$GITHUB_STEP_SUMMARY"
 
   vsix:
     name: Visual Studio VSIX
@@ -310,22 +268,12 @@ jobs:
           chmod +x .github/scripts/pack-vsix.sh
           .github/scripts/pack-vsix.sh "$version" "$PWD/artifacts/Nuventra.NuvexaDB.VisualStudio.${version}.vsix"
       - name: Upload VSIX
-        id: upload
         uses: actions/upload-artifact@v4
         with:
           name: NuvexaDB-Visual-Studio
           path: artifacts/Nuventra.NuvexaDB.VisualStudio.*.vsix
           if-no-files-found: error
           retention-days: 14
-      - name: Summary
-        run: |
-          {
-            echo "### Visual Studio VSIX"
-            echo
-            echo "Artifact: \`NuvexaDB-Visual-Studio\`"
-            echo
-            echo "Then update **NuvexaDB Explorer for Visual Studio** at [Marketplace manage](https://marketplace.visualstudio.com/manage). Do not create a new listing."
-          } >> "$GITHUB_STEP_SUMMARY"
 
   explorer:
     name: Data Studio ${{ matrix.rid }}
@@ -376,7 +324,6 @@ jobs:
             "$PWD/artifacts"
         shell: bash
       - name: Upload Explorer
-        id: upload
         uses: actions/upload-artifact@v4
         with:
           name: NuvexaDB-Data-Studio-${{ matrix.rid }}
@@ -387,20 +334,6 @@ jobs:
             artifacts/*.rpm
           if-no-files-found: error
           retention-days: 14
-      - name: Summary
-        shell: bash
-        run: |
-          {
-            echo "### Data Studio (${{ matrix.rid }})"
-            echo
-            echo "Artifact: \`NuvexaDB-Data-Studio-${{ matrix.rid }}\`"
-            echo
-            case "${{ matrix.rid }}" in
-              win-*) echo "Install **NuvexaDB-Explorer-*-win-x64.msi** (Start Menu + \`.nvx\` association)." ;;
-              osx-*) echo "Install **NuvexaDB-Explorer-*-osx-*.pkg** (unsigned; signing and notarization come later)." ;;
-              linux-*) echo "Debian/Ubuntu/Mint: \`sudo dpkg -i nuvexadb-explorer_*_amd64.deb\`. Fedora/RHEL/openSUSE: \`sudo rpm -i nuvexadb-explorer-*-x86_64.rpm\`." ;;
-            esac
-          } >> "$GITHUB_STEP_SUMMARY"
 
   pack:
     name: NuGet packages
@@ -425,7 +358,6 @@ jobs:
           echo "Packed:"
           ls -1 artifacts/*.{nupkg,snupkg}
       - name: Upload nupkg and snupkg
-        id: upload
         uses: actions/upload-artifact@v4
         with:
           name: NuvexaDB-NuGet
@@ -441,15 +373,6 @@ jobs:
       #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       #     GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
       #   run: python3 .github/scripts/push-packages.py --packages-dir artifacts
-      - name: Summary
-        run: |
-          {
-            echo "### NuGet packages"
-            echo
-            echo "Artifact: \`NuvexaDB-NuGet\`"
-            echo
-            echo "Artifacts only. nuget.org and GitHub Packages push is commented out until multi-host publishing is decided. \`Nuventra.NuvexaDB.Cli\` is PackAsTool and has no snupkg."
-          } >> "$GITHUB_STEP_SUMMARY"
 
   sdk:
     name: ${{ matrix.title }}
@@ -601,23 +524,12 @@ jobs:
             "$PWD/artifacts/sdk/${{ matrix.sdk }}-${{ matrix.rid }}" \
             "$PWD/artifacts/native/${{ matrix.rid }}"
       - name: Upload ${{ matrix.sdk }}
-        id: upload
         uses: actions/upload-artifact@v4
         with:
           name: NuvexaDB-${{ matrix.product }}-${{ matrix.rid }}
           path: artifacts/sdk/${{ matrix.sdk }}-${{ matrix.rid }}/
           if-no-files-found: error
           retention-days: 14
-      - name: Summary
-        shell: bash
-        run: |
-          {
-            echo "### ${{ matrix.title }}"
-            echo
-            echo "Artifact: \`NuvexaDB-${{ matrix.product }}-${{ matrix.rid }}\`"
-            echo
-            echo "Unit tests passed against \`NuvexaDB-Native-${{ matrix.rid }}\`. Host publish (Maven, npm, PyPI, pub.dev, Swift) stays commented out."
-          } >> "$GITHUB_STEP_SUMMARY"
 
   android:
     name: Android AAR
@@ -669,22 +581,12 @@ jobs:
             "$PWD/artifacts/sdk/android" \
             "$PWD/artifacts/native/android-arm64"
       - name: Upload Android AAR
-        id: upload
         uses: actions/upload-artifact@v4
         with:
           name: NuvexaDB-Android
           path: artifacts/sdk/android/
           if-no-files-found: error
           retention-days: 14
-      - name: Summary
-        run: |
-          {
-            echo "### Android AAR"
-            echo
-            echo "Artifact: \`NuvexaDB-Android\`"
-            echo
-            echo "Kotlin sources match the Java library tests. The AAR includes \`jni/arm64-v8a/libnuvexa.so\` from \`NuvexaDB-Native-android-arm64\`."
-          } >> "$GITHUB_STEP_SUMMARY"
 
   react-native-android:
     name: React Native Android
@@ -739,22 +641,12 @@ jobs:
             "$PWD/artifacts/sdk/react-native-android" \
             "$PWD/artifacts/native/android-arm64"
       - name: Upload React Native Android
-        id: upload
         uses: actions/upload-artifact@v4
         with:
           name: NuvexaDB-React-Native-Android
           path: artifacts/sdk/react-native-android/
           if-no-files-found: error
           retention-days: 14
-      - name: Summary
-        run: |
-          {
-            echo "### React Native Android"
-            echo
-            echo "Artifact: \`NuvexaDB-React-Native-Android\`"
-            echo
-            echo "Gradle \`assembleRelease\` of \`bindings/react-native/android\` with \`libnuvexa.so\`."
-          } >> "$GITHUB_STEP_SUMMARY"
 
   react-native-ios:
     name: React Native iOS
@@ -790,19 +682,9 @@ jobs:
             "$PWD/artifacts/sdk/react-native-ios" \
             "$PWD/artifacts/native/osx-arm64"
       - name: Upload React Native iOS
-        id: upload
         uses: actions/upload-artifact@v4
         with:
           name: NuvexaDB-React-Native-iOS
           path: artifacts/sdk/react-native-ios/
           if-no-files-found: error
           retention-days: 14
-      - name: Summary
-        run: |
-          {
-            echo "### React Native iOS"
-            echo
-            echo "Artifact: \`NuvexaDB-React-Native-iOS\`"
-            echo
-            echo "Compiled \`NuvexaDB.mm\` for the iOS Simulator. Golden cases ran against the \`osx-arm64\` dylib (\`.NET\` cannot PublishAot \`ios-arm64\`)."
-          } >> "$GITHUB_STEP_SUMMARY"
