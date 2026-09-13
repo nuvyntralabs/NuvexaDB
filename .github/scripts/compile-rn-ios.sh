@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Compile the React Native iOS module against Nuvexa.xcframework (simulator).
+# Compile the React Native iOS module (simulator). Links libnuvexa.a when present.
 # Usage: compile-rn-ios.sh <native-dir> <artifacts-dir>
 set -euo pipefail
 
@@ -12,6 +12,7 @@ build="$root/bindings/react-native/ios/build"
 sdk=iphonesimulator
 
 mkdir -p "$build" "$out"
+native_dir="$(cd "$native_dir" && pwd)"
 
 lib=""
 if [[ -d "$native_dir/Nuvexa.xcframework" ]]; then
@@ -22,11 +23,6 @@ if [[ -z "$lib" && -d "$native_dir/iossimulator-arm64" ]]; then
 fi
 if [[ -z "$lib" ]]; then
   lib="$(find "$native_dir" \( -name 'libnuvexa.a' -o -name 'nuvexa.a' \) | grep -i simulator | head -n1 || true)"
-fi
-if [[ -z "$lib" ]]; then
-  echo "No iOS simulator libnuvexa.a under $native_dir" >&2
-  find "$native_dir" -name '*.a' -o -name '*.xcframework' >&2 || true
-  exit 1
 fi
 
 sysroot="$(xcrun --sdk "$sdk" --show-sdk-path)"
@@ -39,7 +35,12 @@ xcrun clang++ -x objective-c++ -c "$ios/NuvexaDB.mm" \
   -I "$ios/include" \
   -I "$stubs" \
   -o "$build/NuvexaDB.o"
+cp "$build/NuvexaDB.o" "$out/"
 
-xcrun libtool -static -o "$build/libnuvexadb-rn-ios.a" "$build/NuvexaDB.o" "$lib"
-cp "$build/libnuvexadb-rn-ios.a" "$out/"
-echo "Wrote $out/libnuvexadb-rn-ios.a"
+if [[ -n "$lib" ]]; then
+  xcrun libtool -static -o "$build/libnuvexadb-rn-ios.a" "$build/NuvexaDB.o" "$lib"
+  cp "$build/libnuvexadb-rn-ios.a" "$out/"
+  echo "Wrote $out/libnuvexadb-rn-ios.a"
+else
+  echo "Compiled NuvexaDB.o (no iOS libnuvexa.a; .NET Native AOT does not support ios-arm64)."
+fi

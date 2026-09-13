@@ -498,7 +498,7 @@ public sealed class NuvexaVsControl : UserControl
 
     private static Button AboutLink(string title, string url)
     {
-        var button = new Button { Content = title, Margin = new Thickness(0, 0, 8, 0), Padding = new Thickness(10, 4) };
+        var button = new Button { Content = title, Margin = new Thickness(0, 0, 8, 0), Padding = new Thickness(10, 4, 10, 4) };
         button.Click += (_, _) => NuvexaAbout.OpenUrl(url);
         return button;
     }

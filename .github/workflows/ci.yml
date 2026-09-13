@@ -193,14 +193,13 @@ jobs:
           java-version: 17
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-      - name: Android NDK and workload
+      - name: Android NDK
         run: |
           set -euo pipefail
           yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
+          sdkmanager "ndk;27.2.12479018"
           echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT:-$ANDROID_HOME}/ndk/27.2.12479018" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_ROOT=${ANDROID_SDK_ROOT:-$ANDROID_HOME}/ndk/27.2.12479018" >> "$GITHUB_ENV"
-          dotnet workload install android
       - name: QEMU for aarch64 tests
         run: |
           sudo apt-get update
@@ -236,52 +235,41 @@ jobs:
             echo
             echo "Download: [native-android-arm64](${{ steps.upload.outputs.artifact-url }})"
             echo
-            echo "Copy \`libnuvexa.so\` into \`jniLibs/arm64-v8a\` for the Android AAR and React Native Android module."
+            echo "Bionic Native AOT (\`linux-bionic-arm64\`) as \`libnuvexa.so\` for \`jniLibs/arm64-v8a\`."
           } >> "$GITHUB_STEP_SUMMARY"
 
   native-ios:
-    name: Native ABI iOS xcframework
+    name: iOS module compile
     needs: [version, test]
     runs-on: macos-latest
-    timeout-minutes: 60
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 10.0.x
-      - name: iOS workload
-        run: dotnet workload install ios
-      - name: Publish xcframework
+      - name: Compile React Native iOS module
         run: |
           set -euo pipefail
-          chmod +x src/Nuventra.NuvexaDB.Native/pack-xcframework.sh
-          src/Nuventra.NuvexaDB.Native/pack-xcframework.sh \
-            "$PWD/artifacts/native" \
-            "${{ needs.version.outputs.version }}"
-      - name: ABI test cases
-        run: |
-          set -euo pipefail
-          chmod +x .github/scripts/run-abi-tests.sh
-          .github/scripts/run-abi-tests.sh "$PWD/artifacts/native" ios-simulator
-      - name: Upload native library
+          chmod +x .github/scripts/compile-rn-ios.sh
+          mkdir -p artifacts/native/ios
+          cp src/Nuventra.NuvexaDB.Native/include/nuvexa.h artifacts/native/ios/
+          .github/scripts/compile-rn-ios.sh \
+            src/Nuventra.NuvexaDB.Native \
+            "$PWD/artifacts/native/ios"
+      - name: Upload iOS headers and module
         id: upload
         uses: actions/upload-artifact@v4
         with:
           name: native-ios
-          path: |
-            artifacts/native/Nuvexa.xcframework
-            artifacts/native/ios-arm64
-            artifacts/native/iossimulator-arm64
+          path: artifacts/native/ios/
           if-no-files-found: error
           retention-days: 14
       - name: Summary
         run: |
           {
-            echo "### Native ABI (iOS xcframework)"
+            echo "### iOS module"
             echo
             echo "Download: [native-ios](${{ steps.upload.outputs.artifact-url }})"
             echo
-            echo "Link \`Nuvexa.xcframework\` from \`ios-arm64\` and \`iossimulator-arm64\` static libraries."
+            echo ".NET Native AOT cannot publish \`ios-arm64\` (NETSDK1203). This artifact is \`nuvexa.h\` plus a compiled \`NuvexaDB.o\`. Golden ABI cases for Apple run on the \`osx-arm64\` dylib."
           } >> "$GITHUB_STEP_SUMMARY"
 
   vscode:
@@ -797,7 +785,7 @@ jobs:
 
   react-native-ios:
     name: React Native iOS
-    needs: [version, test, native, native-ios]
+    needs: [version, test, native]
     runs-on: macos-latest
     timeout-minutes: 25
     steps:
@@ -810,11 +798,6 @@ jobs:
         with:
           name: native-osx-arm64
           path: artifacts/native/osx-arm64
-      - name: Download iOS ABI
-        uses: actions/download-artifact@v4
-        with:
-          name: native-ios
-          path: artifacts/native
       - name: Interop test cases
         run: |
           set -euo pipefail
@@ -832,7 +815,7 @@ jobs:
             react-native-ios \
             "${{ needs.version.outputs.version }}" \
             "$PWD/artifacts/sdk/react-native-ios" \
-            "$PWD/artifacts/native"
+            "$PWD/artifacts/native/osx-arm64"
       - name: Upload React Native iOS
         id: upload
         uses: actions/upload-artifact@v4
@@ -848,5 +831,5 @@ jobs:
             echo
             echo "Download: [bindings-react-native-ios](${{ steps.upload.outputs.artifact-url }})"
             echo
-            echo "Compiled \`NuvexaDB.mm\` against the iOS simulator slice of \`Nuvexa.xcframework\`."
+            echo "Compiled \`NuvexaDB.mm\` for the iOS Simulator. Golden cases ran against the \`osx-arm64\` dylib (\`.NET\` cannot PublishAot \`ios-arm64\`)."
           } >> "$GITHUB_STEP_SUMMARY"

@@ -25,13 +25,36 @@ if [[ -z "$rid" ]]; then
 fi
 
 dest="$out/$rid"
+publish_rid="$rid"
+extra_props=""
+# .NET Native AOT cannot target android-arm64 / ios-arm64 (NETSDK1203 /
+# PrivateSdkAssemblies). Android JNI loads a Bionic shared library instead.
+if [[ "$rid" == "android-arm64" ]]; then
+  publish_rid="linux-bionic-arm64"
+  dest="$out/android-arm64"
+  extra_props="-p:DisableUnsupportedError=true -p:PublishAotUsingRuntimePack=true"
+  if [[ -n "${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-}}" ]]; then
+    ndk="${ANDROID_NDK_HOME:-$ANDROID_NDK_ROOT}"
+    prebuilt="$(echo "$ndk"/toolchains/llvm/prebuilt/*/bin)"
+    if [[ -d "$prebuilt" ]]; then
+      export PATH="$prebuilt:$PATH"
+    fi
+  fi
+fi
+if [[ "$rid" == ios-arm64 || "$rid" == iossimulator-arm64 ]]; then
+  echo "Native AOT cannot publish $rid (.NET SDK NETSDK1203). Use linux-bionic-arm64 for Android JNI." >&2
+  exit 1
+fi
+
 mkdir -p "$dest"
-echo "Publishing nuvexa Native AOT ($rid) → $dest"
+echo "Publishing nuvexa Native AOT ($publish_rid) → $dest"
+# shellcheck disable=SC2086
 dotnet publish "$root/src/Nuventra.NuvexaDB.Native/Nuventra.NuvexaDB.Native.csproj" \
   -c Release \
-  -r "$rid" \
+  -r "$publish_rid" \
   -o "$dest" \
   --nologo \
+  $extra_props \
   ${version:+-p:Version=$version -p:PackageVersion=$version}
 
 # Unix linkers and JNA look for libnuvexa.*; Native AOT on macOS emits nuvexa.dylib.

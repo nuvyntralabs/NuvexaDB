@@ -45,8 +45,8 @@ echo "ABI tests mode=$mode native=$native_dir"
 
 run_host() {
   local lib=""
-  local arch_flag=()
-  local run_prefix=()
+  local arch_flag=""
+  local run_prefix=""
   for name in libnuvexa.dylib nuvexa.dylib libnuvexa.so nuvexa.so nuvexa.dll; do
     if [[ -f "$native_dir/$name" ]]; then
       lib="$native_dir/$name"
@@ -60,29 +60,39 @@ run_host() {
 
   if [[ "$(uname -s)" == "Darwin" ]] && command -v file >/dev/null 2>&1; then
     if file "$lib" | grep -q 'x86_64' && [[ "$(uname -m)" == "arm64" ]]; then
-      arch_flag=(-arch x86_64)
-      run_prefix=(arch -x86_64)
+      arch_flag="-arch x86_64"
+      run_prefix="arch -x86_64"
     fi
   fi
 
   local out="$build/abi_runner"
   if [[ "$lib" == *.dll ]]; then
     out="$build/abi_runner.exe"
-    if command -v cl >/dev/null 2>&1 && [[ -f "$native_dir/nuvexa.lib" ]]; then
-      cl /nologo /O1 /I "$include" "$src" /Fe"$out" /link /LIBPATH:"$native_dir" nuvexa.lib
-    elif command -v clang >/dev/null 2>&1; then
-      clang -O1 -I "$include" "$src" -L "$native_dir" -lnuvexa -o "$out"
+    if command -v clang >/dev/null 2>&1; then
+      clang -O1 -D_CRT_SECURE_NO_WARNINGS -I "$include" "$src" "$lib" -o "$out"
+    elif command -v cl >/dev/null 2>&1 && [[ -f "$native_dir/nuvexa.lib" ]]; then
+      cl /nologo /O1 /D_CRT_SECURE_NO_WARNINGS /I "$include" "$src" /Fe"$out" /link /LIBPATH:"$native_dir" nuvexa.lib
     else
-      echo "cl.exe (with nuvexa.lib) or clang is required on Windows" >&2
+      echo "clang (linking nuvexa.dll) is required on Windows" >&2
       exit 1
     fi
-    PATH="$native_dir:${PATH:-}" "${run_prefix[@]}" "$out"
+    PATH="$native_dir:${PATH:-}"
+    if [[ -n "$run_prefix" ]]; then
+      $run_prefix "$out"
+    else
+      "$out"
+    fi
   else
-    cc "${arch_flag[@]}" -O1 -I "$include" "$src" -L "$native_dir" -lnuvexa \
+    # shellcheck disable=SC2086
+    cc $arch_flag -O1 -I "$include" "$src" -L "$native_dir" -lnuvexa \
       -Wl,-rpath,"$native_dir" -o "$out"
     export DYLD_LIBRARY_PATH="$native_dir${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
     export LD_LIBRARY_PATH="$native_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-    "${run_prefix[@]}" "$out"
+    if [[ -n "$run_prefix" ]]; then
+      $run_prefix "$out"
+    else
+      "$out"
+    fi
   fi
 }
 

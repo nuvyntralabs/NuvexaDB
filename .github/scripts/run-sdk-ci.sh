@@ -89,7 +89,11 @@ case "$sdk" in
   react-native-ios)
     chmod +x "$root/.github/scripts/compile-rn-ios.sh" "$root/.github/scripts/run-abi-tests.sh"
     "$root/.github/scripts/compile-rn-ios.sh" "$native_dir" "$out"
-    "$root/.github/scripts/run-abi-tests.sh" "$native_dir" ios-simulator
+    if [[ -f "$native_dir/libnuvexa.dylib" || -f "$native_dir/nuvexa.dylib" ]]; then
+      "$root/.github/scripts/run-abi-tests.sh" "$native_dir" host
+    elif find "$native_dir" \( -name 'libnuvexa.a' -o -name 'nuvexa.a' \) | grep -qi simulator; then
+      "$root/.github/scripts/run-abi-tests.sh" "$native_dir" ios-simulator
+    fi
     ;;
   python)
     (

@@ -20,6 +20,10 @@
     <NativeLib>Static</NativeLib>
   </PropertyGroup>
 
+  <ItemGroup Condition="$(RuntimeIdentifier.StartsWith('linux-bionic'))">
+    <LinkerArg Include="-Wl,--undefined-version" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Nuventra.NuvexaDB\Nuventra.NuvexaDB.csproj" />
   </ItemGroup>

@@ -21,4 +21,4 @@ npm test
 node examples/sample.mjs
 ```
 
-CI publishes `bindings-react-native-android` (AAR + `libnuvexa.so`) and `bindings-react-native-ios` (`libnuvexadb-rn-ios.a` linked to the xcframework). Do not publish this package from a local clone.
+CI publishes `bindings-react-native-android` (AAR + Bionic `libnuvexa.so`) and compiles the iOS module. Golden cases for Apple run on the macOS dylib; the .NET 10 SDK cannot PublishAot `ios-arm64`. Do not publish this package from a local clone.

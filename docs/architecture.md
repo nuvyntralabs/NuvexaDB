@@ -98,7 +98,7 @@ flowchart TB
 | Embed the full .NET runtime | Larger, slower start, harder to ship as an AAR / xcframework. |
 | **Native AOT shared library** | One compile per RID. C symbols. In-process. Same fail-closed rules. |
 
-`PublishAot=true` and `NativeLib=Shared` (static on iOS) produce `nuvexa.dylib` / `libnuvexa.so` / `nuvexa.dll`. iOS packs those static libs into `Nuvexa.xcframework`. CI publishes desktop RIDs first (`osx-arm64`, `osx-x64`, `win-x64`, `linux-x64`). Mobile RIDs need Android / iOS workloads.
+`PublishAot=true` and `NativeLib=Shared` produce `nuvexa.dylib` / `libnuvexa.so` / `nuvexa.dll`. Android JNI uses the Bionic RID `linux-bionic-arm64` (not `android-arm64`). The .NET 10 SDK rejects PublishAot for `ios-arm64` (`NETSDK1203`). CI publishes desktop RIDs plus the Bionic Android `.so`.
 
 The engine uses `System.Text.Json`. The native project sets `JsonSerializerIsReflectionEnabledByDefault` so NQL and index JSON keep working after trim. Do not turn that off.
 
@@ -168,13 +168,12 @@ publish.sh  -r <rid>           (one native binary per RID)
         ├─ artifacts/native/osx-arm64/nuvexa.dylib
         ├─ …/win-x64/nuvexa.dll
         ├─ …/linux-x64/libnuvexa.so
-        ├─ …/android-arm64/libnuvexa.so   → AAR jniLibs
-        └─ pack-xcframework.sh            → Nuvexa.xcframework
+        └─ …/android-arm64/libnuvexa.so   → AAR jniLibs (published as linux-bionic-arm64)
 ```
 
 Unix consumers also look for `libnuvexa.*`. The publish script symlinks `nuvexa.dylib` → `libnuvexa.dylib` when Native AOT omits the `lib` prefix.
 
-CI uploads desktop native artifacts, `android-arm64`, `Nuvexa.xcframework`, and language SDK packs. nuget.org / GitHub Packages push is commented out for now. Do not `dotnet nuget push`, `npm publish`, or `dart pub publish` from a local clone.
+CI uploads desktop native artifacts, the Bionic Android `.so`, and language SDK packs. nuget.org / GitHub Packages push is commented out for now. Do not `dotnet nuget push`, `npm publish`, or `dart pub publish` from a local clone.
 
 ## Testing the shared engine
 

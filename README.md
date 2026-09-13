@@ -27,10 +27,10 @@ After each CI run, the job summary lists a **Download** link for every artifact 
 | --- | --- |
 | `nuget-NuvexaDB` | `nupkg` + `snupkg` (not pushed) |
 | `native-<rid>` | Desktop C ABI (`libnuvexa` / `nuvexa.dll`) |
-| `native-android-arm64` | `libnuvexa.so` for the Android AAR |
-| `native-ios` | `Nuvexa.xcframework` + ios-arm64 / simulator `.a` |
+| `native-android-arm64` | Bionic `libnuvexa.so` (`linux-bionic-arm64`) for the Android AAR |
+| `native-ios` | `nuvexa.h` + compiled `NuvexaDB.o` (no xcframework; SDK rejects `ios-arm64` AOT) |
 | `bindings-react-native-android` | React Native Android AAR + `libnuvexa.so` |
-| `bindings-react-native-ios` | Compiled `NuvexaDB.mm` + xcframework archive |
+| `bindings-react-native-ios` | Compiled `NuvexaDB.mm` + host ABI tests |
 | `explorer-<rid>` | Data Studio installer (msi / pkg / deb / rpm) |
 | `vscode-NuvexaDB` | VS Code / Cursor VSIX |
 | `vsix-NuvexaDB` | Visual Studio VSIX |
@@ -137,7 +137,7 @@ await db.insert("users", JSON.stringify({ name: "Ada", age: 36 }));
 await db.execute("db.users.find({ age: { $gte: 21 } }).limit(20)");
 ```
 
-Desktop RIDs ship first (`osx-*`, `win-x64`, `linux-x64`). CI also publishes `android-arm64` and `Nuvexa.xcframework` (iOS workload on macOS). ABI v2 adds catalog, transactions, and path-based GridFS. Details: [docs/bindings.md](docs/bindings.md). Language samples live inside each binding project.
+Desktop RIDs ship first (`osx-*`, `win-x64`, `linux-x64`). Android JNI uses Native AOT `linux-bionic-arm64` (not `android-arm64`). The .NET 10 SDK cannot PublishAot `ios-arm64`. ABI v2 adds catalog, transactions, and path-based GridFS. Details: [docs/bindings.md](docs/bindings.md). Language samples live inside each binding project.
 
 ## Samples
 
