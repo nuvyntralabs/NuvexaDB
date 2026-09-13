@@ -150,13 +150,11 @@ case "$sdk" in
       cd "$root/bindings/flutter"
       dart pub get
       dart test
-      if dart pub pack --help >/dev/null 2>&1; then
-        dart pub pack -o "$out"
-      else
-        tar -czf "$out/nuvexadb-flutter-${version}.tgz" \
-          --exclude='.dart_tool' --exclude='.packages' \
-          -C "$root/bindings/flutter" pubspec.yaml lib test README.md analysis_options.yaml
-      fi
+      # dart pub has unpack, not pack. `dart pub pack --help` still exits 0
+      # because --help is a global dart pub flag.
+      tar -czf "$out/nuvexadb-flutter-${version}.tgz" \
+        --exclude='.dart_tool' --exclude='.packages' \
+        -C "$root/bindings/flutter" pubspec.yaml lib test README.md analysis_options.yaml
     )
     ;;
   *)

@@ -10,12 +10,20 @@ android {
         minSdk = 26
         consumerProguardFiles("consumer-rules.pro")
     }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
     sourceSets {
         getByName("main") {
             kotlin.srcDir("../jvm/src/main/kotlin")
             jniLibs.srcDir("src/main/jniLibs")
         }
     }
+}
+
+kotlin {
+    jvmToolchain(17)
 }
 
 repositories {
