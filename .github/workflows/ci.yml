@@ -200,10 +200,6 @@ jobs:
           sdkmanager "ndk;27.2.12479018"
           echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT:-$ANDROID_HOME}/ndk/27.2.12479018" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_ROOT=${ANDROID_SDK_ROOT:-$ANDROID_HOME}/ndk/27.2.12479018" >> "$GITHUB_ENV"
-      - name: QEMU for aarch64 tests
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-user-static
       - name: Publish C ABI
         shell: bash
         run: |

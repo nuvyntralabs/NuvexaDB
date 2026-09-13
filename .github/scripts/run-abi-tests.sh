@@ -68,20 +68,7 @@ run_host() {
   local out="$build/abi_runner"
   if [[ "$lib" == *.dll ]]; then
     out="$build/abi_runner.exe"
-    if command -v clang >/dev/null 2>&1; then
-      clang -O1 -D_CRT_SECURE_NO_WARNINGS -I "$include" "$src" "$lib" -o "$out"
-    elif command -v cl >/dev/null 2>&1 && [[ -f "$native_dir/nuvexa.lib" ]]; then
-      cl /nologo /O1 /D_CRT_SECURE_NO_WARNINGS /I "$include" "$src" /Fe"$out" /link /LIBPATH:"$native_dir" nuvexa.lib
-    else
-      echo "clang (linking nuvexa.dll) is required on Windows" >&2
-      exit 1
-    fi
-    PATH="$native_dir:${PATH:-}"
-    if [[ -n "$run_prefix" ]]; then
-      $run_prefix "$out"
-    else
-      "$out"
-    fi
+    windows_link_and_run "$lib" "$out"
   else
     # shellcheck disable=SC2086
     cc $arch_flag -O1 -I "$include" "$src" -L "$native_dir" -lnuvexa \
@@ -145,19 +132,81 @@ run_ios() {
   xcrun simctl spawn booted "$out"
 }
 
-ndk_clang() {
+windows_link_and_run() {
+  local dll="$1"
+  local out="$2"
+  if ! command -v dumpbin >/dev/null 2>&1 || ! command -v lib >/dev/null 2>&1 || ! command -v cl >/dev/null 2>&1; then
+    echo "dumpbin, lib, and cl from the MSVC tools are required on Windows" >&2
+    exit 1
+  fi
+  local exports="$build/nuvexa.exports.txt"
+  local def="$build/nuvexa.def"
+  local implib="$native_dir/nuvexa.lib"
+  dumpbin /EXPORTS "$dll" > "$exports"
+  local py=python3
+  command -v python3 >/dev/null 2>&1 || py=python
+  "$py" - "$exports" "$def" <<'PY'
+import re
+import sys
+
+src, dest = sys.argv[1], sys.argv[2]
+names = []
+for line in open(src, encoding="utf-8", errors="replace"):
+    match = re.match(r"\s+\d+\s+[0-9A-Fa-f]+\s+[0-9A-Fa-f]+\s+(\S+)", line)
+    if not match:
+        continue
+    name = match.group(1).split("=")[0].strip()
+    if name.startswith("nuvexa_"):
+        names.append(name)
+if not names:
+    raise SystemExit("dumpbin reported no nuvexa_* exports")
+with open(dest, "w", encoding="ascii", newline="\r\n") as handle:
+    handle.write("LIBRARY nuvexa\nEXPORTS\n")
+    for name in names:
+        handle.write(f"    {name}\n")
+print(f"import lib: {len(names)} nuvexa_* exports")
+PY
+  lib /nologo /def:"$def" /machine:X64 /out:"$implib"
+  cl /nologo /O1 /I "$include" "$src" /Fe"$out" /link /LIBPATH:"$native_dir" nuvexa.lib
+  PATH="$native_dir:${PATH:-}" "$out"
+}
+
+verify_android_exports() {
+  local lib="$1"
+  local nm=""
   local ndk="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-}}"
-  if [[ -z "$ndk" ]]; then
-    echo "ANDROID_NDK_HOME is required for android-arm64 ABI tests" >&2
+  if [[ -n "$ndk" ]]; then
+    local llvm_nm
+    llvm_nm="$(echo "$ndk"/toolchains/llvm/prebuilt/*/bin/llvm-nm)"
+    if [[ -x "$llvm_nm" ]]; then
+      nm="$llvm_nm"
+    fi
+  fi
+  if [[ -z "$nm" ]] && command -v llvm-nm >/dev/null 2>&1; then
+    nm="llvm-nm"
+  fi
+  if [[ -z "$nm" ]] && command -v nm >/dev/null 2>&1; then
+    nm="nm"
+  fi
+  if [[ -z "$nm" ]]; then
+    echo "nm/llvm-nm is required to verify Android exports" >&2
     exit 1
   fi
-  local prebuilt
-  prebuilt="$(echo "$ndk"/toolchains/llvm/prebuilt/*)"
-  if [[ ! -d "$prebuilt" ]]; then
-    echo "NDK llvm prebuilt not found under $ndk" >&2
+  local table
+  table="$("$nm" -D "$lib" 2>/dev/null || "$nm" "$lib")"
+  local missing=0
+  local sym
+  for sym in nuvexa_abi_version nuvexa_create nuvexa_open nuvexa_close nuvexa_execute nuvexa_insert nuvexa_is_encrypted; do
+    if ! printf '%s\n' "$table" | grep -q "$sym"; then
+      echo "missing export: $sym" >&2
+      missing=1
+    fi
+  done
+  if [[ "$missing" -ne 0 ]]; then
+    echo "$table" >&2
     exit 1
   fi
-  echo "$prebuilt/bin/aarch64-linux-android26-clang"
+  echo "Android lib exports the C ABI symbols. QEMU cannot run Bionic (/system/bin/linker64). Golden cases run in the Android AAR / JVM job."
 }
 
 run_android() {
@@ -170,24 +219,10 @@ run_android() {
   done
   if [[ -z "$lib" ]]; then
     echo "No Android libnuvexa.so in $native_dir" >&2
+    ls -la "$native_dir" >&2 || true
     exit 1
   fi
-  local clang
-  clang="$(ndk_clang)"
-  local out="$build/abi_runner_android"
-  "$clang" -O1 -fPIE -pie -I "$include" "$src" -L "$native_dir" -lnuvexa -o "$out"
-
-  local ndk="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-}}"
-  local sysroot
-  sysroot="$(echo "$ndk"/toolchains/llvm/prebuilt/*/sysroot)"
-  if ! command -v qemu-aarch64-static >/dev/null 2>&1 && ! command -v qemu-aarch64 >/dev/null 2>&1; then
-    echo "qemu-aarch64 is required to run android-arm64 ABI tests" >&2
-    exit 1
-  fi
-  local qemu="qemu-aarch64-static"
-  command -v qemu-aarch64-static >/dev/null 2>&1 || qemu="qemu-aarch64"
-  export LD_LIBRARY_PATH="$native_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-  "$qemu" -L "$sysroot" "$out"
+  verify_android_exports "$lib"
 }
 
 case "$mode" in
