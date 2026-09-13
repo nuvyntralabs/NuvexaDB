@@ -2,7 +2,7 @@ package nuvexa
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/include
-#cgo LDFLAGS: -lnuvexa
+#cgo !darwin LDFLAGS: -lnuvexa
 #include "nuvexa.h"
 #include <stdlib.h>
 */
@@ -13,13 +13,20 @@ import (
 	"errors"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"unsafe"
 )
 
 func init() {
-	// Native AOT uses SIGUSR1/SIGUSR2. An unhandled SIGUSR1 terminates Go.
-	signal.Ignore(syscall.SIGUSR1, syscall.SIGUSR2)
+	// Native AOT GC on Darwin uses SIGUSR1/SIGUSR2. signal.Ignore after the
+	// dylib is loaded replaces those handlers and deadlocks nuvexa_create.
+	// Linux AOT does not need the signals; Ignore there so an unexpected
+	// SIGUSR1 does not kill the Go process.
+	if runtime.GOOS != "darwin" {
+		signal.Ignore(syscall.SIGUSR1, syscall.SIGUSR2)
+	}
+	loadNativeLibrary()
 }
 
 const AbiVersion = 2

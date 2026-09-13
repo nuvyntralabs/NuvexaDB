@@ -55,7 +55,7 @@ class NuvexaModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
     @ReactMethod
     fun execute(handle: Double, nql: String, promise: Promise) =
         run(promise) {
-            val rows = db(handle).execute(nql).map { org.json.JSONObject(it.json) }
+            val rows = db(handle).execute(nql).map { it.json }
             org.json.JSONArray(rows).toString()
         }
 
