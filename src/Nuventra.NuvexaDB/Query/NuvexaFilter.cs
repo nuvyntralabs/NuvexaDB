@@ -9,7 +9,7 @@ public enum NuvexaFilterKind
     Eq, Ne, Gt, Gte, Lt, Lte, In, Nin, Exists, Regex, And, Or
 }
 
-/// <summary>Mongo-inspired filter tree. Prefer factory methods or <see cref="Parse"/>.</summary>
+/// <summary>NQL filter tree. Prefer factory methods or <see cref="Parse"/>.</summary>
 public sealed class NuvexaFilter
 {
     public NuvexaFilterKind Kind { get; }

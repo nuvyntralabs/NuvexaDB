@@ -5,9 +5,9 @@
     <RootNamespace>Nuventra.NuvexaDB</RootNamespace>
     <AssemblyName>Nuventra.NuvexaDB</AssemblyName>
     <PackageId>Nuventra.NuvexaDB</PackageId>
-    <Title>NuvexaDB — embedded Mongo-like NoSQL for .NET and MAUI</Title>
-    <Description>Embedded document database for .NET and .NET MAUI. Single encrypted .nvx file, Mongo-inspired queries, AES-256-GCM at rest. Runs in-process on Windows, macOS, Linux, Android, and iOS.</Description>
-    <PackageTags>nuvexadb;nosql;embedded;mongodb;maui;dotnet;document-database;aes-gcm;nvx</PackageTags>
+    <Title>NuvexaDB — embedded NoSQL database for .NET and MAUI</Title>
+    <Description>Embedded NoSQL database for .NET and .NET MAUI. Single encrypted .nvx file, NQL queries, AES-256-GCM at rest. Runs in-process on Windows, macOS, Linux, Android, and iOS.</Description>
+    <PackageTags>nuvexadb;nosql;embedded;nql;maui;dotnet;document-database;aes-gcm;nvx</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsAotCompatible>true</IsAotCompatible>

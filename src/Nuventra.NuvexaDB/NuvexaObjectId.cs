@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 
 namespace Nuventra.NuvexaDB;
 
-/// <summary>Mongo-style 12-byte object id rendered as 24 hex characters.</summary>
+/// <summary>12-byte object id rendered as 24 hex characters.</summary>
 public static class NuvexaObjectId
 {
     public static string NewId()

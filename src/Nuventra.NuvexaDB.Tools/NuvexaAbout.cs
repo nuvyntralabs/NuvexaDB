@@ -16,7 +16,7 @@ public static class NuvexaAbout
     public const string GitHub = "https://github.com/nuvyntralabs/NuvexaDB";
     public const string NuGet = "https://www.nuget.org/packages/Nuventra.NuvexaDB";
     public const string Summary =
-        "Embedded Mongo-like document database for .NET and .NET MAUI. One portable .nvx file, BSON pages, optional AES-256-GCM, and NQL (Nuvexa Query Language).";
+        "Embedded NoSQL database for .NET and .NET MAUI. One portable .nvx file, BSON pages, optional AES-256-GCM, and NQL (Nuvexa Query Language).";
     public const string AboutUs =
         "NuvexaDB is built by Niladri Prasad Padhy (Nuventra) and published with the MauiEssentials catalog under Nuvyntra Labs. The desktop workbench is Nuvexa Data Studio. Visual Studio and VS Code / Cursor share the same browse and NQL session.";
 

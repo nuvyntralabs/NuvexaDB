@@ -1,6 +1,6 @@
 # NuvexaDB
 
-Embedded, Mongo-inspired NoSQL for **.NET** and **.NET MAUI**, with a Native AOT C ABI for **Java**, **Kotlin**, **Swift**, **Flutter**, **React Native**, **Python**, **Node.js**, **Go**, and **C++**. One portable binary **`.nvx`** file (BSON documents on data pages, AES-256-GCM encryption), and a desktop explorer for Windows, macOS, and Linux.
+Embedded NoSQL database for **.NET** and **.NET MAUI**, with a Native AOT C ABI for **Java**, **Kotlin**, **Swift**, **Flutter**, **React Native**, **Python**, **Node.js**, **Go**, and **C++**. One portable binary **`.nvx`** file (BSON documents on data pages, AES-256-GCM encryption), and a desktop explorer for Windows, macOS, and Linux.
 
 **Package:** `Nuventra.NuvexaDB`  
 **Version:** 1.0.1  
@@ -10,9 +10,7 @@ Embedded, Mongo-inspired NoSQL for **.NET** and **.NET MAUI**, with a Native AOT
 
 ## Why NuvexaDB
 
-MauiEssentials already uses SQLite as a **local cache / outbox** ([JobQueue](https://www.nuget.org/packages/Plugin.Maui.JobQueue), [OfflineSync](https://www.nuget.org/packages/Plugin.Maui.OfflineSync)). Those stay the right tools for durable jobs and sync. NuvexaDB is the general-purpose **document** file: collections, **NQL** (Nuvexa Query Language), encryption, and an IDE.
-
-Use **SQLite** when you need SQL joins or an existing sqlite-net model. Use **NuvexaDB** when you want documents, a single `.nvx` application file, and fail-closed encryption.
+NuvexaDB is a standalone **embedded NoSQL** engine: collections, **NQL** (Nuvexa Query Language), optional AES-256-GCM, one `.nvx` application file, and an IDE. It runs in-process. It is not a network server.
 
 ## Install
 
@@ -186,17 +184,10 @@ dotnet run --project benches/Nuventra.NuvexaDB.Benchmarks -c Release -- --gate
 
 `--gate` also freezes 10k insert (≤ 1.5× LiteDB), encrypted point-get (≤ +30%), and 100k-set point-get (≤ 3× SQLite). `--crore` is a local 10 million document write / index / query bench (not CI; see [docs/benchmarks.md](docs/benchmarks.md)). Explorer installers and `.nvx` file-association scripts live in `src/Nuventra.NuvexaDB.Explorer/packaging/`.
 
-## Complementary packages (Nuvyntra Labs)
-
-- [Plugin.Maui.OfflineSync](https://www.nuget.org/packages/Plugin.Maui.OfflineSync) — offline-first sync
-- [Plugin.Maui.JobQueue](https://www.nuget.org/packages/Plugin.Maui.JobQueue) — durable SQLite jobs
-- [Plugin.Maui.FileVault](https://www.nuget.org/packages/Plugin.Maui.FileVault) — encrypted files
-- [Plugin.Maui.SecureStoragePlus](https://www.nuget.org/packages/Plugin.Maui.SecureStoragePlus) — optional key storage
-- [Plugin.Avalonia.MVVMExpress](https://www.nuget.org/packages/Plugin.Avalonia.MVVMExpress.Core) — Avalonia MVVM shell
-
 ## Docs
 
-- [Explorer IDE](docs/explorer.md) — capability inventory (white paper source)
+- [White paper](docs/whitepaper.md) — engine architecture, security, performance, platform libraries, IDEs, roadmap
+- [Explorer IDE](docs/explorer.md) — Data Studio / VS / VS Code capability inventory
 - [Change log](docs/changelog.md) — unreleased engine, Explorer, and bench notes
 - [File format](docs/format.md)
 - [Encryption](docs/encryption.md)

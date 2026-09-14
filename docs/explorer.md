@@ -4,7 +4,7 @@ Desktop database workbench (**Nuvexa Data Studio**, project `Nuventra.NuvexaDB.E
 
 Mental model: **collection = table**, **document = JSON row**, **field = column**. `_id` is always the primary key. Declared types live in the hidden collection `__nuvexa_schema` (hidden from the tree and from user-facing stats).
 
-This page is the capability inventory for product docs and a white paper. Engine file format, encryption, and **NQL** are in [format.md](format.md), [encryption.md](encryption.md), and [query.md](query.md).
+This page is the capability inventory for product docs. The narrative white paper is [whitepaper.md](whitepaper.md). Engine file format, encryption, and **NQL** are in [format.md](format.md), [encryption.md](encryption.md), and [query.md](query.md).
 
 ## Surfaces
 

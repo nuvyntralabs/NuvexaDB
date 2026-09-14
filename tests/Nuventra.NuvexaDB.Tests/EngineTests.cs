@@ -121,7 +121,7 @@ public sealed class EngineTests : IDisposable
     }
 
     [Fact]
-    public async Task MongoQuery_FilterSortLimit()
+    public async Task NqlFind_FilterSortLimit()
     {
         var path = DbPath("query");
         using var db = NuvexaDatabase.Create(path);

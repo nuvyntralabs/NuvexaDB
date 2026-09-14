@@ -13,7 +13,7 @@ A `.nvx` written from Kotlin is the same file Explorer, Swift, Flutter, and a MA
 - A network server or multi-process writer. One process holds `FileShare.None` on a path.
 - A second engine in Kotlin, Swift, Dart, or C++.
 - LINQ / `GetCollection<T>` outside .NET.
-- SQLite or RocksDB inside `Nuventra.NuvexaDB`. JobQueue and OfflineSync stay the SQLite tools.
+- SQLite or RocksDB inside `Nuventra.NuvexaDB`.
 
 ## Layers
 

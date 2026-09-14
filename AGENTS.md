@@ -1,10 +1,10 @@
 # NuvexaDB — AI Coding Agent Guide
 
-Embedded Mongo-like document database for .NET and .NET MAUI, plus a Native AOT C ABI (v2) for Java, Kotlin, Swift, Flutter, React Native, Python, Node, Go, and C++. Package `Nuventra.NuvexaDB`. File extension `.nvx`.
+Embedded NoSQL database for .NET and .NET MAUI, plus a Native AOT C ABI (v2) for Java, Kotlin, Swift, Flutter, React Native, Python, Node, Go, and C++. Package `Nuventra.NuvexaDB`. File extension `.nvx`.
 
 ## When to consider
 
-Local document cache, encrypted application files, **NQL** (Nuvexa Query Language) on device or desktop. Not a network server. Not a replacement for JobQueue or OfflineSync.
+Embedded NoSQL: collections, encrypted `.nvx` application files, **NQL** (Nuvexa Query Language) on device or desktop. Not a network server.
 
 ## Constraints
 
@@ -34,4 +34,4 @@ tests/  tests/interop/  benches/  samples/  docs/
 src/Nuventra.NuvexaDB.Explorer/packaging   .nvx file-association scripts
 ```
 
-When you add or change Explorer IDE behavior, update [docs/explorer.md](docs/explorer.md). That page is the white-paper capability list. Record unreleased engine, Explorer, bench, and binding work in [docs/changelog.md](docs/changelog.md). How the engine is shared across languages: [docs/architecture.md](docs/architecture.md). Language ABI / SDK how-to: [docs/bindings.md](docs/bindings.md). Golden NQL cases live in [tests/interop/cases.json](tests/interop/cases.json).
+When you add or change Explorer IDE behavior, update [docs/explorer.md](docs/explorer.md). The product white paper is [docs/whitepaper.md](docs/whitepaper.md). Record unreleased engine, Explorer, bench, and binding work in [docs/changelog.md](docs/changelog.md). How the engine is shared across languages: [docs/architecture.md](docs/architecture.md). Language ABI / SDK how-to: [docs/bindings.md](docs/bindings.md). Golden NQL cases live in [tests/interop/cases.json](tests/interop/cases.json).
