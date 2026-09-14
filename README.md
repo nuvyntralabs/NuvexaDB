@@ -67,7 +67,7 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-That tagged CI run copies the same zips onto the release **only after every CI job is green**. If any job fails, the run is red and [Releases](https://github.com/nuvyntralabs/NuvexaDB/releases) is not created or updated. Fix the failure and push the tag again (or a new tag) when the run succeeds. The public URL is then `https://github.com/nuvyntralabs/NuvexaDB/releases/tag/v1.0.0`. Users download only the zip they need.
+That tagged CI run copies the same zips onto the release **only after every CI job is green**. If any job fails, the run is red and [Releases](https://github.com/nuvyntralabs/NuvexaDB/releases) is not created or updated. Fix the failure and push the tag again (or a new tag) when the run succeeds. If `v<Version>` is **already published**, CI stops after version alignment — it does not rebuild. Bump `Directory.Build.props` to start a new build. The public URL is then `https://github.com/nuvyntralabs/NuvexaDB/releases/tag/v1.0.0`. Users download only the zip they need.
 
 ## Quick start
 

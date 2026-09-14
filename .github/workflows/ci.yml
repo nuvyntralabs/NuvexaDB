@@ -3,7 +3,8 @@ name: ci
 # Everyday pushes and PRs only upload Actions artifacts. They never create or
 # update github.com/nuvyntralabs/NuvexaDB/releases. A GitHub Release is created
 # only when you push a version tag (v1.0.0) AND every CI job on that run
-# succeeded. That is the release control.
+# succeeded. If v<Version> is already published, the build does not start.
+# That is the release control.
 on:
   push:
     branches: [main]
@@ -44,10 +45,29 @@ jobs:
     timeout-minutes: 5
     outputs:
       version: ${{ steps.check.outputs.version }}
+      skip_build: ${{ steps.gate.outputs.skip_build }}
     steps:
       - uses: actions/checkout@v4
       - id: check
         run: python3 .github/scripts/check-versions.py --repo-root .
+      - id: gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${{ steps.check.outputs.version }}"
+          skip=false
+          # PRs always build. Main / tag / dispatch skip when v{Version} is already published.
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            if json="$(gh release view "v${version}" --repo "${{ github.repository }}" --json isDraft 2>/dev/null)"; then
+              draft="$(python3 -c "import json,sys; print(json.loads(sys.argv[1]).get('isDraft'))" "$json")"
+              if [ "$draft" = "False" ]; then
+                skip=true
+                echo "GitHub Release v${version} already exists. Skipping the build."
+              fi
+            fi
+          fi
+          echo "skip_build=$skip" >> "$GITHUB_OUTPUT"
       - if: always()
         shell: bash
         run: |
@@ -55,6 +75,7 @@ jobs:
 
   test:
     name: Unit tests (${{ matrix.os }})
+    if: needs.version.outputs.skip_build != 'true'
     needs: [version]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
