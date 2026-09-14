@@ -1,0 +1,19 @@
+---
+description: How to bump NuvexaDB across .NET, bindings, IDE, and extensions
+alwaysApply: true
+---
+
+# NuvexaDB version bump
+
+Do not hand-edit every project. One source, then sync.
+
+1. Set `<Version>` and `<PackageVersion>` to the same value in `Directory.Build.props`.
+2. Run `python3 .github/scripts/check-versions.py --repo-root . --write`
+3. Run the same script without `--write` and confirm every row is OK.
+4. Commit. Ask whether this commit should publish a GitHub Release. Tag only `v<Version>` after Yes.
+
+`--write` updates the README `**Version:**` line and `v<Version>` tag examples, VS Code, Visual Studio, Data Studio `app.manifest`, and every binding (Java, Android, Python, Node, React Native, Flutter, Go, C++, Swift). Android `versionCode` is major×10000+minor×100+patch.
+
+**.NET that inherit props (do not put a local Version in the csproj):** engine, Tools, CLI, Native, Data Studio (`Explorer`). Installers take the version from CI.
+
+Do not bump sample app `ApplicationVersion`. Binding README install examples may still show an old filename; that is docs only.

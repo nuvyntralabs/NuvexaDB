@@ -1,6 +1,6 @@
 """Python SDK for NuvexaDB over the Native AOT C ABI."""
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 from .database import (
     NuvexaDatabase,

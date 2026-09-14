@@ -13,7 +13,7 @@ Local document cache, encrypted application files, **NQL** (Nuvexa Query Languag
 - SQLite is allowed only in Tools (disposable explorer cache) and Benchmarks.
 - Encrypted open without a key must throw `NuvexaEncryptionException` (C ABI `NUVEXA_ENCRYPTION`).
 - Never `dotnet nuget push` from a local clone. Do not publish Maven, npm, pub.dev, or the Swift package from this workspace. Everyday CI uploads GitHub Actions artifacts only. A GitHub Release is created only on a `v*` tag. nuget.org / GitHub Packages push is commented out in `.github/workflows/ci.yml`.
-- One product version: `Directory.Build.props` `<Version>` / `<PackageVersion>`. After a bump run `python3 .github/scripts/check-versions.py --repo-root . --write`. Do not leave Python, Node, Android, Flutter, or the VSIX on a different number.
+- One product version: `Directory.Build.props` `<Version>` / `<PackageVersion>`. After a bump run `python3 .github/scripts/check-versions.py --repo-root . --write`. That covers .NET (inherit), Data Studio manifest, VS Code, Visual Studio, and every binding. Do not leave any of those on a different number.
 - Before every `git commit` in this repo, ask whether this commit should make a GitHub Release. Default is no. Tag `v*` only after an explicit Yes. Prefix the commit with `NUVEXA_RELEASE=no` or `NUVEXA_RELEASE=yes`.
 - v1 query is fluent + JSON. LINQ is an expression visitor (`ExpressionFilter`), not `IQueryable`. Do not add a provider that breaks Native AOT.
 - Language SDKs expose NQL + CRUD JSON, plus ABI v2 catalog / tx / GridFS-by-path. Skip LINQ / `GetCollection<T>`.

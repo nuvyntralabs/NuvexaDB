@@ -195,6 +195,21 @@ def collect(root: Path) -> dict[str, str]:
         r'static let version\s*=\s*"([^"]+)"',
         "SDK version",
     )
+    versions["VS Code About"] = first_match(
+        src / "Nuventra.NuvexaDB.VSCode" / "src" / "extension.ts",
+        r"NuvexaDB (\d+\.\d+\.\d+) · \.nvx format",
+        "About version",
+    )
+    versions["Data Studio manifest"] = first_match(
+        src / "Nuventra.NuvexaDB.Explorer" / "app.manifest",
+        r'assemblyIdentity version="(\d+\.\d+\.\d+)\.0"',
+        "assemblyIdentity version",
+    )
+    versions["README"] = first_match(
+        root / "README.md",
+        r"\*\*Version:\*\* (\d+\.\d+\.\d+)",
+        "README Version",
+    )
     return versions
 
 
@@ -225,6 +240,29 @@ def write_versions(root: Path, version: str) -> None:
         rf"\g<1>{version}\g<2>",
         "VS Code version",
     )
+    replace_one(
+        root / "src/Nuventra.NuvexaDB.VSCode/src/extension.ts",
+        r"(NuvexaDB )\d+\.\d+\.\d+( · \.nvx format)",
+        rf"\g<1>{version}\g<2>",
+        "VS Code About",
+    )
+    replace_one(
+        root / "src/Nuventra.NuvexaDB.Explorer/app.manifest",
+        r'(assemblyIdentity version=")\d+\.\d+\.\d+(\.0")',
+        rf"\g<1>{version}\g<2>",
+        "Data Studio manifest",
+    )
+    replace_one(
+        root / "README.md",
+        r"(\*\*Version:\*\* )\d+\.\d+\.\d+",
+        rf"\g<1>{version}",
+        "README Version",
+    )
+    readme = root / "README.md"
+    text = readme.read_text(encoding="utf-8")
+    updated = re.sub(r"v\d+\.\d+\.\d+", f"v{version}", text)
+    if updated != text:
+        readme.write_text(updated, encoding="utf-8")
     replace_one(
         root / "src/Nuventra.NuvexaDB.VisualStudio/source.extension.vsixmanifest",
         r'(<Identity\b[^>]*\bVersion=")[^"]+(")',

@@ -423,7 +423,7 @@ function page(): string {
       <section id="about" class="panel">
         <div class="about">
           <h1>Nuvexa Data Studio</h1>
-          <div class="hint">NuvexaDB 1.0.0 · .nvx format 1 · MIT</div>
+          <div class="hint">NuvexaDB 1.0.1 · .nvx format 1 · MIT</div>
           <p>Embedded Mongo-like document database for .NET and .NET MAUI. One portable .nvx file, BSON pages, optional AES-256-GCM, and NQL (Nuvexa Query Language).</p>
           <p class="hint">NuvexaDB is built by Niladri Prasad Padhy (Nuventra) and published with the MauiEssentials catalog under Nuvyntra Labs. This VS Code / Cursor editor is browse-only. Writes stay in the desktop workbench.</p>
           <p>Author: Niladri Prasad Padhy / Nuventra<br />Organization: Nuvyntra Labs</p>

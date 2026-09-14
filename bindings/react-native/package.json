@@ -1,6 +1,6 @@
 {
   "name": "@nuventra/nuvexadb",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "React Native / Node SDK for NuvexaDB over the Native AOT C ABI.",
   "license": "MIT",
   "type": "module",
