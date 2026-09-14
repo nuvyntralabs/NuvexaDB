@@ -172,26 +172,46 @@ dll_is_arm64() {
   [[ "$native_dir" == *win-arm64* ]]
 }
 
-mingw_gcc() {
-  local candidate dump skip_x64=0
-  if host_is_arm64; then
-    skip_x64=1
-  fi
-  for candidate in "$(command -v gcc || true)" /c/mingw64/bin/gcc /mingw64/bin/gcc; do
+# GNU ld (MinGW gcc or Git clangarm64) can consume a Native AOT DLL as an
+# input file. MSVC link.exe cannot (LNK1107 on the DLL; LNK2019 on a
+# lib /def import library — those thunks do not match AOT export slots).
+direct_dll_cc() {
+  local want_arm="${1:-0}"
+  local candidate dump
+  local -a candidates=(
+    "$(command -v clang || true)"
+    "/c/Program Files/Git/clangarm64/bin/clang.exe"
+    "$(command -v gcc || true)"
+    /c/mingw64/bin/gcc
+    /mingw64/bin/gcc
+  )
+  for candidate in "${candidates[@]}"; do
     [[ -n "$candidate" && -x "$candidate" ]] || continue
     dump="$("$candidate" -dumpmachine 2>/dev/null || true)"
-    echo "$dump" | grep -qi mingw || continue
-    if echo "$dump" | grep -qiE 'aarch64|arm64'; then
+    [[ -n "$dump" ]] || continue
+    if [[ "$want_arm" -eq 1 ]]; then
+      echo "$dump" | grep -qiE 'aarch64|arm64' || continue
+      echo "$dump" | grep -qiE 'x86_64|i686' && continue
       printf '%s\n' "$candidate"
       return 0
     fi
-    # x64 MinGW cannot link a win-arm64 Native AOT DLL. windows-11-arm images
-    # still ship C:\mingw64 (x86_64-w64-mingw32).
-    [[ "$skip_x64" -eq 1 ]] && continue
+    echo "$dump" | grep -qiE 'mingw|windows-gnu' || continue
+    echo "$dump" | grep -qiE 'aarch64|arm64' && continue
     printf '%s\n' "$candidate"
     return 0
   done
   return 1
+}
+
+link_with_direct_dll() {
+  local cc="$1"
+  local dll="$2"
+  local out="$3"
+  echo "link Native AOT DLL with $cc ($("$cc" -dumpmachine))"
+  if ! "$cc" -O1 -I "$include" "$src" "$dll" -o "$out"; then
+    echo "retry $cc -L native-dir -lnuvexa"
+    "$cc" -O1 -I "$include" "$src" -L "$native_dir" -lnuvexa -o "$out"
+  fi
 }
 
 # Git usr\bin\link.exe is GNU coreutils ("extra operand"). Always use
@@ -261,7 +281,7 @@ windows_msvc_link() {
   fi
   echo "MSVC import lib machine=$machine"
   {
-    printf 'LIBRARY nuvexa\r\nEXPORTS\r\n'
+    printf 'LIBRARY nuvexa.dll\r\nEXPORTS\r\n'
     awk '$1 ~ /^[0-9]+$/ && $NF ~ /^nuvexa_[A-Za-z0-9_]+$/ { printf "    %s\r\n", $NF }' "$exports"
   } > "$def"
   count="$(awk '$1 ~ /^[0-9]+$/ && $NF ~ /^nuvexa_[A-Za-z0-9_]+$/ { n++ } END { print n+0 }' "$exports")"
@@ -284,9 +304,9 @@ windows_msvc_link() {
   write_crlf "$script" \
     "@echo off" \
     "setlocal" \
-    "\"$lib_exe\" /nologo /def:\"$def_win\" /machine:$machine /out:\"$lib_win\"" \
+    "\"$lib_exe\" /nologo /def:\"$def_win\" /machine:$machine /name:nuvexa.dll /out:\"$lib_win\"" \
     "if errorlevel 1 exit /b 1" \
-    "\"$cl_exe\" /nologo /c /O1 /I \"$inc_win\" \"$src_win\" /Fo\"$obj_win\"" \
+    "\"$cl_exe\" /nologo /c /O1 /DNUVEXA_DLLIMPORT /I \"$inc_win\" \"$src_win\" /Fo\"$obj_win\"" \
     "if errorlevel 1 exit /b 1" \
     "\"$link_exe\" /nologo /OUT:\"$out_win\" \"$obj_win\" \"$lib_win\"" \
     "if errorlevel 1 exit /b 1"
@@ -297,20 +317,21 @@ windows_msvc_link() {
 windows_link_and_run() {
   local dll="$1"
   local out="$2"
-  local bindir testdir gcc
+  local bindir testdir cc want_arm=0
   bindir="$(dirname "$out")"
   testdir="$build/tmp"
   mkdir -p "$bindir" "$testdir"
 
-  # MinGW ld can consume a win-x64 Native AOT DLL. x64 MinGW cannot consume
-  # win-arm64 (file format not recognized). MSVC link.exe cannot consume the
-  # AOT DLL either (LNK1107), so ARM64 builds an import lib first.
   if dll_is_arm64 "$dll"; then
-    echo "ARM64 nuvexa.dll: skip x64 MinGW; link with MSVC"
-    windows_msvc_link "$dll" "$out"
-  elif gcc="$(mingw_gcc)"; then
-    echo "link with MinGW $gcc ($("$gcc" -dumpmachine))"
-    "$gcc" -O1 -I "$include" "$src" "$dll" -o "$out"
+    want_arm=1
+  fi
+  if cc="$(direct_dll_cc "$want_arm")"; then
+    link_with_direct_dll "$cc" "$dll" "$out"
+  elif [[ "$want_arm" -eq 1 ]]; then
+    echo "win-arm64 requires an aarch64 GNU toolchain (Git clangarm64)." >&2
+    echo "MSVC link.exe cannot consume a Native AOT DLL (LNK1107), and a" >&2
+    echo "lib /def import library does not resolve nuvexa_* (LNK2019)." >&2
+    exit 1
   else
     echo "MinGW gcc not found; falling back to MSVC via cmd.exe"
     windows_msvc_link "$dll" "$out"

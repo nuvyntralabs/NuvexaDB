@@ -4,7 +4,7 @@ Working-tree notes for unreleased work. Publishing still happens only through CI
 
 ## Unreleased — 14 September 2026
 
-win-arm64 ABI tests invoke MSVC `link.exe` by full path. Git’s GNU `link` was first on PATH and failed with “extra operand”.
+win-arm64 ABI host tests link `nuvexa.dll` with Git **clangarm64** (`aarch64-w64-windows-gnu`), the same GNU-ld path win-x64 uses with MinGW. MSVC `link.exe` cannot take a Native AOT DLL (LNK1107). A `lib /def` import library lists the names but does not resolve `nuvexa_*` (LNK2019).
 
 `--gate` 100k point-get uses a warmed median of 3 and the same +50ms floor as encrypted get, so macos-latest jitter (62ms vs 19ms SQLite) does not fail the tag.
 

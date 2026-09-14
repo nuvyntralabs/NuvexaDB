@@ -141,6 +141,21 @@ jobs:
         run: |
           echo "C:\\mingw64\\bin" >> "$GITHUB_PATH"
           /c/mingw64/bin/gcc -dumpmachine
+      - name: Host C toolchain
+        if: matrix.rid == 'win-arm64'
+        shell: bash
+        run: |
+          # Native AOT DLLs link with GNU ld, not MSVC link.exe (LNK1107 / LNK2019).
+          # windows-11-arm ships Git clangarm64 (aarch64-w64-windows-gnu).
+          clangarm64="/c/Program Files/Git/clangarm64/bin"
+          if [[ -x "$clangarm64/clang.exe" ]]; then
+            echo "$clangarm64" >> "$GITHUB_PATH"
+            "$clangarm64/clang.exe" -dumpmachine
+          else
+            echo "Git clangarm64 is missing; ABI host tests cannot link nuvexa.dll" >&2
+            ls -la "/c/Program Files/Git" >&2 || true
+            exit 1
+          fi
       - name: Publish C ABI
         shell: bash
         run: |
