@@ -186,11 +186,11 @@ dotnet run --project benches/Nuventra.NuvexaDB.Benchmarks -c Release -- --gate
 
 ## Docs
 
+- [Platform integration](docs/Integration/README.md) — download the exact Release zip, empty project, create/open/close, collections, documents, encryption password
 - [White paper](docs/whitepaper.md) — engine architecture, security, performance, platform libraries, IDEs, roadmap
 - [Explorer IDE](docs/explorer.md) — Data Studio / VS / VS Code capability inventory
 - [Change log](docs/changelog.md) — unreleased engine, Explorer, and bench notes
 - [File format](docs/format.md)
-- [Encryption](docs/encryption.md)
 - [Engine sharing architecture](docs/architecture.md) — one engine, one C ABI, thin SDKs
 - [Language bindings](docs/bindings.md)
 - [NQL](docs/query.md)

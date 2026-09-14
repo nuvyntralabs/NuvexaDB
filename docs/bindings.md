@@ -1,5 +1,7 @@
 # Language bindings
 
+New host? Start with the [platform integration guides](Integration/README.md) (which Release zip to download, empty project, CRUD, encryption password).
+
 How the engine is shared (Native AOT, ABI, publish path): [architecture.md](architecture.md).
 
 One engine (`Nuventra.NuvexaDB`), one C ABI (`Nuventra.NuvexaDB.Native`), thin SDKs:

@@ -4,6 +4,10 @@ Working-tree notes for unreleased work. Publishing still happens only through CI
 
 ## Unreleased — 14 September 2026
 
+`--gate` 100k point-get uses a warmed median of 3 and the same +50ms floor as encrypted get, so macos-latest jitter (62ms vs 19ms SQLite) does not fail the tag.
+
+[Platform integration](Integration/README.md) guides for .NET, Java/Kotlin, Android, Swift, Flutter, React Native, Python, Node.js, Go, and C++. Each names the exact [v1.0.1](https://github.com/nuvyntralabs/NuvexaDB/releases/tag/v1.0.1) zip and library file, then create/open/close, delete, collection and document CRUD, and encryption password practice.
+
 New files write **format v2**: order-preserving numeric index keys (`d:`) so `$gte` / `$lte` can IXSCAN, and a 32-byte WAL header that records page size. Format v1 files stay readable. Data Studio can edit an existing table definition, run NQL `update` / `delete`, complete NQL with Ctrl+Space, and open an aggregation builder plus visual explain. Visual Studio and VS Code browse grids are editable (`nuvexa replace`).
 
 CI publishes iOS Native AOT shared libraries (`ios-arm64` + `iossimulator-arm64`, `PublishAotUsingRuntimePack`) and packs `Nuvexa.xcframework` as `NuvexaDB-Native-iOS`. Simulator ABI cases and React Native iOS link that framework. Linux ARM64 (`ubuntu-24.04-arm`) and Windows ARM64 (`windows-11-arm`) publish the C ABI and Data Studio installers and run host ABI tests on that CPU.

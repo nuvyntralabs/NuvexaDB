@@ -12,7 +12,7 @@
 | **Release downloads** | https://github.com/nuvyntralabs/NuvexaDB/releases |
 | **Date** | 14 September 2026 |
 
-This paper describes the **core engine**, on-disk architecture, security model, performance contract, how platform libraries are produced, the desktop and editor tools, and the 1.x roadmap. Companion pages hold the byte-level and API inventories: [format.md](format.md), [encryption.md](encryption.md), [architecture.md](architecture.md), [bindings.md](bindings.md), [query.md](query.md), [benchmarks.md](benchmarks.md), [explorer.md](explorer.md).
+This paper describes the **core engine**, on-disk architecture, security model, performance contract, how platform libraries are produced, the desktop and editor tools, and the 1.x roadmap. Companion pages hold the byte-level and API inventories: [format.md](format.md), [architecture.md](architecture.md), [bindings.md](bindings.md), [Integration/README.md](Integration/README.md), [query.md](query.md), [benchmarks.md](benchmarks.md), [explorer.md](explorer.md).
 
 ---
 
@@ -581,6 +581,7 @@ It is not a client/server database. One process holds a path. Combining NuvexaDB
 | [encryption.md](encryption.md) | KDF, DEK wrap, page GCM, open path |
 | [query.md](query.md) | NQL operators, aggregation, LINQ |
 | [bindings.md](bindings.md) | SDK snippets, ABI v2 surface |
+| [Integration/README.md](Integration/README.md) | Per-host download, project setup, CRUD, encryption password |
 | [benchmarks.md](benchmarks.md) | `--gate`, `--crore`, comparators |
 | [explorer.md](explorer.md) | Data Studio / VS / VS Code capability inventory |
 | [changelog.md](changelog.md) | Engine and IDE notes |
