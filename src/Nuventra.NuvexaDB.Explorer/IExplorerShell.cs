@@ -17,12 +17,14 @@ public interface IExplorerShell
     Task<(string Current, string Next)?> PromptChangeKeyAsync();
     Task<TableColumnDefinition?> PromptColumnAsync(TableColumnDefinition? existing = null);
     Task<IndexDefinition?> PromptIndexAsync(string? field = null);
-    Task<TableDefinition?> PromptTableDefinitionAsync();
+    Task<TableDefinition?> PromptTableDefinitionAsync(TableDefinition? existing = null);
     Task<IReadOnlyDictionary<string, string>?> PromptRecordAsync(
         string collection,
         IReadOnlyList<TableColumnDefinition> columns,
         string action = "New Record",
         string confirm = "Insert");
+    Task<string?> PromptAggregateAsync(string collection, string? currentNql);
+    Task ShowExplainAsync(string title, string body);
     Task SetClipboardAsync(string text);
     Task ShowAboutAsync();
     void Exit();

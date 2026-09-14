@@ -1,6 +1,6 @@
 # NuvexaDB Swift package
 
-SPM library `NuvexaDB` (macOS 13+, iOS 16+) over `nuvexa.h`. Set `NUVEXA_NATIVE_DIR` to the folder with `libnuvexa.dylib`.
+SPM library `NuvexaDB` (macOS 13+, iOS 16+) over `nuvexa.h`. On macOS set `NUVEXA_NATIVE_DIR` to the folder with `libnuvexa.dylib`. On iOS link CI `Nuvexa.xcframework` (`NuvexaDB-Native-iOS`).
 
 ## Integration
 

@@ -78,8 +78,14 @@ public sealed class NuvexaDatabase : IDisposable, IAsyncDisposable
             throw new NuvexaException($"A file already exists at '{path}'.");
         }
 
+        if (options.FormatVersion < Constants.MinFormatVersion || options.FormatVersion > Constants.FormatVersion)
+        {
+            throw new NuvexaException($"Unsupported .nvx format version {options.FormatVersion}.");
+        }
+
         var super = new Superblock
         {
+            Version = options.FormatVersion,
             FileId = RandomNumberGenerator.GetBytes(16),
             KdfMemoryKb = options.Argon2MemoryKb,
             KdfIterations = options.Argon2Iterations,
@@ -294,14 +300,43 @@ public sealed class NuvexaDatabase : IDisposable, IAsyncDisposable
 
     public async Task<NuvexaQueryResult> ExecuteAsync(string queryText, CancellationToken cancellationToken = default)
     {
+        if (NuvexaWriteQuery.TryParse(queryText, out var write))
+        {
+            var col = GetCollection(write.Collection);
+            if (write.IsDelete)
+            {
+                var deleted = await col.DeleteAsync(write.Filter, cancellationToken).ConfigureAwait(false);
+                return new NuvexaQueryResult
+                {
+                    Collection = write.Collection,
+                    Operation = "delete",
+                    Affected = deleted
+                };
+            }
+
+            var updated = await col.UpdateAsync(write.Filter, write.UpdateJson!, cancellationToken).ConfigureAwait(false);
+            return new NuvexaQueryResult
+            {
+                Collection = write.Collection,
+                Operation = "update",
+                Affected = updated
+            };
+        }
+
         if (NuvexaAggregate.TryParse(queryText, out var aggCollection, out var pipeline))
         {
-            return await NuvexaAggregate.RunAsync(this, aggCollection, pipeline, cancellationToken).ConfigureAwait(false);
+            var agg = await NuvexaAggregate.RunAsync(this, aggCollection, pipeline, cancellationToken).ConfigureAwait(false);
+            return new NuvexaQueryResult
+            {
+                Collection = agg.Collection,
+                Documents = agg.Documents,
+                Operation = "aggregate"
+            };
         }
 
         var query = NuvexaQuery.Parse(queryText);
-        var col = GetCollection(query.Collection);
-        var docs = await col.Find(query.Filter)
+        var findCol = GetCollection(query.Collection);
+        var docs = await findCol.Find(query.Filter)
             .Skip(query.Skip)
             .Limit(query.Limit)
             .Project(query.Projection?.ToArray() ?? [])
@@ -312,12 +347,12 @@ public sealed class NuvexaDatabase : IDisposable, IAsyncDisposable
         {
             foreach (var (path, asc) in query.Sort)
             {
-                docs = (await col.Find(query.Filter).Sort(path, asc).Skip(query.Skip).Limit(query.Limit)
+                docs = (await findCol.Find(query.Filter).Sort(path, asc).Skip(query.Skip).Limit(query.Limit)
                     .ToListAsync(cancellationToken).ConfigureAwait(false));
             }
         }
 
-        return new NuvexaQueryResult { Documents = docs, Collection = query.Collection };
+        return new NuvexaQueryResult { Documents = docs, Collection = query.Collection, Operation = "find" };
     }
 
     public Task<NuvexaTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) =>
@@ -645,6 +680,8 @@ public sealed class NuvexaQueryResult
 {
     public string Collection { get; init; } = "";
     public List<NuvexaDocument> Documents { get; init; } = [];
+    public string Operation { get; init; } = "find";
+    public long Affected { get; init; }
 }
 
 public sealed class NuvexaTransaction : IAsyncDisposable

@@ -17,7 +17,8 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('ios'))">
-    <NativeLib>Static</NativeLib>
+    <NativeLib>Shared</NativeLib>
+    <PublishAotUsingRuntimePack>true</PublishAotUsingRuntimePack>
   </PropertyGroup>
 
   <ItemGroup Condition="$(RuntimeIdentifier.StartsWith('linux-bionic'))">

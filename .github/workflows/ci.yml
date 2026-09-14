@@ -111,12 +111,16 @@ jobs:
         include:
           - os: ubuntu-latest
             rid: linux-x64
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
           - os: macos-latest
             rid: osx-arm64
           - os: macos-latest
             rid: osx-x64
           - os: windows-latest
             rid: win-x64
+          - os: windows-11-arm
+            rid: win-arm64
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -124,13 +128,15 @@ jobs:
           dotnet-version: 10.0.x
       - uses: ilammy/msvc-dev-cmd@v1
         if: runner.os == 'Windows'
+        with:
+          arch: ${{ matrix.rid == 'win-arm64' && 'arm64' || 'amd64' }}
       - name: Host C toolchain
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential
       - name: Host C toolchain
-        if: runner.os == 'Windows'
+        if: matrix.rid == 'win-x64'
         shell: bash
         run: |
           echo "C:\\mingw64\\bin" >> "$GITHUB_PATH"
@@ -213,22 +219,47 @@ jobs:
           if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then : > "$GITHUB_STEP_SUMMARY"; fi
 
   native-ios:
-    name: iOS module compile
+    name: Native ABI iOS
     needs: [version, test]
     runs-on: macos-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Publish C ABI (device + simulator)
+        run: |
+          set -euo pipefail
+          chmod +x src/Nuventra.NuvexaDB.Native/publish.sh
+          src/Nuventra.NuvexaDB.Native/publish.sh \
+            "${{ needs.version.outputs.version }}" \
+            ios-arm64 \
+            "$PWD/artifacts/native"
+          src/Nuventra.NuvexaDB.Native/publish.sh \
+            "${{ needs.version.outputs.version }}" \
+            iossimulator-arm64 \
+            "$PWD/artifacts/native"
+      - name: Pack Nuvexa.xcframework
+        run: |
+          set -euo pipefail
+          chmod +x .github/scripts/pack-ios-xcframework.sh
+          .github/scripts/pack-ios-xcframework.sh \
+            "$PWD/artifacts/native" \
+            "$PWD/artifacts/native/ios"
+      - name: ABI test cases (simulator)
+        run: |
+          set -euo pipefail
+          chmod +x .github/scripts/run-abi-tests.sh
+          .github/scripts/run-abi-tests.sh "$PWD/artifacts/native/ios" ios-simulator
       - name: Compile React Native iOS module
         run: |
           set -euo pipefail
           chmod +x .github/scripts/compile-rn-ios.sh
-          mkdir -p artifacts/native/ios
-          cp src/Nuventra.NuvexaDB.Native/include/nuvexa.h artifacts/native/ios/
           .github/scripts/compile-rn-ios.sh \
-            src/Nuventra.NuvexaDB.Native \
+            "$PWD/artifacts/native/ios" \
             "$PWD/artifacts/native/ios"
-      - name: Upload iOS headers and module
+      - name: Upload iOS xcframework
         uses: actions/upload-artifact@v4
         with:
           name: NuvexaDB-Native-iOS
@@ -323,12 +354,16 @@ jobs:
         include:
           - os: ubuntu-latest
             rid: linux-x64
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
           - os: macos-latest
             rid: osx-arm64
           - os: macos-latest
             rid: osx-x64
           - os: windows-latest
             rid: win-x64
+          - os: windows-11-arm
+            rid: win-arm64
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -710,7 +745,7 @@ jobs:
 
   react-native-ios:
     name: React Native iOS
-    needs: [version, test, native]
+    needs: [version, test, native, native-ios]
     runs-on: macos-latest
     timeout-minutes: 25
     steps:
@@ -723,6 +758,11 @@ jobs:
         with:
           name: NuvexaDB-Native-osx-arm64
           path: artifacts/native/osx-arm64
+      - name: Download iOS ABI
+        uses: actions/download-artifact@v4
+        with:
+          name: NuvexaDB-Native-iOS
+          path: artifacts/native/ios
       - name: Interop test cases
         run: |
           set -euo pipefail
@@ -740,7 +780,7 @@ jobs:
             react-native-ios \
             "${{ needs.version.outputs.version }}" \
             "$PWD/artifacts/sdk/react-native-ios" \
-            "$PWD/artifacts/native/osx-arm64"
+            "$PWD/artifacts/native/ios"
       - name: Upload React Native iOS
         uses: actions/upload-artifact@v4
         with:

@@ -259,7 +259,7 @@ public sealed class ExplorerSessionTests : IAsyncLifetime
     {
         var page = Assert.Single(ExplorerQuerySample.All, s => s.Title == "Page");
         Assert.Equal("db.tickets.find({}).page(2, 200)", page.Resolve("tickets"));
-        Assert.Equal(7, ExplorerQuerySample.All.Count);
+        Assert.Equal(9, ExplorerQuerySample.All.Count);
     }
 
     [Fact]

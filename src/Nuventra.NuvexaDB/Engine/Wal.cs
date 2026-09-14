@@ -6,6 +6,7 @@ internal sealed class Wal : IDisposable
 {
     private readonly string _path;
     private FileStream _stream;
+    private int _headerSize = Constants.WalHeaderV2Size;
 
     public Wal(string path, bool readOnly)
     {
@@ -70,7 +71,7 @@ internal sealed class Wal : IDisposable
     public List<(long PageId, long Lsn, byte[] Physical)> Replay()
     {
         var pages = new List<(long, long, byte[])>();
-        _stream.Seek(4 + 2 + 16, SeekOrigin.Begin);
+        _stream.Seek(_headerSize, SeekOrigin.Begin);
         var lastCommit = 0L;
         var pending = new List<(long PageId, long Lsn, byte[] Physical)>();
         while (_stream.Position < _stream.Length)
@@ -159,12 +160,13 @@ internal sealed class Wal : IDisposable
 
     private void WriteHeader()
     {
+        _headerSize = Constants.WalHeaderV2Size;
         _stream.Seek(0, SeekOrigin.Begin);
         _stream.Write(Constants.WalMagic);
-        Span<byte> ver = stackalloc byte[2];
-        BinaryPrimitives.WriteUInt16LittleEndian(ver, Constants.FormatVersion);
-        _stream.Write(ver);
-        _stream.Write(new byte[16]);
+        Span<byte> rest = stackalloc byte[28];
+        BinaryPrimitives.WriteUInt16LittleEndian(rest, Constants.FormatVersion);
+        BinaryPrimitives.WriteInt32LittleEndian(rest[2..], Constants.PageSize);
+        _stream.Write(rest);
         _stream.Flush(flushToDisk: true);
     }
 
@@ -176,5 +178,38 @@ internal sealed class Wal : IDisposable
         {
             throw new NuvexaException("WAL file is not a NuvexaDB log.");
         }
+
+        Span<byte> ver = stackalloc byte[2];
+        if (_stream.Read(ver) != 2)
+        {
+            throw new NuvexaException("WAL file is truncated.");
+        }
+
+        var version = BinaryPrimitives.ReadUInt16LittleEndian(ver);
+        if (version == 1)
+        {
+            _headerSize = Constants.WalHeaderV1Size;
+            return;
+        }
+
+        if (version == 2)
+        {
+            _headerSize = Constants.WalHeaderV2Size;
+            Span<byte> rest = stackalloc byte[26];
+            if (_stream.Read(rest) != rest.Length)
+            {
+                throw new NuvexaException("WAL file is truncated.");
+            }
+
+            var pageSize = BinaryPrimitives.ReadInt32LittleEndian(rest);
+            if (pageSize != 0 && pageSize != Constants.PageSize)
+            {
+                throw new NuvexaException($"Unsupported WAL page size {pageSize}.");
+            }
+
+            return;
+        }
+
+        throw new NuvexaException($"Unsupported WAL format version {version}.");
     }
 }

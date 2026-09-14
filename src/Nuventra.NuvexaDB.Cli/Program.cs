@@ -4,7 +4,7 @@ using Nuventra.NuvexaDB.Tools;
 
 if (args.Length == 0)
 {
-    Console.Error.WriteLine("Usage: nuvexa <info|collections|find|browse|query|samples|explain> <file.nvx> [--key KEY] [args]");
+    Console.Error.WriteLine("Usage: nuvexa <info|collections|find|browse|query|replace|insert|delete-id|samples|explain> <file.nvx> [--key KEY] [args]");
     return 1;
 }
 
@@ -17,6 +17,9 @@ if (command is "-h" or "--help")
     Console.WriteLine("nuvexa find <file.nvx> <collection> [filterJson] [--skip N] [--limit N] [--page N] [--key KEY]");
     Console.WriteLine("nuvexa browse <file.nvx> <collection> [--filter TEXT] [--page N] [--limit N] [--key KEY]");
     Console.WriteLine("nuvexa query <file.nvx> <nql> [--key KEY]");
+    Console.WriteLine("nuvexa insert <file.nvx> <collection> <json> [--key KEY]");
+    Console.WriteLine("nuvexa replace <file.nvx> <collection> <json> [--key KEY]");
+    Console.WriteLine("nuvexa delete-id <file.nvx> <collection> <id> [--key KEY]");
     Console.WriteLine("nuvexa explain <file.nvx> <nql|collection> [--filter TEXT] [--key KEY]");
     Console.WriteLine("nuvexa samples [collection]");
     Console.WriteLine("nuvexa tree <file.nvx> [--key KEY]");
@@ -232,8 +235,46 @@ try
                 return 1;
             }
 
-            var result = await session.QueryAsync(string.Join(' ', rest));
-            Write(Docs(result));
+            var result = await session.ExecuteAsync(string.Join(' ', rest));
+            if (result.Operation is "update" or "delete")
+            {
+                Write(new { result.Operation, result.Collection, result.Affected });
+            }
+            else
+            {
+                Write(Docs(result.Documents));
+            }
+
+            break;
+        case "insert":
+            if (rest.Count < 2)
+            {
+                Console.Error.WriteLine("Collection and JSON required.");
+                return 1;
+            }
+
+            var inserted = await session.InsertDocumentAsync(rest[0], string.Join(' ', rest.Skip(1)));
+            Write(new { ok = true, id = inserted });
+            break;
+        case "replace":
+            if (rest.Count < 2)
+            {
+                Console.Error.WriteLine("Collection and JSON required.");
+                return 1;
+            }
+
+            await session.ReplaceDocumentAsync(rest[0], string.Join(' ', rest.Skip(1)));
+            Write(new { ok = true });
+            break;
+        case "delete-id":
+            if (rest.Count < 2)
+            {
+                Console.Error.WriteLine("Collection and document id required.");
+                return 1;
+            }
+
+            var removed = await session.DeleteDocumentAsync(rest[0], rest[1]);
+            Write(new { ok = removed });
             break;
         case "explain":
             if (rest.Count == 0)

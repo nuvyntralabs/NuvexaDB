@@ -12,13 +12,13 @@ if [[ -z "$rid" ]]; then
       rid="$(uname -m | grep -q arm64 && echo osx-arm64 || echo osx-x64)"
       ;;
     Linux)
-      rid="linux-x64"
+      rid="$(uname -m | grep -qE 'aarch64|arm64' && echo linux-arm64 || echo linux-x64)"
       ;;
     MINGW*|MSYS*|CYGWIN*)
-      rid="win-x64"
+      rid="$(uname -m | grep -qiE 'aarch64|arm64' && echo win-arm64 || echo win-x64)"
       ;;
     *)
-      echo "Pass a RID as the second argument (osx-arm64, linux-x64, win-x64, android-arm64, ios-arm64)."
+      echo "Pass a RID as the second argument (osx-arm64, linux-x64, linux-arm64, win-x64, win-arm64, android-arm64, ios-arm64)."
       exit 1
       ;;
   esac
@@ -27,8 +27,9 @@ fi
 dest="$out/$rid"
 publish_rid="$rid"
 extra_props=""
-# .NET Native AOT cannot target android-arm64 / ios-arm64 (NETSDK1203 /
-# PrivateSdkAssemblies). Android JNI loads a Bionic shared library instead.
+# Android JNI cannot use RID android-arm64. Publish linux-bionic-arm64 instead.
+# iOS uses net10.0 + PublishAotUsingRuntimePack (not net10.0-ios) so restore
+# does not hit NETSDK1203.
 if [[ "$rid" == "android-arm64" ]]; then
   publish_rid="linux-bionic-arm64"
   dest="$out/android-arm64"
@@ -42,8 +43,7 @@ if [[ "$rid" == "android-arm64" ]]; then
   fi
 fi
 if [[ "$rid" == ios-arm64 || "$rid" == iossimulator-arm64 ]]; then
-  echo "Native AOT cannot publish $rid (.NET SDK NETSDK1203). Use linux-bionic-arm64 for Android JNI." >&2
-  exit 1
+  extra_props="-p:PublishAotUsingRuntimePack=true"
 fi
 
 mkdir -p "$dest"
@@ -63,6 +63,9 @@ if [[ -f "$dest/nuvexa.dylib" && ! -e "$dest/libnuvexa.dylib" ]]; then
 fi
 if [[ -f "$dest/nuvexa.so" && ! -e "$dest/libnuvexa.so" ]]; then
   ln -sf nuvexa.so "$dest/libnuvexa.so"
+fi
+if [[ -f "$dest/nuvexa.a" && ! -e "$dest/libnuvexa.a" ]]; then
+  ln -sf nuvexa.a "$dest/libnuvexa.a"
 fi
 
 echo "Outputs:"

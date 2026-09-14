@@ -25,9 +25,9 @@
     <Border Classes="card" Padding="14">
       <DockPanel>
         <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,12">
-          <TextBlock Classes="section" FontSize="15" Text="New collection" />
+          <TextBlock Classes="section" FontSize="15" Text="{Binding Heading}" />
           <TextBlock Classes="muted" Text="A collection is a table of JSON documents. _id is always the primary key." />
-          <TextBox Watermark="e.g. users" Text="{Binding TableName}" />
+          <TextBox Watermark="e.g. users" Text="{Binding TableName}" IsReadOnly="{Binding NameReadOnly}" />
           <Expander Header="Advanced">
             <TextBlock Classes="muted" TextWrapping="Wrap"
                        Text="Types set the default value for new rows. Unique creates an index." />

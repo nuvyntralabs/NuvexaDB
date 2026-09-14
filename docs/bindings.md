@@ -46,7 +46,7 @@ Publish (current desktop RID):
 src/Nuventra.NuvexaDB.Native/publish.sh
 ```
 
-Desktop CI RIDs: `osx-arm64`, `osx-x64`, `win-x64`, `linux-x64`. Android CI publishes `linux-bionic-arm64` as `NuvexaDB-Native-android-arm64` (NDK on `PATH`; Native AOT cannot target `android-arm64`). `ios-arm64` PublishAot is rejected by the SDK (`NETSDK1203`).
+Desktop CI RIDs: `osx-arm64`, `osx-x64`, `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`. Android CI publishes `linux-bionic-arm64` as `NuvexaDB-Native-android-arm64` (NDK on `PATH`; Native AOT cannot target `android-arm64`). iOS CI publishes `ios-arm64` + `iossimulator-arm64` (`PublishAotUsingRuntimePack`) and packs `Nuvexa.xcframework` as `NuvexaDB-Native-iOS`.
 
 ## Kotlin / Java
 

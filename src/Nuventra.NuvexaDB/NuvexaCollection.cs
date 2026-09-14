@@ -19,6 +19,7 @@ public sealed class NuvexaCollection
 
     public string Name => Meta.Name;
     public long Count => Meta.Count;
+    private ushort FormatVersion => _db.Store.Superblock.Version;
 
     public Task<string> InsertAsync(NuvexaDocument document, CancellationToken cancellationToken = default) =>
         _db.WriteAsync(() => InsertCore(document), cancellationToken);
@@ -341,7 +342,7 @@ public sealed class NuvexaCollection
         }
 
         indexName = match.Name;
-        GetIndexBounds(predicate, match, out var lo, out var hi, out var hasLo, out var hasHi);
+        GetIndexBounds(predicate, match, FormatVersion, out var lo, out var hi, out var hasLo, out var hasHi);
         var tree = new BPlusTree(_db.Store, match.RootPageId);
         docs = EnumerateIndex(tree, lo, hi, hasLo, hasHi);
         return true;
@@ -392,7 +393,7 @@ public sealed class NuvexaCollection
                     continue;
                 }
 
-                var rank = IndexPreference(child);
+                var rank = IndexPreference(child, FormatVersion);
                 if (rank >= bestRank)
                 {
                     continue;
@@ -473,9 +474,9 @@ public sealed class NuvexaCollection
         kind is NuvexaFilterKind.Eq or NuvexaFilterKind.Gt or NuvexaFilterKind.Gte
             or NuvexaFilterKind.Lt or NuvexaFilterKind.Lte;
 
-    // Equality uses a tight prefix. String ranges keep byte order. Numeric ranges
-    // cannot use lo/hi (G17 keys are not numeric-order-preserving).
-    private static int IndexPreference(NuvexaFilter filter)
+    // Equality uses a tight prefix. String ranges keep byte order. v1 numeric ranges
+    // cannot use lo/hi (G17 keys are not numeric-order-preserving). v2 can.
+    private static int IndexPreference(NuvexaFilter filter, ushort formatVersion)
     {
         if (filter.Kind == NuvexaFilterKind.Eq)
         {
@@ -487,12 +488,13 @@ public sealed class NuvexaCollection
             return 1;
         }
 
-        return 2;
+        return formatVersion >= 2 ? 1 : 2;
     }
 
     private static void GetIndexBounds(
         NuvexaFilter predicate,
         SecondaryIndexMeta index,
+        ushort formatVersion,
         out byte[]? lo,
         out byte[]? hi,
         out bool hasLo,
@@ -517,8 +519,8 @@ public sealed class NuvexaCollection
                 values.Add(child.Values[0]);
             }
 
-            lo = DocumentPath.CompoundScanPrefix(values);
-            hi = DocumentPath.CompoundScanPrefixSuccessor(values);
+            lo = DocumentPath.CompoundScanPrefix(values, formatVersion);
+            hi = DocumentPath.CompoundScanPrefixSuccessor(values, formatVersion);
             hasLo = hasHi = true;
             return;
         }
@@ -529,9 +531,7 @@ public sealed class NuvexaCollection
         }
 
         var value = predicate.Values[0];
-        // G17 number keys are not numeric-order-preserving. Range bounds would skip
-        // valid rows (e.g. 100 < 60 as strings). Equality is an exact prefix.
-        if (value.ValueKind == JsonValueKind.Number && predicate.Kind != NuvexaFilterKind.Eq)
+        if (formatVersion < 2 && value.ValueKind == JsonValueKind.Number && predicate.Kind != NuvexaFilterKind.Eq)
         {
             return;
         }
@@ -540,13 +540,13 @@ public sealed class NuvexaCollection
         byte[] successor;
         if (DocumentPath.IsCompoundIndexPath(index.FieldPath) && paths[0] == predicate.Path)
         {
-            prefix = DocumentPath.CompoundFirstFieldPrefix(value);
-            successor = DocumentPath.CompoundFirstFieldPrefixSuccessor(value);
+            prefix = DocumentPath.CompoundFirstFieldPrefix(value, formatVersion);
+            successor = DocumentPath.CompoundFirstFieldPrefixSuccessor(value, formatVersion);
         }
         else
         {
-            prefix = DocumentPath.IndexScanPrefix(value);
-            successor = DocumentPath.IndexScanPrefixSuccessor(value);
+            prefix = DocumentPath.IndexScanPrefix(value, formatVersion);
+            successor = DocumentPath.IndexScanPrefixSuccessor(value, formatVersion);
         }
 
         switch (predicate.Kind)
@@ -588,7 +588,7 @@ public sealed class NuvexaCollection
         {
             var bytes = DocumentIO.Read(_db.Store, pageId, slot);
             var doc = NuvexaDocument.FromStorage(bytes);
-            if (!TryIndexKey(fieldPath, doc, out var key))
+            if (!TryIndexKey(fieldPath, doc, FormatVersion, out var key))
             {
                 continue;
             }
@@ -618,12 +618,12 @@ public sealed class NuvexaCollection
         foreach (var idx in indexes)
         {
             var tree = new BPlusTree(_db.Store, idx.RootPageId);
-            if (removeOld is not null && TryIndexKey(idx.FieldPath, removeOld, out var oldKey))
+            if (removeOld is not null && TryIndexKey(idx.FieldPath, removeOld, FormatVersion, out var oldKey))
             {
                 tree.Remove(oldKey);
             }
 
-            if (next is not null && TryIndexKey(idx.FieldPath, next, out var key))
+            if (next is not null && TryIndexKey(idx.FieldPath, next, FormatVersion, out var key))
             {
                 if (idx.Unique && tree.TryFind(key, out _, out _))
                 {
@@ -658,7 +658,7 @@ public sealed class NuvexaCollection
         return 0;
     }
 
-    private static bool TryIndexKey(string fieldPath, NuvexaDocument document, out byte[] key)
+    private static bool TryIndexKey(string fieldPath, NuvexaDocument document, ushort formatVersion, out byte[] key)
     {
         var paths = DocumentPath.SplitIndexPaths(fieldPath);
         if (paths.Length == 1)
@@ -669,7 +669,7 @@ public sealed class NuvexaCollection
                 return false;
             }
 
-            key = DocumentPath.IndexKey(value, document.Id);
+            key = DocumentPath.IndexKey(value, document.Id, formatVersion);
             return true;
         }
 
@@ -685,7 +685,7 @@ public sealed class NuvexaCollection
             values.Add(value);
         }
 
-        key = DocumentPath.CompoundIndexKey(values, document.Id);
+        key = DocumentPath.CompoundIndexKey(values, document.Id, formatVersion);
         return true;
     }
 }

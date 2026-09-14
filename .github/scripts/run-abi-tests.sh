@@ -14,7 +14,7 @@ native_dir="$(cd "$native_dir" && pwd)"
 mkdir -p "$build"
 
 detect_mode() {
-  if [[ -d "$native_dir/Nuvexa.xcframework" || -f "$native_dir/libnuvexa.a" || -f "$native_dir/nuvexa.a" || -d "$native_dir/iossimulator-arm64" ]]; then
+  if [[ -d "$native_dir/Nuvexa.xcframework" || -f "$native_dir/libnuvexa.dylib" || -d "$native_dir/iossimulator-arm64" ]]; then
     echo ios-simulator
     return
   fi
@@ -83,22 +83,20 @@ run_host() {
   fi
 }
 
-ios_lib() {
-  local lib=""
+ios_framework() {
+  local fw=""
   if [[ -d "$native_dir/Nuvexa.xcframework" ]]; then
-    lib="$(find "$native_dir/Nuvexa.xcframework" \( -name 'libnuvexa.a' -o -name 'nuvexa.a' \) | grep -i simulator | head -n1 || true)"
+    fw="$(find "$native_dir/Nuvexa.xcframework" -path '*simulator*' -name 'Nuvexa.framework' -type d | head -n1 || true)"
   fi
-  if [[ -z "$lib" && -d "$native_dir/iossimulator-arm64" ]]; then
-    lib="$(ls "$native_dir/iossimulator-arm64"/libnuvexa.a "$native_dir/iossimulator-arm64"/nuvexa.a 2>/dev/null | head -n1 || true)"
+  if [[ -z "$fw" && -d "$native_dir/iossimulator-arm64/Nuvexa.framework" ]]; then
+    fw="$native_dir/iossimulator-arm64/Nuvexa.framework"
   fi
-  if [[ -z "$lib" ]]; then
-    lib="$(find "$native_dir" \( -name 'libnuvexa.a' -o -name 'nuvexa.a' \) | grep -i simulator | head -n1 || true)"
-  fi
-  if [[ -z "$lib" ]]; then
-    echo "No iOS simulator libnuvexa.a under $native_dir" >&2
+  if [[ -z "$fw" ]]; then
+    echo "No iOS simulator Nuvexa.framework under $native_dir" >&2
+    ls -la "$native_dir" >&2 || true
     exit 1
   fi
-  echo "$lib"
+  echo "$fw"
 }
 
 boot_simulator() {
@@ -119,14 +117,23 @@ boot_simulator() {
 }
 
 run_ios() {
-  local lib
-  lib="$(ios_lib)"
+  local fw
+  fw="$(ios_framework)"
   local sysroot
   sysroot="$(xcrun --sdk iphonesimulator --show-sdk-path)"
   local out="$build/abi_runner_ios"
-  xcrun clang -O1 -fobjc-arc -I "$include" "$src" "$lib" \
+  local fwdir
+  fwdir="$(dirname "$fw")"
+  rm -rf "$build/Nuvexa.framework"
+  cp -R "$fw" "$build/Nuvexa.framework"
+  xcrun clang -O1 -fobjc-arc -I "$include" "$src" \
     -isysroot "$sysroot" \
     -target arm64-apple-ios13.0-simulator \
+    -F "$fwdir" \
+    -framework Nuvexa \
+    -framework Foundation \
+    -framework Security \
+    -Wl,-rpath,@executable_path \
     -o "$out"
   boot_simulator >/dev/null
   xcrun simctl spawn booted "$out"
@@ -153,12 +160,22 @@ write_crlf() {
 }
 
 mingw_gcc() {
-  local candidate
+  local candidate dump host_arm=0
+  if uname -m | grep -qiE 'aarch64|arm64'; then
+    host_arm=1
+  fi
   for candidate in "$(command -v gcc || true)" /c/mingw64/bin/gcc /mingw64/bin/gcc; do
-    if [[ -n "$candidate" && -x "$candidate" ]] && "$candidate" -dumpmachine 2>/dev/null | grep -qi mingw; then
+    [[ -n "$candidate" && -x "$candidate" ]] || continue
+    dump="$("$candidate" -dumpmachine 2>/dev/null || true)"
+    echo "$dump" | grep -qi mingw || continue
+    if echo "$dump" | grep -qiE 'aarch64|arm64'; then
       printf '%s\n' "$candidate"
       return 0
     fi
+    # x64 MinGW cannot link a win-arm64 Native AOT DLL.
+    [[ "$host_arm" -eq 1 ]] && continue
+    printf '%s\n' "$candidate"
+    return 0
   done
   return 1
 }
@@ -176,10 +193,14 @@ windows_msvc_link() {
   local implib="$build/nuvexa.lib"
   local obj="$build/abi_runner.obj"
   local script="$build/link-abi.cmd"
-  local count dll_win def_win lib_win inc_win src_win obj_win out_win
+  local count dll_win def_win lib_win inc_win src_win obj_win out_win machine=X64
 
   echo "dumpbin $(to_win "$dll")"
   windows_msvc dumpbin /EXPORTS "$(to_win "$dll")" | tr -d '\r' > "$exports"
+  if windows_msvc dumpbin /HEADERS "$(to_win "$dll")" | tr -d '\r' | grep -qiE 'machine \(ARM64\)'; then
+    machine=ARM64
+  fi
+  echo "MSVC import lib machine=$machine"
   {
     printf 'LIBRARY nuvexa\r\nEXPORTS\r\n'
     awk '$1 ~ /^[0-9]+$/ && $NF ~ /^nuvexa_[A-Za-z0-9_]+$/ { printf "    %s\r\n", $NF }' "$exports"
@@ -203,7 +224,7 @@ windows_msvc_link() {
   write_crlf "$script" \
     "@echo off" \
     "setlocal" \
-    "lib /nologo /def:\"$def_win\" /machine:X64 /out:\"$lib_win\"" \
+    "lib /nologo /def:\"$def_win\" /machine:$machine /out:\"$lib_win\"" \
     "if errorlevel 1 exit /b 1" \
     "cl /nologo /c /O1 /I \"$inc_win\" \"$src_win\" /Fo\"$obj_win\"" \
     "if errorlevel 1 exit /b 1" \

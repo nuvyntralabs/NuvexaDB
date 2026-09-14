@@ -45,6 +45,28 @@ public partial class MainWindow : Window
     public void OpenFromCommandLine(string path) =>
         _ = ((MainWindowViewModel)DataContext!).OpenPathAsync(path);
 
+    private void OnQueryEditorKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Space || e.KeyModifiers != KeyModifiers.Control || DataContext is not MainWindowViewModel vm)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        var caret = QueryEditor.CaretIndex;
+        var items = NqlAssist.Completions(vm.QueryText ?? "", caret, vm.CollectionNames);
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        var prefix = NqlAssist.PrefixBefore(vm.QueryText ?? "", caret);
+        var pick = items[0];
+        var start = caret - prefix.Length;
+        vm.QueryText = (vm.QueryText ?? "").Remove(start, prefix.Length).Insert(start, pick);
+        QueryEditor.CaretIndex = start + pick.Length;
+    }
+
     private void OnWindowDragOver(object? sender, DragEventArgs e)
     {
         e.DragEffects = TryGetDroppedNvx(e) is null ? DragDropEffects.None : DragDropEffects.Copy;

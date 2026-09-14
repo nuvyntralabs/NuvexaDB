@@ -4,6 +4,7 @@ using Plugin.Avalonia.MVVMExpress.Dialogs;
 using Plugin.Avalonia.MVVMExpress.Input;
 using Plugin.Avalonia.MVVMExpress.Threading;
 using Nuventra.NuvexaDB.Documents;
+using Nuventra.NuvexaDB.Query;
 using Nuventra.NuvexaDB.Tools;
 
 namespace Nuventra.NuvexaDB.Explorer;
@@ -69,6 +70,9 @@ public sealed partial class MainWindowViewModel : PageViewModel
         CreateIndexCommand = new AsyncModelCommand(_ => CreateIndexAsync(), () => CanMutate && SelectedCollection is not null);
         DropIndexCommand = new AsyncModelCommand(_ => DropIndexAsync(), () => CanDropIndex);
         NewCollectionCommand = new AsyncModelCommand(_ => NewCollectionAsync(), () => CanMutate);
+        EditTableDefinitionCommand = new AsyncModelCommand(_ => EditTableDefinitionAsync(), () => CanMutate && SelectedCollection is not null);
+        BuildAggregateCommand = new AsyncModelCommand(_ => BuildAggregateAsync(), () => _session.IsOpen);
+        VisualExplainCommand = new AsyncModelCommand(_ => VisualExplainAsync(), () => _session.IsOpen);
         NewColumnCommand = new AsyncModelCommand(_ => NewColumnAsync(), () => CanMutate && SelectedCollection is not null);
         EditColumnCommand = new AsyncModelCommand(_ => EditColumnAsync(), () => CanEditColumn);
         DeleteColumnCommand = new AsyncModelCommand(_ => DeleteColumnAsync(), () => CanMutate && SelectedCollection is not null);
@@ -129,6 +133,9 @@ public sealed partial class MainWindowViewModel : PageViewModel
     public AsyncModelCommand CreateIndexCommand { get; }
     public AsyncModelCommand DropIndexCommand { get; }
     public AsyncModelCommand NewCollectionCommand { get; }
+    public AsyncModelCommand EditTableDefinitionCommand { get; }
+    public AsyncModelCommand BuildAggregateCommand { get; }
+    public AsyncModelCommand VisualExplainCommand { get; }
     public AsyncModelCommand NewColumnCommand { get; }
     public AsyncModelCommand EditColumnCommand { get; }
     public AsyncModelCommand DeleteColumnCommand { get; }
@@ -584,7 +591,21 @@ public sealed partial class MainWindowViewModel : PageViewModel
 
         try
         {
-            var docs = await _session.QueryAsync(QueryText);
+            if (NuvexaWriteQuery.TryParse(QueryText, out var write) && write.IsDelete && Dialogs is not null)
+            {
+                var ok = await Dialogs.ConfirmAsync(
+                    "Delete documents",
+                    $"Run this delete on '{write.Collection}'? Matching documents are removed.",
+                    "Delete",
+                    "Cancel");
+                if (!ok)
+                {
+                    return;
+                }
+            }
+
+            var result = await _session.ExecuteAsync(QueryText);
+            var docs = result.Documents;
             var rows = _session.ToGrid(docs);
             var fields = rows.Count == 0 ? new List<string>() : rows[0].Cells.Keys.ToList();
             QueryRows.Clear();
@@ -596,15 +617,24 @@ public sealed partial class MainWindowViewModel : PageViewModel
             RememberQuery(QueryText);
             QueryErrorText = "";
             SelectedTabIndex = 2;
-            StatusText = $"{docs.Count} row(s) returned.";
-            try
+            if (result.Operation is "update" or "delete")
             {
-                var plan = await _session.ExplainQueryAsync(QueryText);
-                ExplainText = ExplorerSession.FormatExplain(plan, docs.Count);
+                StatusText = $"{result.Operation} affected {result.Affected} document(s).";
+                ExplainText = $"{result.Operation.ToUpperInvariant()}  collection={result.Collection}  affected={result.Affected}";
+                await RefreshAsync();
             }
-            catch
+            else
             {
-                ExplainText = $"{docs.Count} row(s) returned.";
+                StatusText = $"{docs.Count} row(s) returned.";
+                try
+                {
+                    var plan = await _session.ExplainQueryAsync(QueryText);
+                    ExplainText = ExplorerSession.FormatExplain(plan, docs.Count);
+                }
+                catch
+                {
+                    ExplainText = $"{docs.Count} row(s) returned.";
+                }
             }
         }
         catch (Exception ex)
@@ -718,6 +748,77 @@ public sealed partial class MainWindowViewModel : PageViewModel
             await _session.CompactAsync();
             await RefreshAsync();
             StatusText = "Compacted.";
+        }
+        catch (Exception ex)
+        {
+            StatusText = ex.Message;
+        }
+    }
+
+    private async Task EditTableDefinitionAsync()
+    {
+        if (!_session.IsOpen || SelectedCollection is null)
+        {
+            return;
+        }
+
+        var columns = await _session.GetDeclaredColumnsAsync(SelectedCollection);
+        TableDefinition? definition;
+        try
+        {
+            definition = await _shell.PromptTableDefinitionAsync(new TableDefinition(SelectedCollection, columns.ToList()));
+        }
+        catch (Exception ex)
+        {
+            StatusText = ex.Message;
+            return;
+        }
+
+        if (definition is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _session.ApplyTableDefinitionAsync(SelectedCollection, definition);
+            await RefreshAsync();
+            StatusText = $"Updated table definition for '{SelectedCollection}'.";
+        }
+        catch (Exception ex)
+        {
+            StatusText = ex.Message;
+            if (Dialogs is not null)
+            {
+                await Dialogs.AlertAsync("Nuvexa Data Studio", ex.Message);
+            }
+        }
+    }
+
+    private async Task BuildAggregateAsync()
+    {
+        var built = await _shell.PromptAggregateAsync(SelectedCollection ?? "users", QueryText);
+        if (!string.IsNullOrWhiteSpace(built))
+        {
+            QueryText = built;
+            SelectedTabIndex = 2;
+        }
+    }
+
+    private async Task VisualExplainAsync()
+    {
+        if (!_session.IsOpen || string.IsNullOrWhiteSpace(QueryText))
+        {
+            return;
+        }
+
+        try
+        {
+            var plan = await _session.ExplainQueryAsync(QueryText);
+            await _shell.ShowExplainAsync(
+                $"{plan.Strategy} — {plan.Collection}",
+                ExplorerSession.FormatExplain(plan) +
+                $"\n\nStrategy: {plan.Strategy}\nIndex: {plan.IndexName ?? "none"}\nExamined: {plan.Examined}\nReturned: {plan.Returned}");
         }
         catch (Exception ex)
         {
@@ -1073,6 +1174,9 @@ public sealed partial class MainWindowViewModel : PageViewModel
     private void NotifyCrudCommands()
     {
         NewCollectionCommand.NotifyCanExecuteChanged();
+        EditTableDefinitionCommand.NotifyCanExecuteChanged();
+        BuildAggregateCommand.NotifyCanExecuteChanged();
+        VisualExplainCommand.NotifyCanExecuteChanged();
         NewColumnCommand.NotifyCanExecuteChanged();
         EditColumnCommand.NotifyCanExecuteChanged();
         DeleteColumnCommand.NotifyCanExecuteChanged();

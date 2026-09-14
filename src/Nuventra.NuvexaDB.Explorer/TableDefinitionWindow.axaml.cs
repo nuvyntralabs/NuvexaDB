@@ -16,9 +16,14 @@ public partial class TableDefinitionWindow : Window
         DataContext = _draft;
     }
 
-    public static async Task<TableDefinition?> AskAsync(Window owner)
+    public static async Task<TableDefinition?> AskAsync(Window owner, TableDefinition? existing = null)
     {
         var dlg = new TableDefinitionWindow();
+        if (existing is not null)
+        {
+            dlg._draft.Load(existing, nameReadOnly: true);
+        }
+
         await dlg.ShowDialog(owner);
         return dlg.Result;
     }

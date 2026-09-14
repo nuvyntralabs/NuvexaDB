@@ -92,7 +92,7 @@ case "$sdk" in
     "$root/.github/scripts/compile-rn-ios.sh" "$native_dir" "$out"
     if [[ -f "$native_dir/libnuvexa.dylib" || -f "$native_dir/nuvexa.dylib" ]]; then
       "$root/.github/scripts/run-abi-tests.sh" "$native_dir" host
-    elif find "$native_dir" \( -name 'libnuvexa.a' -o -name 'nuvexa.a' \) | grep -qi simulator; then
+    else
       "$root/.github/scripts/run-abi-tests.sh" "$native_dir" ios-simulator
     fi
     ;;

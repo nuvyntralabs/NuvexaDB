@@ -14,8 +14,11 @@ internal static class Constants
     public const int MaxDocumentBytes = 16 * 1024 * 1024;
     public const int MaxKeyBytes = 1024;
     public const int MaxCollectionName = 120;
-    /// <summary>On-disk format. Do not change page size, WAL layout, or index key encoding without a new version.</summary>
-    public const ushort FormatVersion = 1;
+    /// <summary>On-disk format written by this build. v1 files stay readable.</summary>
+    public const ushort FormatVersion = 2;
+    public const ushort MinFormatVersion = 1;
+    public const int WalHeaderV1Size = 22;
+    public const int WalHeaderV2Size = 32;
     public const long SuperblockPageId = 0;
     public const long CatalogPageId = 1;
     public const long FirstAllocPageId = 2;

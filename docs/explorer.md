@@ -79,7 +79,7 @@ Aggregate stages: `$match $project $sort $skip $limit $count $lookup`.
 
 ## Distribution
 
-CI builds native installers (unsigned macOS `.pkg` to `/Applications` for now), plus VS Code and Visual Studio VSIX, and uploads them as GitHub artifacts next to the packed `Nuventra.NuvexaDB` nupkg. nuget.org push is commented out. Packaging scripts: `src/Nuventra.NuvexaDB.Explorer/packaging/`.
+CI builds native installers for x64 and ARM64 (Windows `.msi`, Linux `.deb` / `.rpm`, unsigned macOS `.pkg` to `/Applications` for now), plus VS Code and Visual Studio VSIX, and uploads them as GitHub artifacts next to the packed `Nuventra.NuvexaDB` nupkg. nuget.org push is commented out. Packaging scripts: `src/Nuventra.NuvexaDB.Explorer/packaging/`.
 
 ## Visual Studio and VS Code
 
@@ -90,17 +90,12 @@ These hosts use the same session APIs as the desktop IDE. They do not duplicate 
 | Open Database / Close Database | In-process `NuvexaToolWindow` | `nuvexa.open` / `nuvexa.close` |
 | **About** (author, license, links) | About tab (`NuvexaAbout`) | About tab + `nuvexa.about` |
 | Collapsible collection tree (Columns / Indexes, row counts) | Same session tree | `nuvexa tree` |
-| **Browse Data** (filter, **Build filter**, find-in-page, JSON/Tree, 200-row pager, read-only grid) | `BrowsePageAsync` | `nuvexa browse --filter --page` |
-| **Execute Query** (NQL examples, explain, read-only grid) | `QueryAsync` + `ExplainQueryAsync` | `nuvexa query` + `nuvexa explain` / `nuvexa samples` |
+| **Browse Data** (filter, **Build filter**, find-in-page, JSON/Tree, 200-row pager, editable cells) | `BrowsePageAsync` + `ReplaceDocumentAsync` | `nuvexa browse` / `nuvexa replace` |
+| **Execute Query** (NQL find / aggregate / update / delete, explain) | `ExecuteAsync` + `ExplainQueryAsync` | `nuvexa query` + `nuvexa explain` / `nuvexa samples` |
 
-Avalonia-only UI remains the **editable** typed browse grid (BOOLEAN checkbox, DATETIME picker, cell autosave), schema dialogs, Open Recent, and query-history. Extensions are browse-only.
+Avalonia Data Studio still has the typed browse grid (BOOLEAN checkbox, DATETIME picker), **Edit table definition**, aggregation builder, visual explain, and Ctrl+Space NQL completions. Visual Studio and VS Code browse cells are editable.
 
 ## Not in the Explorer yet
 
-These are engine or later-IDE items — do not claim them in a 1.0 white paper unless they ship:
-
-- Edit table definition on an existing collection (dialog is create-only)
-- NQL highlighting / autocomplete, visual aggregation builder, visual explain
 - OS keychain for the last key
 - Signed / notarized macOS installer
-- Query `update` / `delete` from the Execute box (updates exist on the library API)

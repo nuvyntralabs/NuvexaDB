@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Globalization;
 using System.Text.Json;
 
@@ -70,33 +71,30 @@ internal static class DocumentPath
 
     internal const char CompoundSeparator = '\u001f';
 
-    public static byte[] IndexKey(JsonElement value, string documentId) =>
-        Engine.Constants.Utf8.GetBytes(IndexValuePrefix(value) + "\0" + documentId);
+    public static byte[] IndexKey(JsonElement value, string documentId, ushort formatVersion) =>
+        Concat(EncodeIndexValue(value, formatVersion), (byte)0, Engine.Constants.Utf8.GetBytes(documentId));
 
-    public static byte[] IndexScanPrefix(JsonElement value) =>
-        Engine.Constants.Utf8.GetBytes(IndexValuePrefix(value) + "\0");
+    public static byte[] IndexScanPrefix(JsonElement value, ushort formatVersion) =>
+        Concat(EncodeIndexValue(value, formatVersion), (byte)0);
 
-    public static byte[] IndexScanPrefixSuccessor(JsonElement value)
-    {
-        var prefix = IndexScanPrefix(value);
-        return Successor(prefix);
-    }
+    public static byte[] IndexScanPrefixSuccessor(JsonElement value, ushort formatVersion) =>
+        Successor(IndexScanPrefix(value, formatVersion));
 
-    public static byte[] CompoundIndexKey(IReadOnlyList<JsonElement> values, string documentId) =>
-        Engine.Constants.Utf8.GetBytes(CompoundValuePrefix(values) + "\0" + documentId);
+    public static byte[] CompoundIndexKey(IReadOnlyList<JsonElement> values, string documentId, ushort formatVersion) =>
+        Concat(EncodeCompoundValue(values, formatVersion), (byte)0, Engine.Constants.Utf8.GetBytes(documentId));
 
-    public static byte[] CompoundScanPrefix(IReadOnlyList<JsonElement> values) =>
-        Engine.Constants.Utf8.GetBytes(CompoundValuePrefix(values) + "\0");
+    public static byte[] CompoundScanPrefix(IReadOnlyList<JsonElement> values, ushort formatVersion) =>
+        Concat(EncodeCompoundValue(values, formatVersion), (byte)0);
 
-    public static byte[] CompoundScanPrefixSuccessor(IReadOnlyList<JsonElement> values) =>
-        Successor(CompoundScanPrefix(values));
+    public static byte[] CompoundScanPrefixSuccessor(IReadOnlyList<JsonElement> values, ushort formatVersion) =>
+        Successor(CompoundScanPrefix(values, formatVersion));
 
     /// <summary>Inclusive lower bound for the first field of a compound index.</summary>
-    public static byte[] CompoundFirstFieldPrefix(JsonElement value) =>
-        Engine.Constants.Utf8.GetBytes(IndexValuePrefix(value) + CompoundSeparator);
+    public static byte[] CompoundFirstFieldPrefix(JsonElement value, ushort formatVersion) =>
+        Concat(EncodeIndexValue(value, formatVersion), (byte)CompoundSeparator);
 
-    public static byte[] CompoundFirstFieldPrefixSuccessor(JsonElement value) =>
-        Successor(CompoundFirstFieldPrefix(value));
+    public static byte[] CompoundFirstFieldPrefixSuccessor(JsonElement value, ushort formatVersion) =>
+        Successor(CompoundFirstFieldPrefix(value, formatVersion));
 
     public static string JoinIndexPaths(IReadOnlyList<string> paths)
     {
@@ -125,15 +123,34 @@ internal static class DocumentPath
 
     public static bool IsCompoundIndexPath(string fieldPath) => fieldPath.Contains(CompoundSeparator);
 
-    private static string CompoundValuePrefix(IReadOnlyList<JsonElement> values)
+    private static byte[] EncodeCompoundValue(IReadOnlyList<JsonElement> values, ushort formatVersion)
     {
-        var parts = new string[values.Count];
+        var parts = new byte[values.Count][];
+        var total = 0;
         for (var i = 0; i < values.Count; i++)
         {
-            parts[i] = IndexValuePrefix(values[i]);
+            parts[i] = EncodeIndexValue(values[i], formatVersion);
+            total += parts[i].Length;
+            if (i > 0)
+            {
+                total++;
+            }
         }
 
-        return string.Join(CompoundSeparator, parts);
+        var dest = new byte[total];
+        var offset = 0;
+        for (var i = 0; i < parts.Length; i++)
+        {
+            if (i > 0)
+            {
+                dest[offset++] = (byte)CompoundSeparator;
+            }
+
+            parts[i].CopyTo(dest, offset);
+            offset += parts[i].Length;
+        }
+
+        return dest;
     }
 
     private static byte[] Successor(byte[] prefix)
@@ -143,15 +160,53 @@ internal static class DocumentPath
         return next;
     }
 
-    private static string IndexValuePrefix(JsonElement value) => value.ValueKind switch
+    private static byte[] Concat(byte[] left, byte mid, byte[]? right = null)
     {
-        JsonValueKind.Number when value.TryGetDouble(out var n) => "n:" + n.ToString("G17", CultureInfo.InvariantCulture),
-        JsonValueKind.String => "s:" + value.GetString(),
-        JsonValueKind.True => "b:1",
-        JsonValueKind.False => "b:0",
-        JsonValueKind.Null => "z:",
-        _ => "j:" + value.GetRawText()
-    };
+        var dest = new byte[left.Length + 1 + (right?.Length ?? 0)];
+        left.CopyTo(dest, 0);
+        dest[left.Length] = mid;
+        right?.CopyTo(dest, left.Length + 1);
+        return dest;
+    }
+
+    /// <summary>
+    /// v1 numbers are <c>n:</c> + G17 text (not numeric-order-preserving).
+    /// v2 numbers are <c>d:</c> + 8 IEEE754 sortable bytes (lex order = numeric order).
+    /// </summary>
+    private static byte[] EncodeIndexValue(JsonElement value, ushort formatVersion)
+    {
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var n))
+        {
+            if (formatVersion >= 2)
+            {
+                return EncodeSortableDouble(n);
+            }
+
+            return Engine.Constants.Utf8.GetBytes("n:" + n.ToString("G17", CultureInfo.InvariantCulture));
+        }
+
+        return Engine.Constants.Utf8.GetBytes(value.ValueKind switch
+        {
+            JsonValueKind.String => "s:" + value.GetString(),
+            JsonValueKind.True => "b:1",
+            JsonValueKind.False => "b:0",
+            JsonValueKind.Null => "z:",
+            _ => "j:" + value.GetRawText()
+        });
+    }
+
+    internal static byte[] EncodeSortableDouble(double value)
+    {
+        var bits = (ulong)BitConverter.DoubleToInt64Bits(value);
+        var sortable = (bits & 0x8000_0000_0000_0000UL) != 0
+            ? ~bits
+            : bits | 0x8000_0000_0000_0000UL;
+        var buf = new byte[10];
+        buf[0] = (byte)'d';
+        buf[1] = (byte)':';
+        BinaryPrimitives.WriteUInt64BigEndian(buf.AsSpan(2), sortable);
+        return buf;
+    }
 
     public static byte[] IdKey(string id) => Engine.Constants.Utf8.GetBytes(id);
 }

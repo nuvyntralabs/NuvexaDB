@@ -153,6 +153,28 @@ public sealed class NuvexaVsControl : UserControl
             _browseJson.Text = _host.DocumentJson;
             BindJsonTree();
         };
+        _browseGrid.CellEditEnding += async (_, e) =>
+        {
+            if (e.EditAction != DataGridEditAction.Commit ||
+                e.Row.Item is not DocumentRow row ||
+                e.Column.Header is not string field ||
+                field == "_id")
+            {
+                return;
+            }
+
+            var box = e.EditingElement as TextBox;
+            try
+            {
+                await _host.CommitCellAsync(row, field, box?.Text);
+                BindGrid(_browseGrid, _host.Rows, _host.SelectedRow, editable: true);
+                _status.Text = _host.Status;
+            }
+            catch (Exception ex)
+            {
+                _status.Text = ex.Message;
+            }
+        };
         _browseGrid.Sorting += (_, e) =>
         {
             if (e.Column.Header is string field)
@@ -297,8 +319,8 @@ public sealed class NuvexaVsControl : UserControl
             UpdateHeaders(_tree.Items);
         }
 
-        BindGrid(_browseGrid, _host.Rows, _host.SelectedRow);
-        BindGrid(_queryGrid, _host.QueryRows, _host.SelectedQueryRow);
+        BindGrid(_browseGrid, _host.Rows, _host.SelectedRow, editable: true);
+        BindGrid(_queryGrid, _host.QueryRows, _host.SelectedQueryRow, editable: false);
         _browseJson.Text = _host.DocumentJson;
         BindJsonTree();
         FillFilterFields();
@@ -390,7 +412,7 @@ public sealed class NuvexaVsControl : UserControl
     private static DataGrid CreateGrid() => new()
     {
         AutoGenerateColumns = false,
-        IsReadOnly = true,
+        IsReadOnly = false,
         CanUserResizeColumns = true,
         CanUserSortColumns = true,
         GridLinesVisibility = DataGridGridLinesVisibility.All,
@@ -415,7 +437,7 @@ public sealed class NuvexaVsControl : UserControl
         Margin = new Thickness(0, 0, 0, 8)
     };
 
-    private static void BindGrid(DataGrid grid, IReadOnlyList<DocumentRow> rows, DocumentRow? selected)
+    private static void BindGrid(DataGrid grid, IReadOnlyList<DocumentRow> rows, DocumentRow? selected, bool editable = false)
     {
         grid.ItemsSource = null;
         grid.Columns.Clear();
@@ -446,7 +468,7 @@ public sealed class NuvexaVsControl : UserControl
             {
                 Header = key,
                 Binding = new Binding { Path = new PropertyPath("Cells[(0)]", key) },
-                IsReadOnly = true
+                IsReadOnly = !editable || key == "_id"
             });
         }
 

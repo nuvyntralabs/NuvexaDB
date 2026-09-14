@@ -32,7 +32,7 @@ NuvexaDB is a **standalone product**. It ships its own engine, C ABI, language S
 | --- | --- | --- |
 | **Database core** | `src/Nuventra.NuvexaDB` (`Engine`, `Encryption`, `Query`) | Pages, WAL, B+tree, AES-256-GCM, filters, aggregation |
 | **Access library** | `Nuventra.NuvexaDB` | `NuvexaDatabase` / `NuvexaCollection` / `AddNuvexaDB` |
-| **Nuvexa Data Studio** | `Nuventra.NuvexaDB.Explorer` | Avalonia desktop workbench (Windows, macOS, Linux) |
+| **Nuvexa Data Studio** | `Nuventra.NuvexaDB.Explorer` | Avalonia desktop workbench (Windows x64 / ARM, macOS Apple Silicon / Intel, Linux x64 / ARM64) |
 | **Editor extensions** | `Nuventra.NuvexaDB.VSCode`, `Nuventra.NuvexaDB.VisualStudio` | Custom editor / tool window over the same `ExplorerSession` |
 | **CLI** | `Nuventra.NuvexaDB.Cli` (`nuvexa`) | `browse` / `samples` / `explain` / `backup` / `restore` (VS Code uses these) |
 | **C ABI** | `Nuventra.NuvexaDB.Native` | Native AOT shared library. JSON in, JSON out |
@@ -167,7 +167,8 @@ Secondary indexes are B+trees. Keys are UTF-8 with a type prefix, a NUL, and the
 | Prefix | Meaning |
 | --- | --- |
 | `s:` | string |
-| `n:` | number (`G17` invariant culture — **not** numeric-order-preserving) |
+| `n:` | v1 number (`G17` invariant culture — **not** numeric-order-preserving) |
+| `d:` | v2 number (8 IEEE754 sortable bytes — lex order = numeric order) |
 | `b:0` / `b:1` | boolean |
 | `z:` | null |
 | `j:` | other JSON |
@@ -180,7 +181,7 @@ Compound indexes join field paths and value prefixes with U+001F (`EnsureIndexAs
 - String ranges
 - Compound equality on the indexed prefix
 
-Tight **numeric ranges** still walk the index and apply the real compare. G17 keys are not order-preserving; using them as a bounded IXSCAN would skip valid rows. `explain()` reports `ID`, `IXSCAN`, or `COLLSCAN` (or `AGGREGATE`), plus examined / returned / index name.
+On **format v2** files, numeric `$gte` / `$lte` use bounded IXSCAN (`d:` keys). **v1** files still walk the `n:` G17 index and apply the real compare. `explain()` reports `ID`, `IXSCAN`, `COLLSCAN`, `AGGREGATE`, `UPDATE`, or `DELETE`.
 
 Indexed `find` does not materialize the whole secondary index before `skip` / `limit`. Equality and string ranges use B+tree `lo` / `hi` (prefix inclusive, successor exclusive). Without `sort`, `skip` / `limit` apply while scanning. With `sort` on a non-index field, matches are collected then sorted.
 
@@ -202,12 +203,14 @@ NQL is the shared query language for Data Studio, `NuvexaDatabase.ExecuteAsync`,
 ```text
 db.<collection>.find({ ... }).sort({ field: 1 }).skip(n).limit(n).page(p, size).project({ field: 1 })
 db.<collection>.aggregate([ ... ])
+db.<collection>.update({ ... }, { $set: { ... } })
+db.<collection>.delete({ ... })
 ```
 
 Unquoted JS keys are accepted (`age: { $gte: 21 }` → valid JSON). `.page(2, 200)` is the same as `.skip(200).limit(200)`.
 
 | Find operators | `$eq $ne $gt $gte $lt $lte $in $nin $and $or $exists $regex` |
-| Updates (library API) | `$set $unset $inc $push $pull` |
+| Updates | `$set $unset $inc $push $pull` (NQL `update` / library `UpdateAsync`) |
 | Aggregate stages | `$match $project $sort $skip $limit $count $group $lookup` |
 | `$group` accumulators | `$sum $min $max $avg $first` |
 
@@ -233,14 +236,14 @@ Golden NQL cases live in `tests/interop/cases.json`. Every native / SDK pack job
 
 ---
 
-## 4. File format (version 1 — frozen)
+## 4. File format (version 2; v1 stays readable)
 
-A `.nvx` file is one portable embedded database. Format version **1** is frozen: do not change page size, WAL layout, or index key encoding without bumping the version. Language bindings treat the file as **opaque**.
+A `.nvx` file is one portable embedded database. New files write format **2** (order-preserving numeric index keys and a 32-byte WAL header that records page size). Format **1** files still open. Language bindings treat the file as **opaque**.
 
 | Item | Value |
 | --- | --- |
 | Magic (bytes 0–3) | `NVX1` |
-| Format version | `1` (uint16 LE at offset 4) |
+| Format version | `2` on new files; `1` accepted on open (uint16 LE at offset 4) |
 | Physical page size | 8192 bytes |
 | Logical payload (after GCM) | 8164 bytes |
 | Page header | 40 bytes |
@@ -407,7 +410,9 @@ publish.sh  -r <rid>           (one native binary per RID)
         ├─ osx-arm64 / nuvexa.dylib     Apple Silicon
         ├─ osx-x64   / nuvexa.dylib     Intel Mac
         ├─ win-x64   / nuvexa.dll
+        ├─ win-arm64 / nuvexa.dll
         ├─ linux-x64 / libnuvexa.so
+        ├─ linux-arm64 / libnuvexa.so
         └─ linux-bionic-arm64 / libnuvexa.so   → Android AAR jniLibs
 ```
 
@@ -422,11 +427,15 @@ A Kotlin host on Apple Silicon must not load the Intel dylib. That is why CI **d
 | `osx-arm64` | Native ABI, Data Studio `.pkg`, most language SDKs, Swift | Current Mac CI runner (`macos-latest`) is Apple Silicon. First-class desktop RID. |
 | `osx-x64` | Native ABI, Data Studio `.pkg` | Intel Mac still exists. Cross-compiled on the same macOS runner so Intel users get a native binary, not Rosetta-only hope. |
 | `win-x64` | Native ABI, Data Studio `.msi`, JVM / Python / Node | Windows desktop and Visual Studio. |
-| `linux-x64` | Native ABI, `.deb` + `.rpm`, JVM / Python / Node / Go / C++ / Flutter / RN JS | Linux desktop / CI / servers. Pack script also understands `linux-arm64`; that RID is **not** in the current CI matrix. |
+| `win-arm64` | Native ABI, Data Studio `.msi` | Snapdragon / Windows on ARM. Built and tested on `windows-11-arm`. |
+| `linux-x64` | Native ABI, `.deb` + `.rpm`, JVM / Python / Node / Go / C++ / Flutter / RN JS | Linux desktop / CI / servers. |
+| `linux-arm64` | Native ABI, `.deb` (`arm64`) + `.rpm` (`aarch64`) | Raspberry Pi / ARM servers. Built and tested on `ubuntu-24.04-arm`. |
 | `linux-bionic-arm64` | `NuvexaDB-Native-android-arm64` | Android JNI. Native AOT **cannot** target `android-arm64`. Bionic is the libc Android actually loads. NDK on `PATH`. |
-| `ios-arm64` PublishAot | **Not produced** | .NET 10 SDK rejects it (`NETSDK1203`). CI compiles a host object (`NuvexaDB.o`) + header for React Native / Flutter linking experiments. A full `Nuvexa.xcframework` is a later ship (see roadmap). |
+| `ios-arm64` + `iossimulator-arm64` | `NuvexaDB-Native-iOS` (`Nuvexa.xcframework`) | Stay on `net10.0` and set `PublishAotUsingRuntimePack`. Do not retarget to `net10.0-ios`. Device + simulator shared libs are packed with `xcodebuild -create-xcframework`. |
 
-Desktop RIDs shipped first because PublishAot, installers, and interop tests are proven there. Mobile follows the ABI the OS can actually load.
+Desktop and server RIDs ship from native CI runners that can link and test that ABI. Mobile follows the ABI the OS can actually load.
+
+**In short:** official CI today is Apple Silicon Mac, Intel Mac, Windows x64, Windows ARM (`windows-11-arm` → `nuvexa.dll` + Data Studio MSI), Linux x64, Linux ARM (`ubuntu-24.04-arm` → `libnuvexa.so` + `.deb` / `.rpm`), Android (`linux-bionic-arm64`), and iOS (`Nuvexa.xcframework`). Language SDK packs still run on x64 / Apple Silicon hosts and load the matching native artifact.
 
 ### 7.3 Why language SDKs are thin
 
@@ -481,11 +490,12 @@ Avalonia 11 desktop workbench. Self-contained publish per RID.
 
 | Platform | Installer | CPU |
 | --- | --- | --- |
-| **Windows** | `NuvexaDB-Explorer-*-win-x64.msi` (WiX 5) | x64 |
+| **Windows x64** | `NuvexaDB-Explorer-*-win-x64.msi` (WiX 5) | x64 |
+| **Windows ARM** | `NuvexaDB-Explorer-*-win-arm64.msi` (WiX 5) | arm64 |
 | **macOS Apple Silicon** | `NuvexaDB-Explorer-*-osx-arm64.pkg` | arm64 |
 | **macOS Intel** | `NuvexaDB-Explorer-*-osx-x64.pkg` | x64 |
-| **Linux (Debian/Ubuntu/Mint)** | `nuvexadb-explorer_*_amd64.deb` | x86_64 |
-| **Linux (Fedora/RHEL/CentOS/openSUSE)** | `nuvexadb-explorer-*-x86_64.rpm` | x86_64 |
+| **Linux x64** | `nuvexadb-explorer_*_amd64.deb` / `nuvexadb-explorer-*-x86_64.rpm` | x86_64 |
+| **Linux ARM64** | `nuvexadb-explorer_*_arm64.deb` / `nuvexadb-explorer-*-aarch64.rpm` | aarch64 |
 
 macOS notes: the `.pkg` is **unsigned / ad-hoc signed** today and always installs to `/Applications`. Single-file publish is **disabled** on `osx-*` so Avalonia/Skia dylibs sit beside the host inside `Contents/MacOS` (single-file + extracted natives breaks the `.app` + ad-hoc sign). Windows and Linux use a compressed single-file host.
 
@@ -501,11 +511,11 @@ dotnet run --project src/Nuventra.NuvexaDB.Explorer/Nuventra.NuvexaDB.Explorer.c
 
 ### 8.2 Visual Studio (Windows)
 
-`Nuventra.NuvexaDB.VisualStudio` VSIX: `.nvx` editor factory, WPF tool-window pane, in-process `NuvexaToolWindow`. **Browse-only** (filter, build filter, find-in-page, JSON/Tree, 200-row pager). Same About copy (`NuvexaAbout`). Requires the Visual Studio SDK to pack.
+`Nuventra.NuvexaDB.VisualStudio` VSIX: `.nvx` editor factory, WPF tool-window pane, in-process `NuvexaToolWindow`. Browse grid cells are editable (except `_id`). Filter, build filter, find-in-page, JSON/Tree, 200-row pager, and NQL find / aggregate / update / delete. Same About copy (`NuvexaAbout`). Requires the Visual Studio SDK to pack.
 
 ### 8.3 VS Code and Cursor (Windows, macOS, Linux)
 
-`Nuventra.NuvexaDB.VSCode` VSIX. Custom editor talks to the engine through the **`nuvexa` CLI** (`browse`, `samples`, `explain`, `query`, `tree`, `open` / `close`). Works on the same three desktop OSes as the editor host, including Apple Silicon and Intel Macs (the CLI/native bits must match the machine RID). Browse-only — no create / edit / delete in the extension UI.
+`Nuventra.NuvexaDB.VSCode` VSIX. Custom editor talks to the engine through the **`nuvexa` CLI** (`browse`, `replace`, `samples`, `explain`, `query`, `tree`, `open` / `close`). Works on the same desktop OSes as the editor host (Windows x64 / ARM, macOS Apple Silicon / Intel, Linux x64 / ARM64). The CLI and native bits must match the machine RID. Browse cells are editable.
 
 | Feature | Data Studio | Visual Studio | VS Code / Cursor |
 | --- | --- | --- | --- |
@@ -525,34 +535,17 @@ dotnet run --project src/Nuventra.NuvexaDB.Explorer/Nuventra.NuvexaDB.Explorer.c
 
 Items below are **intentional 1.x follow-ons** or documented gaps. Do not treat them as shipped in 1.0.1.
 
-### 9.1 Near term (product + distribution)
+### 9.1 Future (not planned yet)
 
 | Item | Why |
 | --- | --- |
 | **Signed / notarized macOS Data Studio** | Current `.pkg` is unsigned; Gatekeeper will warn. |
 | **OS keychain for the last Data Studio key** | Passphrase is prompted every open; never stored today. |
 | **Multi-host package feeds** | Uncomment nuget.org / GitHub Packages (and later Maven, npm, pub.dev, PyPI, Swift Package) when that decision is made. One version number already exists. |
-| **iOS Native AOT / `Nuvexa.xcframework`** | Blocked on .NET 10 `NETSDK1203`. Until then, iOS hosts link an object / header path, not a finished framework. |
-| **Linux arm64 Data Studio + native** | Pack script already maps `linux-arm64` → `arm64` / `aarch64`. Not in the CI matrix yet. |
-| **win-arm64** | Not in the current matrix. Same “compile per RID, test on that ABI” rule when a runner exists. |
 
-### 9.2 Data Studio / editors
+### 9.2 Engine follow-ons (format v2 already shipped)
 
-From the 1.0 capability list — do not claim these until they ship:
-
-- Edit table definition on an **existing** collection (the dialog is create-only).
-- NQL highlighting / autocomplete, visual aggregation builder, visual explain.
-- `update` / `delete` from the Execute box (those operators already exist on the library API).
-- Editable browse in VS / VS Code (today they stay browse-only on purpose).
-
-### 9.3 Engine (format stays v1 until a bump)
-
-Format v1 is **frozen**. These need a **format version 2** (or a new index encoding) if they happen:
-
-- **Numeric-order-preserving index keys** so `$gte` / `$lte` on numbers can IXSCAN without walking `n:` G17 keys.
-- Page-size or WAL-layout changes.
-
-In-format (no bump) candidates: more aggregate stages, richer GridFS (byte buffers in the ABI), streaming improvements, tighter `$lookup` planning. LINQ remains .NET-only.
+In-format candidates: more aggregate stages, richer GridFS (byte buffers in the ABI), streaming improvements, tighter `$lookup` planning. LINQ remains .NET-only. Physical page size stays 8192; changing it would need another version.
 
 ### 9.4 Explicit non-goals
 
@@ -573,7 +566,7 @@ NuvexaDB is an **embedded NoSQL database** for desktop and mobile applications:
 - **Collections**, BSON documents, secondary indexes, and **NQL** (`find` / `aggregate`). On .NET, fluent filters and typed LINQ are also available.
 - **Fail-closed** open: missing key and tamper both refuse the file. The engine does not repair a corrupt `.nvx`.
 - **One engine** for every host: NuGet for .NET / MAUI, Native AOT C ABI for Java, Kotlin, Swift, Flutter, React Native, Python, Node.js, Go, and C++.
-- **Tools** on the same engine: Nuvexa Data Studio (Windows, macOS Apple Silicon, macOS Intel, Linux), Visual Studio and VS Code / Cursor editors, and the `nuvexa` CLI.
+- **Tools** on the same engine: Nuvexa Data Studio (Windows x64 / ARM, macOS Apple Silicon / Intel, Linux x64 / ARM64), Visual Studio and VS Code / Cursor editors, and the `nuvexa` CLI.
 
 It is not a client/server database. One process holds a path. Combining NuvexaDB with other libraries is a host decision and is not part of this product.
 

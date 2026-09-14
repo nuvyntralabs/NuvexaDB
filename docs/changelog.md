@@ -2,6 +2,12 @@
 
 Working-tree notes for unreleased work. Publishing still happens only through CI.
 
+## Unreleased — 14 September 2026
+
+New files write **format v2**: order-preserving numeric index keys (`d:`) so `$gte` / `$lte` can IXSCAN, and a 32-byte WAL header that records page size. Format v1 files stay readable. Data Studio can edit an existing table definition, run NQL `update` / `delete`, complete NQL with Ctrl+Space, and open an aggregation builder plus visual explain. Visual Studio and VS Code browse grids are editable (`nuvexa replace`).
+
+CI publishes iOS Native AOT shared libraries (`ios-arm64` + `iossimulator-arm64`, `PublishAotUsingRuntimePack`) and packs `Nuvexa.xcframework` as `NuvexaDB-Native-iOS`. Simulator ABI cases and React Native iOS link that framework. Linux ARM64 (`ubuntu-24.04-arm`) and Windows ARM64 (`windows-11-arm`) publish the C ABI and Data Studio installers and run host ABI tests on that CPU.
+
 ## Unreleased — 13 September 2026
 
 WAL, encryption, and public collection APIs are unchanged. New documents are stored as **BSON**. Existing JSON pages still read (mixed files are valid). Existing files including `~/Downloads/nuvexa-1crore.nvx` stay readable.
@@ -88,7 +94,7 @@ C ABI `nuvexa_abi_version()` is **2**. Added catalog (`list` / `drop` / `rename`
 
 ### CI
 
-GitHub Actions runs the C# unit tests first, then builds every library, IDE, and extension. Test result / coverage artifacts are not uploaded. Everyday `main` / PR downloads stay on the run Artifacts list. **The Releases page is updated only when a `v*` tag is pushed and every CI job on that run succeeded.** A failed job skips the release. If GitHub already has a published `v<Version>` matching `Directory.Build.props`, **the rest of CI does not start** (PRs still build). CI **Version alignment** requires NuGet, every language SDK, Data Studio, VS Code, and Visual Studio to share `Directory.Build.props` `<Version>` (`1.0.0` now; Android `versionCode` is `10000`). **nuget.org, GitHub Packages, and NuGet key/version validation stay commented out** until multi-host publishing is decided. Language SDK jobs (`NuvexaDB-Java`, `Python`, `Node`, `React-Native`, `Go`, `Cpp`, `Swift`, `Flutter`, `Android`) wait for the matching `NuvexaDB-Native-<rid>` artifact and run that SDK’s interop suite before packing. Android native is `linux-bionic-arm64` (JNI `.so`); `ios-arm64` Native AOT is not supported by the .NET 10 SDK. The Android AAR and React Native modules run the golden fixtures before they assemble.
+GitHub Actions runs the C# unit tests first, then builds every library, IDE, and extension. Test result / coverage artifacts are not uploaded. Everyday `main` / PR downloads stay on the run Artifacts list. **The Releases page is updated only when a `v*` tag is pushed and every CI job on that run succeeded.** A failed job skips the release. If GitHub already has a published `v<Version>` matching `Directory.Build.props`, **the rest of CI does not start** (PRs still build). CI **Version alignment** requires NuGet, every language SDK, Data Studio, VS Code, and Visual Studio to share `Directory.Build.props` `<Version>` (`1.0.0` now; Android `versionCode` is `10000`). **nuget.org, GitHub Packages, and NuGet key/version validation stay commented out** until multi-host publishing is decided. Language SDK jobs (`NuvexaDB-Java`, `Python`, `Node`, `React-Native`, `Go`, `Cpp`, `Swift`, `Flutter`, `Android`) wait for the matching `NuvexaDB-Native-<rid>` artifact and run that SDK’s interop suite before packing. Android native is `linux-bionic-arm64` (JNI `.so`). iOS CI publishes `ios-arm64` + `iossimulator-arm64` with `PublishAotUsingRuntimePack` and packs `Nuvexa.xcframework`. The Android AAR and React Native modules run the golden fixtures before they assemble.
 
 ### Tests
 

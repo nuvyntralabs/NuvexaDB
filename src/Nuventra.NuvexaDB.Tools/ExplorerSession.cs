@@ -216,6 +216,15 @@ public sealed class ExplorerSession : IAsyncDisposable
     public async Task<NuvexaExplainPlan> ExplainQueryAsync(string text, CancellationToken cancellationToken = default)
     {
         EnsureOpen();
+        if (NuvexaWriteQuery.TryParse(text, out var write))
+        {
+            return new NuvexaExplainPlan
+            {
+                Collection = write.Collection,
+                Strategy = write.IsDelete ? "DELETE" : "UPDATE"
+            };
+        }
+
         if (NuvexaAggregate.TryParse(text, out var aggregateCollection, out _))
         {
             return new NuvexaExplainPlan
@@ -246,6 +255,11 @@ public sealed class ExplorerSession : IAsyncDisposable
         if (plan.Strategy == "AGGREGATE")
         {
             return $"AGGREGATE  collection={plan.Collection}  returned={count}";
+        }
+
+        if (plan.Strategy is "UPDATE" or "DELETE")
+        {
+            return $"{plan.Strategy}  collection={plan.Collection}  affected={count}";
         }
 
         var index = string.IsNullOrEmpty(plan.IndexName) ? "none" : plan.IndexName;
@@ -519,6 +533,49 @@ public sealed class ExplorerSession : IAsyncDisposable
                 .EnsureIndexAsync(column.Name, name: column.Name, unique: true, cancellationToken)
                 .ConfigureAwait(false);
         }
+    }
+
+    public async Task ApplyTableDefinitionAsync(string collection, TableDefinition definition, CancellationToken cancellationToken = default)
+    {
+        EnsureOpen();
+        collection = collection.Trim();
+        if (collection.Length == 0 || collection == SchemaCollectionName)
+        {
+            throw new NuvexaException("That collection cannot be edited.");
+        }
+
+        var next = NormalizeColumns(definition.Columns);
+        var current = (await GetDeclaredColumnsAsync(collection, cancellationToken).ConfigureAwait(false)).ToList();
+        var currentByName = current.ToDictionary(c => c.Name, StringComparer.Ordinal);
+        var nextNames = next.Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
+
+        foreach (var col in current.Where(c => !nextNames.Contains(c.Name)))
+        {
+            await DropColumnAsync(collection, col.Name, cancellationToken).ConfigureAwait(false);
+        }
+
+        foreach (var col in next)
+        {
+            if (currentByName.TryGetValue(col.Name, out var existing))
+            {
+                if (existing.Type != col.Type || existing.Default != col.Default || existing.Unique != col.Unique)
+                {
+                    await UpdateColumnAsync(collection, col.Name, col, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            else
+            {
+                await AddColumnAsync(collection, col, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    public async Task<NuvexaQueryResult> ExecuteAsync(string text, CancellationToken cancellationToken = default)
+    {
+        EnsureOpen();
+        var result = await _db!.ExecuteAsync(text, cancellationToken).ConfigureAwait(false);
+        MaterializeCache(result.Collection, result.Documents);
+        return result;
     }
 
     public async Task DropCollectionAsync(string name, CancellationToken cancellationToken = default)

@@ -36,7 +36,7 @@ public static class NuvexaAbout
         }
     }
 
-    public const int FormatVersion = 1;
+    public const int FormatVersion = 2;
 
     public static string Headline(string surface) =>
         string.IsNullOrWhiteSpace(surface) ? Studio : $"{Studio} — {surface}";

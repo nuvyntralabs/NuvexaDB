@@ -196,14 +196,41 @@ public sealed class NuvexaToolWindow : IAsyncDisposable
 
     public async Task QueryAsync(string text, CancellationToken cancellationToken = default)
     {
-        var docs = await Session.QueryAsync(text, cancellationToken).ConfigureAwait(false);
-        QueryRows = Session.ToGrid(docs);
+        var result = await Session.ExecuteAsync(text, cancellationToken).ConfigureAwait(false);
+        QueryRows = Session.ToGrid(result.Documents);
         SelectedQueryRow = QueryRows.Count == 0 ? null : QueryRows[0];
-        QueryStatus = $"{docs.Count} document(s).";
+        if (result.Operation is "update" or "delete")
+        {
+            QueryStatus = $"{result.Operation} affected {result.Affected} document(s).";
+            QueryExplain = $"{result.Operation.ToUpperInvariant()}  collection={result.Collection}  affected={result.Affected}";
+            if (SelectedCollection is not null)
+            {
+                await LoadCollectionAsync(SelectedCollection, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        else
+        {
+            QueryStatus = $"{result.Documents.Count} document(s).";
+            var plan = await Session.ExplainQueryAsync(text, cancellationToken).ConfigureAwait(false);
+            QueryExplain = ExplorerSession.FormatExplain(plan, result.Documents.Count);
+        }
+
         Status = QueryStatus;
-        var plan = await Session.ExplainQueryAsync(text, cancellationToken).ConfigureAwait(false);
-        QueryExplain = ExplorerSession.FormatExplain(plan, docs.Count);
         RefreshCaptions();
+    }
+
+    public async Task CommitCellAsync(DocumentRow row, string field, string? value, CancellationToken cancellationToken = default)
+    {
+        if (SelectedCollection is null || field is "_id" || string.IsNullOrEmpty(row.Id))
+        {
+            return;
+        }
+
+        row.Cells[field] = value ?? "";
+        var columns = await Session.GetDeclaredColumnsAsync(SelectedCollection, cancellationToken).ConfigureAwait(false);
+        var json = ExplorerSession.DocumentJsonFromCells(row.Id, row.Cells.Snapshot(), columns);
+        await Session.ReplaceDocumentAsync(SelectedCollection, json, row.Id, cancellationToken).ConfigureAwait(false);
+        await LoadCollectionAsync(SelectedCollection, cancellationToken).ConfigureAwait(false);
     }
 
     public void SelectRow(DocumentRow? row)

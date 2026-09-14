@@ -98,7 +98,7 @@ flowchart TB
 | Embed the full .NET runtime | Larger, slower start, harder to ship as an AAR / xcframework. |
 | **Native AOT shared library** | One compile per RID. C symbols. In-process. Same fail-closed rules. |
 
-`PublishAot=true` and `NativeLib=Shared` produce `nuvexa.dylib` / `libnuvexa.so` / `nuvexa.dll`. Android JNI uses the Bionic RID `linux-bionic-arm64` (not `android-arm64`). The .NET 10 SDK rejects PublishAot for `ios-arm64` (`NETSDK1203`). CI publishes desktop RIDs plus the Bionic Android `.so`.
+`PublishAot=true` and `NativeLib=Shared` produce `nuvexa.dylib` / `libnuvexa.so` / `nuvexa.dll`. Android JNI uses the Bionic RID `linux-bionic-arm64` (not `android-arm64`). iOS stays on `net10.0` with `PublishAotUsingRuntimePack=true` and a shared dylib wrapped as `Nuvexa.xcframework` (`ios-arm64` + `iossimulator-arm64`). Do not retarget the Native project to `net10.0-ios` (that restore path hits `NETSDK1203`).
 
 The engine uses `System.Text.Json`. The native project sets `JsonSerializerIsReflectionEnabledByDefault` so NQL and index JSON keep working after trim. Do not turn that off.
 
@@ -126,7 +126,7 @@ ABI **v2** adds catalog, count, stats, backup / compact / restore, rekey, transa
 
 | Concern | Shared by |
 | --- | --- |
-| On-disk format v1 (page size, WAL, index keys) | Every host |
+| On-disk format v2 (v1 files stay readable; numeric `d:` keys; WAL v2 header) | Every host |
 | Encryption (Argon2id KEK, AES-256-GCM DEK, HMAC) | Every host |
 | NQL text and operators | `ExecuteAsync` / `nuvexa_execute` |
 | Exclusive lock, one writer, concurrent reads | Engine handle |
@@ -144,7 +144,7 @@ Host-specific: how the library is loaded (JNA, `dart:ffi`, Swift module map, kof
 | Data Studio, CLI, VS, VS Code | `ExplorerSession` → engine | Same |
 | Java / Kotlin desktop | JNA → `nuvexa_*` | `nuvexa.dylib` / `.so` / `.dll` |
 | Android Kotlin / Java | Same Kotlin types + `jniLibs` | `libnuvexa.so` |
-| Swift | `nuvexa.h` | dylib, later xcframework |
+| Swift | `nuvexa.h` | desktop dylib, or `Nuvexa.xcframework` on iOS |
 | Flutter | `dart:ffi` (`DynamicLibrary.process()` on iOS) | same library |
 | React Native | iOS: ObjC++ → header; Android: Kotlin SDK; Node tests: koffi | same library |
 | Python | ctypes → `nuvexa_*` | same library |
@@ -167,13 +167,16 @@ publish.sh  -r <rid>           (one native binary per RID)
         │
         ├─ artifacts/native/osx-arm64/nuvexa.dylib
         ├─ …/win-x64/nuvexa.dll
+        ├─ …/win-arm64/nuvexa.dll
         ├─ …/linux-x64/libnuvexa.so
-        └─ …/android-arm64/libnuvexa.so   → AAR jniLibs (published as linux-bionic-arm64)
+        ├─ …/linux-arm64/libnuvexa.so
+        ├─ …/android-arm64/libnuvexa.so   → AAR jniLibs (published as linux-bionic-arm64)
+        └─ …/ios/Nuvexa.xcframework       ← ios-arm64 + iossimulator-arm64 dylibs
 ```
 
 Unix consumers also look for `libnuvexa.*`. The publish script symlinks `nuvexa.dylib` → `libnuvexa.dylib` when Native AOT omits the `lib` prefix.
 
-CI uploads desktop native artifacts, the Bionic Android `.so`, and language SDK packs. nuget.org / GitHub Packages push is commented out for now. Do not `dotnet nuget push`, `npm publish`, or `dart pub publish` from a local clone.
+CI uploads desktop native artifacts, the Bionic Android `.so`, `Nuvexa.xcframework`, and language SDK packs. nuget.org / GitHub Packages push is commented out for now. Do not `dotnet nuget push`, `npm publish`, or `dart pub publish` from a local clone.
 
 ## Testing the shared engine
 

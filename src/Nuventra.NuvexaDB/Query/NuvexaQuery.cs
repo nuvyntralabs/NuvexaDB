@@ -132,7 +132,7 @@ public sealed class NuvexaQuery
         limit = size;
     }
 
-    private static int FindMatchingParen(string text, int openIndex)
+    internal static int FindMatchingParen(string text, int openIndex)
     {
         var depth = 0;
         var inString = false;

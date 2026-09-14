@@ -35,6 +35,7 @@
       </MenuItem>
       <MenuItem Header="_Edit">
         <MenuItem Header="New Collection..." Command="{Binding NewCollectionCommand}" />
+        <MenuItem Header="Edit Table Definition..." Command="{Binding EditTableDefinitionCommand}" />
         <MenuItem Header="Add Column..." Command="{Binding NewColumnCommand}" />
         <MenuItem Header="Edit Column..." Command="{Binding EditColumnCommand}" />
         <MenuItem Header="Delete Column..." Command="{Binding DeleteColumnCommand}" />
@@ -143,6 +144,8 @@
                 <TreeView.ContextMenu>
                   <ContextMenu>
                     <MenuItem Header="Browse Data" Command="{Binding BrowseCollectionCommand}"
+                              IsVisible="{Binding ShowCollectionMenu}" />
+                    <MenuItem Header="Edit Table Definition..." Command="{Binding EditTableDefinitionCommand}"
                               IsVisible="{Binding ShowCollectionMenu}" />
                     <MenuItem Header="Add Column..." Command="{Binding NewColumnCommand}"
                               IsVisible="{Binding ShowCollectionMenu}" />
@@ -443,10 +446,12 @@
             <DockPanel>
               <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
                 <Button Classes="accent" Content="Execute" Command="{Binding RunQueryCommand}" />
+                <Button Content="Build aggregate" Command="{Binding BuildAggregateCommand}" />
+                <Button Content="Visual explain" Command="{Binding VisualExplainCommand}" />
                 <Button Content="Export JSON" Command="{Binding ExportQueryCommand}" />
                 <Button Content="Export CSV" Command="{Binding ExportQueryCsvCommand}" />
                 <TextBlock VerticalAlignment="Center" Classes="muted"
-                           Text="db.&lt;collection&gt;.find({ … }).limit(n)   ·   Ctrl+Enter" />
+                           Text="find / aggregate / update / delete   ·   Ctrl+Enter   ·   Ctrl+Space complete" />
               </StackPanel>
               <StackPanel DockPanel.Dock="Bottom" Spacing="4" Margin="0,8,0,0">
                 <TextBlock Foreground="{DynamicResource NuvexaErrorBrush}" TextWrapping="Wrap"
@@ -455,10 +460,11 @@
                 <TextBlock Classes="muted" FontFamily="Menlo, Consolas, monospace"
                            Text="{Binding ExplainText}" />
               </StackPanel>
-              <TextBox Classes="editor" AcceptsReturn="True" TextWrapping="Wrap"
+              <TextBox x:Name="QueryEditor" Classes="editor" AcceptsReturn="True" TextWrapping="Wrap"
                        FontFamily="Menlo, Consolas, monospace"
                        Text="{Binding QueryText}"
-                       Watermark="db.users.find({ }).limit(50)" />
+                       Watermark="db.users.find({ }).limit(50)"
+                       KeyDown="OnQueryEditorKeyDown" />
             </DockPanel>
           </Border>
           <GridSplitter Grid.Row="2" ResizeDirection="Rows" />

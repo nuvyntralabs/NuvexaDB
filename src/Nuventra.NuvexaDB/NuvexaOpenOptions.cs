@@ -52,6 +52,12 @@ public sealed class NuvexaCreateOptions
     /// <summary>Checkpoint the WAL after this many committed pages. Default 64.</summary>
     public int CheckpointThreshold { get; set; } = 64;
 
+    /// <summary>
+    /// On-disk format for a new file. Default is 2 (order-preserving numeric index keys, WAL v2 header).
+    /// Set 1 only to reproduce a legacy file.
+    /// </summary>
+    public ushort FormatVersion { get; set; } = 2;
+
     /// <summary>64 MiB Argon2id memory for desktop Explorer / CLI creates. Existing files keep their stored KDF parameters.</summary>
     public static NuvexaCreateOptions ForDesktop(string? encryptionKey = null) => new()
     {

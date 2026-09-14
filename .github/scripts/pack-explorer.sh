@@ -50,8 +50,12 @@ case "$rid" in
       echo "wix CLI not found. Install with: dotnet tool install -g wix" >&2
       exit 1
     fi
+    case "$rid" in
+      win-arm64) wix_arch=arm64 ;;
+      *) wix_arch=x64 ;;
+    esac
     wix build "$packaging/explorer.wxs" \
-      -arch x64 \
+      -arch "$wix_arch" \
       -d "ProductVersion=$version" \
       -d "ExePath=$stage/Nuvexa Data Studio.exe" \
       -o "$outdir/NuvexaDB-Explorer-${version}-${rid}.msi"

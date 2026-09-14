@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Compile the React Native iOS module (simulator). Links libnuvexa.a when present.
+# Compile the React Native iOS module (simulator) against Nuvexa.xcframework.
 # Usage: compile-rn-ios.sh <native-dir> <artifacts-dir>
 set -euo pipefail
 
@@ -14,15 +14,14 @@ sdk=iphonesimulator
 mkdir -p "$build" "$out"
 native_dir="$(cd "$native_dir" && pwd)"
 
-lib=""
+fw=""
 if [[ -d "$native_dir/Nuvexa.xcframework" ]]; then
-  lib="$(find "$native_dir/Nuvexa.xcframework" \( -name 'libnuvexa.a' -o -name 'nuvexa.a' \) | grep -i simulator | head -n1 || true)"
+  fw="$(find "$native_dir/Nuvexa.xcframework" -path '*simulator*' -name 'Nuvexa.framework' -type d | head -n1 || true)"
 fi
-if [[ -z "$lib" && -d "$native_dir/iossimulator-arm64" ]]; then
-  lib="$(ls "$native_dir/iossimulator-arm64"/libnuvexa.a "$native_dir/iossimulator-arm64"/nuvexa.a 2>/dev/null | head -n1 || true)"
-fi
-if [[ -z "$lib" ]]; then
-  lib="$(find "$native_dir" \( -name 'libnuvexa.a' -o -name 'nuvexa.a' \) | grep -i simulator | head -n1 || true)"
+if [[ -z "$fw" ]]; then
+  echo "No simulator Nuvexa.framework under $native_dir (expected Nuvexa.xcframework)." >&2
+  ls -la "$native_dir" >&2 || true
+  exit 1
 fi
 
 sysroot="$(xcrun --sdk "$sdk" --show-sdk-path)"
@@ -37,10 +36,16 @@ xcrun clang++ -x objective-c++ -c "$ios/NuvexaDB.mm" \
   -o "$build/NuvexaDB.o"
 cp "$build/NuvexaDB.o" "$out/"
 
-if [[ -n "$lib" ]]; then
-  xcrun libtool -static -o "$build/libnuvexadb-rn-ios.a" "$build/NuvexaDB.o" "$lib"
-  cp "$build/libnuvexadb-rn-ios.a" "$out/"
-  echo "Wrote $out/libnuvexadb-rn-ios.a"
-else
-  echo "Compiled NuvexaDB.o (no iOS libnuvexa.a; .NET Native AOT does not support ios-arm64)."
-fi
+xcrun clang++ "$build/NuvexaDB.o" \
+  -fobjc-arc \
+  -fmodules \
+  -std=c++17 \
+  -isysroot "$sysroot" \
+  -target arm64-apple-ios13.0-simulator \
+  -F "$(dirname "$fw")" \
+  -framework Nuvexa \
+  -framework Foundation \
+  -shared \
+  -o "$build/libnuvexadb-rn-ios.dylib"
+cp "$build/libnuvexadb-rn-ios.dylib" "$out/"
+echo "Wrote $out/libnuvexadb-rn-ios.dylib (linked $fw)"

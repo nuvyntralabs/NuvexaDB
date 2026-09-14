@@ -27,7 +27,7 @@ After each CI run, downloads are on that run’s **Artifacts** list (temporary; 
 | `NuvexaDB-NuGet` | Engine `nupkg` + `snupkg` (not pushed) |
 | `NuvexaDB-Native-<rid>` | C ABI (`libnuvexa` / `nuvexa.dll`) |
 | `NuvexaDB-Native-android-arm64` | Bionic `libnuvexa.so` for the Android AAR |
-| `NuvexaDB-Native-iOS` | `nuvexa.h` + compiled `NuvexaDB.o` (no xcframework) |
+| `NuvexaDB-Native-iOS` | `Nuvexa.xcframework` (`ios-arm64` + `iossimulator-arm64`) + `nuvexa.h` |
 | `NuvexaDB-Data-Studio-<rid>` | Data Studio installer (msi / pkg / deb / rpm) |
 | `NuvexaDB-VS-Code` | VS Code / Cursor VSIX |
 | `NuvexaDB-Visual-Studio` | Visual Studio VSIX |
@@ -45,9 +45,9 @@ After each CI run, downloads are on that run’s **Artifacts** list (temporary; 
 
 Explorer installers (single-file app inside a native package):
 
-- **Windows** — `NuvexaDB-Explorer-*-win-x64.msi`
+- **Windows** — `NuvexaDB-Explorer-*-win-x64.msi` and `NuvexaDB-Explorer-*-win-arm64.msi`
 - **macOS** — `NuvexaDB-Explorer-*-osx-*.pkg` (unsigned for now; always installs to `/Applications`)
-- **Linux** — `nuvexadb-explorer_*_amd64.deb` (Debian/Ubuntu/Mint) and `nuvexadb-explorer-*-x86_64.rpm` (Fedora/RHEL/CentOS/openSUSE)
+- **Linux** — `nuvexadb-explorer_*_amd64.deb` / `nuvexadb-explorer-*-x86_64.rpm` (x64) and `nuvexadb-explorer_*_arm64.deb` / `nuvexadb-explorer-*-aarch64.rpm` (ARM64)
 
 ### Public downloads (you control this)
 
@@ -162,7 +162,7 @@ await db.insert("users", JSON.stringify({ name: "Ada", age: 36 }));
 await db.execute("db.users.find({ age: { $gte: 21 } }).limit(20)");
 ```
 
-Desktop RIDs ship first (`osx-*`, `win-x64`, `linux-x64`). Android JNI uses Native AOT `linux-bionic-arm64` (not `android-arm64`). The .NET 10 SDK cannot PublishAot `ios-arm64`. ABI v2 adds catalog, transactions, and path-based GridFS. Details: [docs/bindings.md](docs/bindings.md). Language samples live inside each binding project.
+Desktop CI RIDs: `osx-*`, `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`. Android JNI uses Native AOT `linux-bionic-arm64` (not `android-arm64`). iOS CI publishes `ios-arm64` + `iossimulator-arm64` with `PublishAotUsingRuntimePack` and packs `Nuvexa.xcframework`. ABI v2 adds catalog, transactions, and path-based GridFS. Details: [docs/bindings.md](docs/bindings.md). Language samples live inside each binding project.
 
 ## Samples
 

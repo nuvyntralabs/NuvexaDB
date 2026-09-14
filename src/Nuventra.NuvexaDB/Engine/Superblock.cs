@@ -85,7 +85,7 @@ internal sealed class Superblock
             DekCipher = page.Slice(166, 32).ToArray()
         };
 
-        if (s.Version != Constants.FormatVersion)
+        if (s.Version < Constants.MinFormatVersion || s.Version > Constants.FormatVersion)
         {
             throw new NuvexaException($"Unsupported .nvx format version {s.Version}.");
         }

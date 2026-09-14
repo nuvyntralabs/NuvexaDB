@@ -61,10 +61,37 @@ public sealed class TableDefinitionDraft : INotifyPropertyChanged
     private string _errorText = "";
     private TableFieldRow? _selectedField;
 
+    public bool NameReadOnly { get; private set; }
+
+    public string Heading => NameReadOnly ? "Edit collection" : "New collection";
+
     public TableDefinitionDraft()
     {
         Fields = [];
         Fields.CollectionChanged += OnFieldsChanged;
+        RefreshPreview();
+    }
+
+    public void Load(TableDefinition existing, bool nameReadOnly)
+    {
+        NameReadOnly = nameReadOnly;
+        TableName = existing.Name;
+        Fields.Clear();
+        foreach (var column in existing.Columns)
+        {
+            Fields.Add(new TableFieldRow
+            {
+                Name = column.Name,
+                Type = column.Type,
+                Default = column.Default,
+                Unique = column.Unique
+            });
+        }
+
+        SelectedField = Fields.FirstOrDefault();
+        OnPropertyChanged(nameof(NameReadOnly));
+        OnPropertyChanged(nameof(Heading));
+        OnPropertyChanged(nameof(HasFields));
         RefreshPreview();
     }
 

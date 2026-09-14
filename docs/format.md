@@ -1,13 +1,13 @@
-# NuvexaDB file format (version 1)
+# NuvexaDB file format (version 2)
 
-A `.nvx` file is one portable embedded database. Format version **1** is frozen: do not change page size, WAL layout, or index key encoding without bumping the version. Language bindings must not reimplement this format. They call the Native AOT C ABI, which uses the same managed engine as `Nuventra.NuvexaDB`.
+A `.nvx` file is one portable embedded database. New files write format **2**. Format **1** files stay readable. Language bindings must not reimplement this format. They call the Native AOT C ABI, which uses the same managed engine as `Nuventra.NuvexaDB`.
 
 ## Layout
 
 | Item | Value |
 | --- | --- |
 | Magic (bytes 0–3) | `NVX1` |
-| Format version | `1` (uint16 LE at offset 4) |
+| Format version | `2` on create; `1` accepted on open (uint16 LE at offset 4) |
 | Physical page size | 8192 bytes |
 | Logical payload (after AES-GCM overhead) | 8164 bytes (`8192 - 12 nonce - 16 tag`) |
 | Page header | 40 bytes |
@@ -69,23 +69,25 @@ Slots grow from the header; the slot directory grows backward from the end of th
 
 New data-page payloads are **BSON**. Public APIs stay JSON (`NuvexaDocument.Parse` / `ToJson`, NQL, Explorer, C ABI). A payload that looks like `{…}` is treated as legacy UTF-8 JSON. Mixed BSON/JSON files are valid.
 
-## Index keys (unchanged in v1)
+## Index keys
 
-UTF-8 keys, type prefix plus NUL plus document id:
+Keys are type prefix plus NUL plus document id:
 
 | Prefix | Meaning |
 | --- | --- |
 | `s:` | string |
-| `n:` | number (`G17` invariant culture; **not** numeric-order-preserving) |
+| `n:` | v1 number (`G17` invariant culture; **not** numeric-order-preserving) |
+| `d:` | v2 number (8 IEEE754 sortable bytes; lex order = numeric order) |
 | `b:0` / `b:1` | boolean |
 | `z:` | null |
 | `j:` | other JSON |
 
-Compound indexes join field paths and value prefixes with U+001F. Equality and string ranges can IXSCAN. Tight numeric ranges still walk the index and apply the real compare.
+Compound indexes join field paths and value prefixes with U+001F. Equality, string ranges, and **v2 numeric ranges** can IXSCAN with lo/hi bounds. v1 numeric ranges still walk the `n:` index and apply the real compare.
 
 ## WAL (`*.nvx-wal`)
 
-Header: `NVXW` + uint16 version + 16 reserved bytes. Records:
+v1 header (22 bytes): `NVXW` + uint16 version + 16 reserved bytes.  
+v2 header (32 bytes): `NVXW` + uint16 version + int32 page size + 22 reserved bytes. Records:
 
 - Page: type `1`, page id, LSN, length (8192), physical page, CRC32 of the page
 - Commit: type `2`, LSN, CRC32 of type+LSN

@@ -19,7 +19,9 @@ public sealed record ExplorerQuerySample(string Title, string Template)
         new("Regex", "db.{col}.find({ email: { $regex: \"@gmail.com\" } })"),
         new("Sort", "db.{col}.find({}).sort({ _id: 1 }).limit(50)"),
         new("Count", "db.{col}.aggregate([{ $count: \"total\" }])"),
-        new("Lookup", "db.orders.aggregate([{ $lookup: { from: \"customers\", localField: \"customerId\", foreignField: \"_id\", as: \"customer\" } }])")
+        new("Lookup", "db.orders.aggregate([{ $lookup: { from: \"customers\", localField: \"customerId\", foreignField: \"_id\", as: \"customer\" } }])"),
+        new("Update", "db.{col}.update({ status: \"draft\" }, { $set: { status: \"published\" } })"),
+        new("Delete", "db.{col}.delete({ status: \"draft\" })")
     ];
 }
 

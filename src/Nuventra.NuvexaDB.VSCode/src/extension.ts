@@ -159,14 +159,37 @@ class NuvexaWorkbench implements vscode.Disposable {
 
       const key = keys.get(this.path);
       if (msg.type === "query" && msg.query) {
-        const [result, explain] = await Promise.all([
-          runNuvexa(["query", this.path, msg.query], key),
-          runNuvexa(["explain", this.path, msg.query], key)
-        ]);
+        const result = await runNuvexa(["query", this.path, msg.query], key);
+        const mutation = parseMutation(result);
+        if (mutation) {
+          this.post({
+            type: "result",
+            documents: [],
+            explain: `${mutation.Operation} affected ${mutation.Affected} document(s).`
+          });
+          return;
+        }
+
+        const explain = await runNuvexa(["explain", this.path, msg.query], key);
         this.post({
           type: "result",
           documents: parseDocuments(result),
           explain: readExplain(explain)
+        });
+        return;
+      }
+
+      if (msg.type === "saveCell" && msg.collection && msg.json) {
+        await runNuvexa(["replace", this.path, msg.collection, msg.json], key);
+        const args = ["browse", this.path, msg.collection, "--page", String(msg.page ?? 0)];
+        if (msg.filter) {
+          args.push("--filter", msg.filter);
+        }
+        const browse = await runNuvexa(args, key);
+        this.post({
+          type: "browse",
+          collection: msg.collection,
+          body: parseBrowse(browse)
         });
         return;
       }
@@ -205,6 +228,7 @@ interface WorkbenchMessage {
   collection?: string;
   filter?: string;
   page?: number;
+  json?: string;
 }
 
 interface TreeNode {
@@ -264,6 +288,19 @@ function parseDocuments(json: string): unknown[] {
   } catch {
     return [];
   }
+}
+
+function parseMutation(json: string): { Operation: string; Affected: number } | undefined {
+  try {
+    const parsed = JSON.parse(json) as { Operation?: string; Affected?: number };
+    if (parsed.Operation === "update" || parsed.Operation === "delete") {
+      return { Operation: parsed.Operation, Affected: parsed.Affected ?? 0 };
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
 }
 
 function parseBrowse(json: string): Record<string, unknown> {
@@ -425,7 +462,7 @@ function page(): string {
           <h1>Nuvexa Data Studio</h1>
           <div class="hint">NuvexaDB 1.0.1 · .nvx format 1 · MIT</div>
           <p>Embedded NoSQL database for .NET and .NET MAUI. One portable .nvx file, BSON pages, optional AES-256-GCM, and NQL (Nuvexa Query Language).</p>
-          <p class="hint">NuvexaDB is built by Niladri Prasad Padhy (Nuventra) and published with the MauiEssentials catalog under Nuvyntra Labs. This VS Code / Cursor editor is browse-only. Writes stay in the desktop workbench.</p>
+          <p class="hint">NuvexaDB is built by Niladri Prasad Padhy (Nuventra) and published with the MauiEssentials catalog under Nuvyntra Labs. Browse cells are editable. NQL find / aggregate / update / delete run through the nuvexa CLI.</p>
           <p>Author: Niladri Prasad Padhy / Nuventra<br />Organization: Nuvyntra Labs</p>
           <p>
             <a href="https://nuvyntralabs.github.io/">Website</a>
@@ -484,9 +521,17 @@ function page(): string {
         keys.unshift('_id');
       }
       let html = '<table><thead><tr>' + keys.map(k => '<th data-k="' + esc(k) + '">' + esc(k) + '</th>').join('') + '</tr></thead><tbody>';
+      const editable = hostId === 'browseGrid';
       docs.forEach((doc, i) => {
         html += '<tr data-i="' + i + '"' + (i === selected ? ' class="selected"' : '') + '>';
-        keys.forEach(k => { html += '<td>' + esc(cellText(doc ? doc[k] : '')) + '</td>'; });
+        keys.forEach(k => {
+          const text = esc(cellText(doc ? doc[k] : ''));
+          if (editable && k !== '_id') {
+            html += '<td contenteditable="true" data-k="' + esc(k) + '">' + text + '</td>';
+          } else {
+            html += '<td>' + text + '</td>';
+          }
+        });
         html += '</tr>';
       });
       host.innerHTML = html + '</tbody></table>';
@@ -502,6 +547,24 @@ function page(): string {
           if (hostId === 'browseGrid') setBrowseDoc(doc || {});
         });
       });
+      if (editable) {
+        host.querySelectorAll('td[contenteditable]').forEach(td => {
+          td.addEventListener('blur', () => {
+            const tr = td.closest('tr');
+            const i = Number(tr && tr.getAttribute('data-i'));
+            const field = td.getAttribute('data-k');
+            const doc = Object.assign({}, docs[i] || {});
+            if (field) doc[field] = td.textContent || '';
+            vscode.postMessage({
+              type: 'saveCell',
+              collection,
+              json: JSON.stringify(doc),
+              filter: document.getElementById('filter').value,
+              page: pageIndex
+            });
+          });
+        });
+      }
       if (sortable) {
         host.querySelectorAll('th[data-k]').forEach(th => {
           th.addEventListener('click', () => {
@@ -756,7 +819,7 @@ function page(): string {
       const m = ev.data;
       if (m.type === 'opened') {
         document.getElementById('dbPath').textContent = m.path || '';
-        document.getElementById('status').textContent = (m.path || '') + ' (browse only)';
+        document.getElementById('status').textContent = (m.path || '') + ' (editable browse)';
         document.getElementById('tree').innerHTML = renderTree(m.tree);
         fillSamples(m.samples);
         fillCollections(m.tree);

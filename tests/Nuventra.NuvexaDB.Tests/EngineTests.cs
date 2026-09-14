@@ -511,6 +511,59 @@ public sealed class EngineTests : IDisposable
             opened.GetCollection("c").Find().ToListAsync());
     }
 
+    [Fact]
+    public async Task FormatV2_NumericRange_UsesBoundedIxscan()
+    {
+        var path = DbPath("v2-num-bound");
+        using var db = NuvexaDatabase.Create(path);
+        var col = db.GetCollection("people");
+        await col.InsertManyAsync(Enumerable.Range(0, 50).Select(i => NuvexaDocument.Parse($@"{{""age"":{i}}}")));
+        await col.EnsureIndexAsync("age");
+
+        var plan = await col.Find("""{ age: { $gte: 45 } }""").ExplainAsync();
+        Assert.Equal("IXSCAN", plan.Strategy);
+        Assert.Equal(5, plan.Returned);
+        Assert.True(plan.Examined <= 6, $"expected bounded numeric IXSCAN, examined={plan.Examined}");
+    }
+
+    [Fact]
+    public async Task FormatV1_NumericRange_StillMatches()
+    {
+        var path = DbPath("v1-num-walk");
+        using var db = NuvexaDatabase.Create(path, new NuvexaCreateOptions { FormatVersion = 1 });
+        var col = db.GetCollection("people");
+        await col.InsertManyAsync(Enumerable.Range(0, 50).Select(i => NuvexaDocument.Parse($@"{{""age"":{i}}}")));
+        await col.EnsureIndexAsync("age");
+
+        var adults = await col.Find("""{ age: { $gte: 45 } }""").ToListAsync();
+        Assert.Equal(5, adults.Count);
+        var plan = await col.Find("""{ age: { $gte: 45 } }""").ExplainAsync();
+        Assert.Equal("IXSCAN", plan.Strategy);
+        Assert.True(plan.Examined >= 50, $"v1 G17 keys walk the index, examined={plan.Examined}");
+    }
+
+    [Fact]
+    public async Task NqlUpdate_And_Delete()
+    {
+        var path = DbPath("nql-write");
+        using var db = NuvexaDatabase.Create(path);
+        var col = db.GetCollection("items");
+        await col.InsertManyAsync([
+            NuvexaDocument.Parse("""{"sku":"A","qty":1}"""),
+            NuvexaDocument.Parse("""{"sku":"B","qty":2}""")
+        ]);
+
+        var updated = await db.ExecuteAsync("""db.items.update({ sku: "A" }, { $set: { sku: "Z" } })""");
+        Assert.Equal("update", updated.Operation);
+        Assert.Equal(1, updated.Affected);
+        Assert.Single(await col.Find("""{ sku: "Z" }""").ToListAsync());
+
+        var deleted = await db.ExecuteAsync("""db.items.delete({ sku: "B" })""");
+        Assert.Equal("delete", deleted.Operation);
+        Assert.Equal(1, deleted.Affected);
+        Assert.Equal(1, col.Count);
+    }
+
     private static void FlipByte(string path, int offset)
     {
         var bytes = File.ReadAllBytes(path);

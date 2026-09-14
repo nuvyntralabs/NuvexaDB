@@ -107,7 +107,8 @@ public sealed class AvaloniaExplorerShell : IExplorerShell
     public Task<IndexDefinition?> PromptIndexAsync(string? field = null) =>
         IndexWindow.AskAsync(Window, field);
 
-    public Task<TableDefinition?> PromptTableDefinitionAsync() => TableDefinitionWindow.AskAsync(Window);
+    public Task<TableDefinition?> PromptTableDefinitionAsync(TableDefinition? existing = null) =>
+        TableDefinitionWindow.AskAsync(Window, existing);
 
     public Task<IReadOnlyDictionary<string, string>?> PromptRecordAsync(
         string collection,
@@ -124,6 +125,12 @@ public sealed class AvaloniaExplorerShell : IExplorerShell
             await clipboard.SetTextAsync(text);
         }
     }
+
+    public Task<string?> PromptAggregateAsync(string collection, string? currentNql) =>
+        AggregateBuilderWindow.AskAsync(Window, collection, currentNql);
+
+    public Task ShowExplainAsync(string title, string body) =>
+        VisualExplainWindow.ShowAsync(Window, title, body);
 
     public Task ShowAboutAsync() => AboutWindow.ShowAsync(Window);
 

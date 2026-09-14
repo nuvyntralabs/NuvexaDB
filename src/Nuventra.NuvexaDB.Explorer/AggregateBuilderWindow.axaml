@@ -1,0 +1,29 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Nuventra.NuvexaDB.Explorer.AggregateBuilderWindow"
+        Title="Aggregation builder"
+        Width="640" Height="480"
+        WindowStartupLocation="CenterOwner">
+  <DockPanel Margin="16">
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
+      <Button Content="Cancel" MinWidth="88" Click="OnCancel" />
+      <Button Classes="accent" Content="Apply" MinWidth="88" Click="OnOk" />
+    </StackPanel>
+    <StackPanel Spacing="10">
+      <TextBlock Classes="muted" TextWrapping="Wrap"
+                 Text="Add pipeline stages. Apply writes db.&lt;collection&gt;.aggregate([ … ]) into the NQL box." />
+      <TextBox x:Name="CollectionBox" Watermark="collection" />
+      <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto">
+        <TextBlock Classes="label" Text="Stage" VerticalAlignment="Center" />
+        <ComboBox x:Name="StageBox" Grid.Column="1" SelectedIndex="0" />
+        <TextBlock Grid.Row="1" Classes="label" Text="Body" Margin="0,8,8,0" VerticalAlignment="Top" />
+        <TextBox x:Name="BodyBox" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0"
+                 AcceptsReturn="True" Height="80" FontFamily="Menlo, Consolas, monospace"
+                 Watermark="stage body JSON" />
+        <Button Grid.Row="2" Grid.Column="1" Margin="0,8,0,0" Content="Add stage" Click="OnAdd" HorizontalAlignment="Left" />
+      </Grid>
+      <TextBox x:Name="PreviewBox" AcceptsReturn="True" Height="160"
+               FontFamily="Menlo, Consolas, monospace" IsReadOnly="True" />
+    </StackPanel>
+  </DockPanel>
+</Window>

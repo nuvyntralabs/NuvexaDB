@@ -100,6 +100,6 @@ public sealed class ExplorerIdeTests
         Assert.Contains("MIT", text, StringComparison.Ordinal);
         Assert.Contains(NuvexaAbout.GitHub, text, StringComparison.Ordinal);
         Assert.Contains(NuvexaAbout.NuGet, text, StringComparison.Ordinal);
-        Assert.Equal(1, NuvexaAbout.FormatVersion);
+        Assert.Equal(2, NuvexaAbout.FormatVersion);
     }
 }
