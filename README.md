@@ -6,6 +6,7 @@ Embedded NoSQL database for **.NET** and **.NET MAUI**, with a Native AOT C ABI 
 **Version:** 1.0.4  
 **Author:** Niladri Prasad Padhy / Nuventra  
 **License:** MIT  
+**Site:** [nuvyntralabs.github.io/nuvexadb](https://nuvyntralabs.github.io/nuvexadb/) — full documentation and integration guide  
 **Product name:** NuvexaDB (this repo). The MauiEssentials catalog is published under **Nuvyntra** Labs — the spellings are intentional.
 
 ## Why NuvexaDB
@@ -185,6 +186,8 @@ dotnet run --project benches/Nuventra.NuvexaDB.Benchmarks -c Release -- --gate
 `--gate` also freezes 10k insert (≤ 1.5× LiteDB), encrypted point-get (≤ +30%), and 100k-set point-get (≤ 3× SQLite). `--crore` is a local 10 million document write / index / query bench (not CI; see [docs/benchmarks.md](docs/benchmarks.md)). Explorer installers and `.nvx` file-association scripts live in `src/Nuventra.NuvexaDB.Explorer/packaging/`.
 
 ## Docs
+
+Full documentation and the integration guide are on the [NuvexaDB site](https://nuvyntralabs.github.io/nuvexadb/). Repo copies of those pages:
 
 - [Platform integration](docs/Integration/README.md) — download the exact Release zip, empty project, create/open/close, collections, documents, encryption password
 - [White paper](docs/whitepaper.md) — engine architecture, security, performance, platform libraries, IDEs, roadmap
