@@ -4,6 +4,8 @@ Working-tree notes for unreleased work. Publishing still happens only through CI
 
 ## Unreleased — 14 September 2026
 
+win-arm64 ABI tests invoke MSVC `link.exe` by full path. Git’s GNU `link` was first on PATH and failed with “extra operand”.
+
 `--gate` 100k point-get uses a warmed median of 3 and the same +50ms floor as encrypted get, so macos-latest jitter (62ms vs 19ms SQLite) does not fail the tag.
 
 [Platform integration](Integration/README.md) guides for .NET, Java/Kotlin, Android, Swift, Flutter, React Native, Python, Node.js, Go, and C++. Each names the exact [v1.0.1](https://github.com/nuvyntralabs/NuvexaDB/releases/tag/v1.0.1) zip and library file, then create/open/close, delete, collection and document CRUD, and encryption password practice.

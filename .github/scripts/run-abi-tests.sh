@@ -163,8 +163,10 @@ host_is_arm64() {
 
 dll_is_arm64() {
   local dll="$1"
-  if command -v dumpbin >/dev/null 2>&1; then
-    windows_msvc dumpbin /HEADERS "$(to_win "$dll")" | tr -d '\r' | grep -qiE 'machine \(ARM64\)'
+  local dumpbin_exe
+  dumpbin_exe="$(msvc_exe dumpbin)" || true
+  if [[ -n "$dumpbin_exe" ]]; then
+    windows_msvc "$dumpbin_exe" /HEADERS "$(to_win "$dll")" | tr -d '\r' | grep -qiE 'machine \(ARM64\)'
     return $?
   fi
   [[ "$native_dir" == *win-arm64* ]]
@@ -192,13 +194,58 @@ mingw_gcc() {
   return 1
 }
 
+# Git usr\bin\link.exe is GNU coreutils ("extra operand"). Always use
+# VCToolsInstallDir\bin\Host*\*\*.exe — do not rely on PATH order.
+msvc_host_bin() {
+  local tools="${VCToolsInstallDir:-}"
+  [[ -n "$tools" ]] || return 1
+  local host="${VSCMD_ARG_HOST_ARCH:-x64}"
+  local tgt="${VSCMD_ARG_TGT_ARCH:-x64}"
+  local host_dir tgt_dir
+  case "$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')" in
+    arm64|aarch64) host_dir=ARM64 ;;
+    *) host_dir=X64 ;;
+  esac
+  case "$(printf '%s' "$tgt" | tr '[:upper:]' '[:lower:]')" in
+    arm64|aarch64) tgt_dir=ARM64 ;;
+    x86) tgt_dir=x86 ;;
+    *) tgt_dir=x64 ;;
+  esac
+  tools="${tools//\\/\/}"
+  tools="${tools%/}"
+  printf '%s/bin/Host%s/%s\n' "$tools" "$host_dir" "$tgt_dir"
+}
+
+msvc_exe() {
+  local name="$1"
+  local dir unix
+  dir="$(msvc_host_bin)" || return 1
+  unix="$dir"
+  if command -v cygpath >/dev/null 2>&1; then
+    unix="$(cygpath -u "$dir")"
+  fi
+  if [[ -x "$unix/${name}.exe" ]]; then
+    to_win "$unix/${name}.exe"
+    return 0
+  fi
+  return 1
+}
+
 windows_msvc_link() {
   local dll="$1"
   local out="$2"
-  if ! command -v dumpbin >/dev/null 2>&1 || ! command -v lib >/dev/null 2>&1 || ! command -v cl >/dev/null 2>&1 || ! command -v link >/dev/null 2>&1; then
-    echo "dumpbin, lib, cl, and link from the MSVC tools are required when MinGW gcc is absent" >&2
+  local dumpbin_exe lib_exe cl_exe link_exe
+  dumpbin_exe="$(msvc_exe dumpbin)" || true
+  lib_exe="$(msvc_exe lib)" || true
+  cl_exe="$(msvc_exe cl)" || true
+  link_exe="$(msvc_exe link)" || true
+  if [[ -z "$dumpbin_exe" || -z "$lib_exe" || -z "$cl_exe" || -z "$link_exe" ]]; then
+    echo "MSVC dumpbin/lib/cl/link.exe not found under VCToolsInstallDir (need ilammy/msvc-dev-cmd)." >&2
+    echo "VCToolsInstallDir=${VCToolsInstallDir:-unset} host=${VSCMD_ARG_HOST_ARCH:-?} tgt=${VSCMD_ARG_TGT_ARCH:-?}" >&2
     exit 1
   fi
+  echo "MSVC tools dumpbin=$dumpbin_exe"
+  echo "MSVC tools link=$link_exe"
 
   local exports="$build/nuvexa.exports.txt"
   local def="$build/nuvexa.def"
@@ -208,8 +255,8 @@ windows_msvc_link() {
   local count dll_win def_win lib_win inc_win src_win obj_win out_win machine=X64
 
   echo "dumpbin $(to_win "$dll")"
-  windows_msvc dumpbin /EXPORTS "$(to_win "$dll")" | tr -d '\r' > "$exports"
-  if windows_msvc dumpbin /HEADERS "$(to_win "$dll")" | tr -d '\r' | grep -qiE 'machine \(ARM64\)'; then
+  windows_msvc "$dumpbin_exe" /EXPORTS "$(to_win "$dll")" | tr -d '\r' > "$exports"
+  if windows_msvc "$dumpbin_exe" /HEADERS "$(to_win "$dll")" | tr -d '\r' | grep -qiE 'machine \(ARM64\)'; then
     machine=ARM64
   fi
   echo "MSVC import lib machine=$machine"
@@ -232,15 +279,16 @@ windows_msvc_link() {
   src_win="$(to_win "$src")"
   obj_win="$(to_win "$obj")"
   out_win="$(to_win "$out")"
-  # Every MSVC switch lives in this .cmd so Git Bash cannot rewrite /c, /link, or /OUT.
+  # Full paths: PATH on windows-11-arm puts Git usr\bin\link (GNU) ahead of
+  # MSVC link.exe, which then prints "extra operand" and --help.
   write_crlf "$script" \
     "@echo off" \
     "setlocal" \
-    "lib /nologo /def:\"$def_win\" /machine:$machine /out:\"$lib_win\"" \
+    "\"$lib_exe\" /nologo /def:\"$def_win\" /machine:$machine /out:\"$lib_win\"" \
     "if errorlevel 1 exit /b 1" \
-    "cl /nologo /c /O1 /I \"$inc_win\" \"$src_win\" /Fo\"$obj_win\"" \
+    "\"$cl_exe\" /nologo /c /O1 /I \"$inc_win\" \"$src_win\" /Fo\"$obj_win\"" \
     "if errorlevel 1 exit /b 1" \
-    "link /nologo /OUT:\"$out_win\" \"$obj_win\" \"$lib_win\"" \
+    "\"$link_exe\" /nologo /OUT:\"$out_win\" \"$obj_win\" \"$lib_win\"" \
     "if errorlevel 1 exit /b 1"
   echo "MSVC link via $(to_win "$script")"
   windows_msvc cmd.exe /c "$(to_win "$script")"
