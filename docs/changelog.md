@@ -2,7 +2,9 @@
 
 Working-tree notes for unreleased work. Publishing still happens only through CI.
 
-## Unreleased — 14 September 2026
+## 1.0.4 — 14 September 2026
+
+`NuvexaDB-NuGet` is the engine package only. Tools stays an in-repo library (`IsPackable=false`). The `nuvexa` CLI is not a NuGet tool; CI publishes it into each OS VSIX (`pack-vscode.sh` → `cli/nuvexa`). Install `NuvexaDB-VS-Code-<rid>` — no `dotnet tool install`.
 
 win-arm64 ABI host tests link `nuvexa.dll` with **MSYS2 CLANGARM64** (`C:\msys64\clangarm64`, `aarch64-w64-windows-gnu`), the same GNU-ld path win-x64 uses with MinGW. Git’s `clangarm64` folder is only Git’s ARM64 runtime — it has no `clang.exe`. MSVC `link.exe` cannot take a Native AOT DLL (LNK1107). A `lib /def` import library lists the names but does not resolve `nuvexa_*` (LNK2019). If MSYS2 has no compiler, CI installs the CLANGARM64 packages or falls back to llvm-mingw.
 

@@ -25,7 +25,7 @@ src/Nuventra.NuvexaDB            engine
 src/Nuventra.NuvexaDB.Native     Native AOT C ABI (`nuvexa_*`)
 src/Nuventra.NuvexaDB.Tools      explorer services
 src/Nuventra.NuvexaDB.Explorer   Avalonia IDE (Plugin.Avalonia.MVVMExpress)
-src/Nuventra.NuvexaDB.Cli        nuvexa tool
+src/Nuventra.NuvexaDB.Cli        nuvexa exe (bundled into the VS Code VSIX; not a nupkg)
 src/Nuventra.NuvexaDB.VisualStudio
 src/Nuventra.NuvexaDB.VSCode
 bindings/jvm  bindings/android  bindings/swift  bindings/flutter  bindings/react-native

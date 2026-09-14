@@ -51,3 +51,8 @@ test("TypeScript compile output", () => {
   assert.match(js, /nuvexa\.close/);
   assert.match(js, /nuvexa\.about/);
 });
+
+test("VSIX bundles nuvexa instead of a global tool", () => {
+  assert.match(source, /join\(extensionRoot, "cli"/);
+  assert.doesNotMatch(source, /dotnet tool install/);
+});

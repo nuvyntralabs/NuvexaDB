@@ -1,9 +1,13 @@
 import * as vscode from "vscode";
 import { spawn } from "child_process";
+import { existsSync } from "fs";
+import { dirname, join } from "path";
 
 const keys = new Map<string, string>();
+let extensionRoot = "";
 
 export function activate(context: vscode.ExtensionContext): void {
+  extensionRoot = context.extensionPath;
   const workbench = new NuvexaWorkbench();
   context.subscriptions.push(workbench);
   context.subscriptions.push(
@@ -460,9 +464,9 @@ function page(): string {
       <section id="about" class="panel">
         <div class="about">
           <h1>Nuvexa Data Studio</h1>
-          <div class="hint">NuvexaDB 1.0.3 · .nvx format 2 · MIT</div>
+          <div class="hint">NuvexaDB 1.0.4 · .nvx format 2 · MIT</div>
           <p>Embedded NoSQL database for .NET and .NET MAUI. One portable .nvx file, BSON pages, optional AES-256-GCM, and NQL (Nuvexa Query Language).</p>
-          <p class="hint">NuvexaDB is built by Niladri Prasad Padhy (Nuventra) and published with the MauiEssentials catalog under Nuvyntra Labs. Browse cells are editable. NQL find / aggregate / update / delete run through the nuvexa CLI.</p>
+          <p class="hint">NuvexaDB is built by Niladri Prasad Padhy (Nuventra) and published with the MauiEssentials catalog under Nuvyntra Labs. Browse cells are editable. NQL find / aggregate / update / delete use the nuvexa CLI bundled in this VSIX.</p>
           <p>Author: Niladri Prasad Padhy / Nuventra<br />Organization: Nuvyntra Labs</p>
           <p>
             <a href="https://nuvyntralabs.github.io/">Website</a>
@@ -876,10 +880,22 @@ function readCliError(out: string): string {
   return out.trim();
 }
 
+function resolveNuvexa(): { command: string; cwd?: string } {
+  const exe = process.platform === "win32" ? "nuvexa.exe" : "nuvexa";
+  if (extensionRoot) {
+    const bundled = join(extensionRoot, "cli", exe);
+    if (existsSync(bundled)) {
+      return { command: bundled, cwd: dirname(bundled) };
+    }
+  }
+  return { command: "nuvexa" };
+}
+
 function runNuvexa(args: string[], key?: string): Promise<string> {
   const extra = key ? ["--key", key] : [];
+  const { command, cwd } = resolveNuvexa();
   return new Promise((resolve, reject) => {
-    const child = spawn("nuvexa", [...args, ...extra], { shell: false });
+    const child = spawn(command, [...args, ...extra], { shell: false, cwd });
     let out = "";
     let err = "";
     child.stdout.on("data", (c) => (out += c.toString()));
@@ -894,7 +910,7 @@ function runNuvexa(args: string[], key?: string): Promise<string> {
     child.on("error", (e) =>
       reject(
         new Error(
-          `${e.message}. Install the CLI: dotnet tool install -g Nuventra.NuvexaDB.Cli`
+          `${e.message}. Reinstall the NuvexaDB VSIX for this OS (it includes nuvexa).`
         )
       )
     );

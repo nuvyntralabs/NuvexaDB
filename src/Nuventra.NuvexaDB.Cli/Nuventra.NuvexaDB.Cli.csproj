@@ -3,12 +3,9 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <PackAsTool>true</PackAsTool>
-    <ToolCommandName>nuvexa</ToolCommandName>
-    <PackageId>Nuventra.NuvexaDB.Cli</PackageId>
-    <Title>nuvexa — NuvexaDB CLI</Title>
-    <Description>Command-line explorer for .nvx files. Used by the VS Code / Cursor extension and scripts.</Description>
-    <IncludeSymbols>false</IncludeSymbols>
+    <AssemblyName>nuvexa</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <Description>Command-line explorer for .nvx files. CI publishes this into the VS Code / Cursor VSIX; it is not a NuGet package.</Description>
   </PropertyGroup>
 
   <ItemGroup>

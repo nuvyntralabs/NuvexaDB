@@ -3,7 +3,7 @@
 Embedded NoSQL database for **.NET** and **.NET MAUI**, with a Native AOT C ABI for **Java**, **Kotlin**, **Swift**, **Flutter**, **React Native**, **Python**, **Node.js**, **Go**, and **C++**. One portable binary **`.nvx`** file (BSON documents on data pages, AES-256-GCM encryption), and a desktop explorer for Windows, macOS, and Linux.
 
 **Package:** `Nuventra.NuvexaDB`  
-**Version:** 1.0.3  
+**Version:** 1.0.4  
 **Author:** Niladri Prasad Padhy / Nuventra  
 **License:** MIT  
 **Product name:** NuvexaDB (this repo). The MauiEssentials catalog is published under **Nuvyntra** Labs — the spellings are intentional.
@@ -24,12 +24,12 @@ After each CI run, downloads are on that run’s **Artifacts** list (temporary; 
 
 | Artifact | Contents |
 | --- | --- |
-| `NuvexaDB-NuGet` | Engine `nupkg` + `snupkg` (not pushed) |
+| `NuvexaDB-NuGet` | Engine `nupkg` + `snupkg` only (`Nuventra.NuvexaDB`) |
 | `NuvexaDB-Native-<rid>` | C ABI (`libnuvexa` / `nuvexa.dll`) |
 | `NuvexaDB-Native-android-arm64` | Bionic `libnuvexa.so` for the Android AAR |
 | `NuvexaDB-Native-iOS` | `Nuvexa.xcframework` (`ios-arm64` + `iossimulator-arm64`) + `nuvexa.h` |
 | `NuvexaDB-Data-Studio-<rid>` | Data Studio installer (msi / pkg / deb / rpm) |
-| `NuvexaDB-VS-Code` | VS Code / Cursor VSIX |
+| `NuvexaDB-VS-Code-<rid>` | VS Code / Cursor VSIX with bundled `nuvexa` |
 | `NuvexaDB-Visual-Studio` | Visual Studio VSIX |
 | `NuvexaDB-Java-<rid>` | Java / Kotlin library |
 | `NuvexaDB-Python-<rid>` | Python library |
@@ -62,11 +62,11 @@ python3 .github/scripts/check-versions.py --repo-root . --write
 That copies the same version onto NuGet, Java, Android (`versionName` + `versionCode` = major×10000+minor×100+patch), Python, Node, React Native, Flutter, Go, C++, Swift, Data Studio installers, VS Code, and Visual Studio. CI fails if any of those drift. Then push `main` and tag:
 
 ```bash
-git tag v1.0.3
-git push origin v1.0.3
+git tag v1.0.4
+git push origin v1.0.4
 ```
 
-That tagged CI run copies the same zips onto the release **only after every CI job is green**. If any job fails, the run is red and [Releases](https://github.com/nuvyntralabs/NuvexaDB/releases) is not created or updated. Fix the failure and push the tag again (or a new tag) when the run succeeds. If `v<Version>` is **already published**, CI stops after version alignment — it does not rebuild. Bump `Directory.Build.props` to start a new build. The public URL is then `https://github.com/nuvyntralabs/NuvexaDB/releases/tag/v1.0.3`. Users download only the zip they need.
+That tagged CI run copies the same zips onto the release **only after every CI job is green**. If any job fails, the run is red and [Releases](https://github.com/nuvyntralabs/NuvexaDB/releases) is not created or updated. Fix the failure and push the tag again (or a new tag) when the run succeeds. If `v<Version>` is **already published**, CI stops after version alignment — it does not rebuild. Bump `Directory.Build.props` to start a new build. The public URL is then `https://github.com/nuvyntralabs/NuvexaDB/releases/tag/v1.0.4`. Users download only the zip they need.
 
 ## Quick start
 

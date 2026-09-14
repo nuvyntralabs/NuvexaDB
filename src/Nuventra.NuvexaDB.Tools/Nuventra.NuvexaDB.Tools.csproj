@@ -6,7 +6,7 @@
     <PackageId>Nuventra.NuvexaDB.Tools</PackageId>
     <Title>NuvexaDB explorer services</Title>
     <Description>UI-agnostic explorer services for NuvexaDB: schema inference, import/export, disposable SQLite grid cache.</Description>
-    <IsPackable>true</IsPackable>
+    <IsPackable>false</IsPackable>
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
