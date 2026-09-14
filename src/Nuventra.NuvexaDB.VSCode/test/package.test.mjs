@@ -36,10 +36,11 @@ test("browser view and custom editor", () => {
   assert.match(source, /registerCustomEditorProvider\(\s*"nuvexadb\.explorer"/);
 });
 
-test("browse-only workbench copy", () => {
-  assert.match(source, /browse-only/i);
+test("editable browse workbench copy", () => {
+  assert.match(source, /editable browse/i);
   assert.match(source, /Nuvexa Data Studio/);
   assert.match(source, /Niladri Prasad Padhy/);
+  assert.match(source, /\.nvx format 2/);
 });
 
 test("TypeScript compile output", () => {

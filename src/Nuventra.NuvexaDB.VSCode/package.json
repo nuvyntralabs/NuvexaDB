@@ -2,7 +2,7 @@
   "name": "nuvexadb",
   "displayName": "NuvexaDB",
   "description": "Browse .nvx databases: Open / Close, collection tree, Browse Data, and Execute Query.",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "publisher": "nuventra",
   "license": "MIT",
   "repository": {

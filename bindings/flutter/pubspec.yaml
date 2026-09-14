@@ -1,6 +1,6 @@
 name: nuvexadb
 description: Flutter / Dart SDK for NuvexaDB. Thin dart:ffi wrapper over the Native AOT C ABI.
-version: 1.0.2
+version: 1.0.3
 repository: https://github.com/nuvyntralabs/NuvexaDB
 homepage: https://github.com/nuvyntralabs/NuvexaDB
 

@@ -460,7 +460,7 @@ function page(): string {
       <section id="about" class="panel">
         <div class="about">
           <h1>Nuvexa Data Studio</h1>
-          <div class="hint">NuvexaDB 1.0.2 · .nvx format 1 · MIT</div>
+          <div class="hint">NuvexaDB 1.0.3 · .nvx format 2 · MIT</div>
           <p>Embedded NoSQL database for .NET and .NET MAUI. One portable .nvx file, BSON pages, optional AES-256-GCM, and NQL (Nuvexa Query Language).</p>
           <p class="hint">NuvexaDB is built by Niladri Prasad Padhy (Nuventra) and published with the MauiEssentials catalog under Nuvyntra Labs. Browse cells are editable. NQL find / aggregate / update / delete run through the nuvexa CLI.</p>
           <p>Author: Niladri Prasad Padhy / Nuventra<br />Organization: Nuvyntra Labs</p>

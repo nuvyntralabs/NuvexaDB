@@ -100,20 +100,16 @@ ios_framework() {
 }
 
 boot_simulator() {
-  local name
-  for name in "iPhone 16" "iPhone 16 Pro" "iPhone 15" "iPhone 14"; do
-    if xcrun simctl boot "$name" 2>/dev/null; then
-      echo "$name"
-      return 0
-    fi
-    if xcrun simctl list devices | grep -F "$name" | grep -q Booted; then
-      echo "$name"
-      return 0
-    fi
-  done
-  echo "No iPhone simulator could be booted" >&2
-  xcrun simctl list devices available >&2 || true
-  exit 1
+  local udid
+  udid="$(xcrun simctl list devices available | grep iPhone | grep -oE '[0-9A-Fa-f]{8}-([0-9A-Fa-f]{4}-){3}[0-9A-Fa-f]{12}' | head -n1 || true)"
+  if [[ -z "$udid" ]]; then
+    echo "No iPhone simulator is available" >&2
+    xcrun simctl list devices available >&2 || true
+    exit 1
+  fi
+  # Already-booted devices return a non-zero boot status; spawn uses "booted".
+  xcrun simctl boot "$udid" >/dev/null 2>&1 || true
+  echo "$udid"
 }
 
 run_ios() {
@@ -159,10 +155,25 @@ write_crlf() {
   printf '%s\r\n' "$@" > "$dest"
 }
 
+host_is_arm64() {
+  # Git Bash on windows-11-arm often reports uname -m as x86_64.
+  [[ "${VSCMD_ARG_TGT_ARCH:-}" == "arm64" ]] && return 0
+  echo "${PROCESSOR_ARCHITECTURE:-} ${PROCESSOR_IDENTIFIER:-} $(uname -m)" | grep -qiE 'ARM64|aarch64'
+}
+
+dll_is_arm64() {
+  local dll="$1"
+  if command -v dumpbin >/dev/null 2>&1; then
+    windows_msvc dumpbin /HEADERS "$(to_win "$dll")" | tr -d '\r' | grep -qiE 'machine \(ARM64\)'
+    return $?
+  fi
+  [[ "$native_dir" == *win-arm64* ]]
+}
+
 mingw_gcc() {
-  local candidate dump host_arm=0
-  if uname -m | grep -qiE 'aarch64|arm64'; then
-    host_arm=1
+  local candidate dump skip_x64=0
+  if host_is_arm64; then
+    skip_x64=1
   fi
   for candidate in "$(command -v gcc || true)" /c/mingw64/bin/gcc /mingw64/bin/gcc; do
     [[ -n "$candidate" && -x "$candidate" ]] || continue
@@ -172,8 +183,9 @@ mingw_gcc() {
       printf '%s\n' "$candidate"
       return 0
     fi
-    # x64 MinGW cannot link a win-arm64 Native AOT DLL.
-    [[ "$host_arm" -eq 1 ]] && continue
+    # x64 MinGW cannot link a win-arm64 Native AOT DLL. windows-11-arm images
+    # still ship C:\mingw64 (x86_64-w64-mingw32).
+    [[ "$skip_x64" -eq 1 ]] && continue
     printf '%s\n' "$candidate"
     return 0
   done
@@ -242,9 +254,13 @@ windows_link_and_run() {
   testdir="$build/tmp"
   mkdir -p "$bindir" "$testdir"
 
-  # MinGW ld can consume the Native AOT DLL. MSVC link.exe cannot (LNK1107),
-  # and `cl /link` from Git Bash drops nuvexa.lib (LNK2019).
-  if gcc="$(mingw_gcc)"; then
+  # MinGW ld can consume a win-x64 Native AOT DLL. x64 MinGW cannot consume
+  # win-arm64 (file format not recognized). MSVC link.exe cannot consume the
+  # AOT DLL either (LNK1107), so ARM64 builds an import lib first.
+  if dll_is_arm64 "$dll"; then
+    echo "ARM64 nuvexa.dll: skip x64 MinGW; link with MSVC"
+    windows_msvc_link "$dll" "$out"
+  elif gcc="$(mingw_gcc)"; then
     echo "link with MinGW $gcc ($("$gcc" -dumpmachine))"
     "$gcc" -O1 -I "$include" "$src" "$dll" -o "$out"
   else
