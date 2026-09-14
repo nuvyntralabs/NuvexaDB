@@ -9,6 +9,7 @@ int main(int argc, char** argv) {
     const char* path = argc > 1 ? argv[1] : "sample.nvx";
     std::remove(path);
     {
+        // create writes format 2
         auto db = nuvexa::database::create(path, "sample-key");
         auto ada_id = db.insert(
             "users",

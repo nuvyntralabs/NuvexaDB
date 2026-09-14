@@ -40,7 +40,7 @@ test("editable browse workbench copy", () => {
   assert.match(source, /editable browse/i);
   assert.match(source, /Nuvexa Data Studio/);
   assert.match(source, /Niladri Prasad Padhy/);
-  assert.match(source, /\.nvx format 2/);
+  assert.match(source, /\.nvx format 2 \(format 1 deprecated, still readable\)/);
 });
 
 test("TypeScript compile output", () => {

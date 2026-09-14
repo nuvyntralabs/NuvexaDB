@@ -6,6 +6,7 @@ let path = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 try? FileManager.default.removeItem(atPath: path)
 let key = "sample-key"
 
+// create writes format 2
 let db = try NuvexaDatabase.create(path, key: key)
 let adaId = try db.insert(
     collection: "users",

@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "nuventra"
-version = "1.0.4"
+version = "1.0.5"
 
 android {
     namespace = "nuventra.nuvexadb"

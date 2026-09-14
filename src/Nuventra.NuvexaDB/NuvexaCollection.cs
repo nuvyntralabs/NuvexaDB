@@ -19,7 +19,7 @@ public sealed class NuvexaCollection
 
     public string Name => Meta.Name;
     public long Count => Meta.Count;
-    private ushort FormatVersion => _db.Store.Superblock.Version;
+    private ushort WriteFormatVersion => _db.WriteFormatVersion;
 
     public Task<string> InsertAsync(NuvexaDocument document, CancellationToken cancellationToken = default) =>
         _db.WriteAsync(() => InsertCore(document), cancellationToken);
@@ -342,24 +342,60 @@ public sealed class NuvexaCollection
         }
 
         indexName = match.Name;
-        GetIndexBounds(predicate, match, FormatVersion, out var lo, out var hi, out var hasLo, out var hasHi);
         var tree = new BPlusTree(_db.Store, match.RootPageId);
-        docs = EnumerateIndex(tree, lo, hi, hasLo, hasHi);
+        docs = EnumerateIndexed(tree, predicate, match);
         return true;
     }
 
-    private IEnumerable<NuvexaDocument> EnumerateIndex(
+    private IEnumerable<NuvexaDocument> EnumerateIndexed(
         BPlusTree tree,
-        byte[]? lo,
-        byte[]? hi,
-        bool hasLo,
-        bool hasHi)
+        NuvexaFilter predicate,
+        SecondaryIndexMeta match)
     {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var doc in ScanFormat(tree, predicate, match, Constants.FormatVersion))
+        {
+            if (seen.Add(doc.Id))
+            {
+                yield return doc;
+            }
+        }
+
+        if (!IsNumericPredicate(predicate))
+        {
+            yield break;
+        }
+
+        foreach (var doc in ScanFormat(tree, predicate, match, Constants.MinFormatVersion))
+        {
+            if (seen.Add(doc.Id))
+            {
+                yield return doc;
+            }
+        }
+    }
+
+    private IEnumerable<NuvexaDocument> ScanFormat(
+        BPlusTree tree,
+        NuvexaFilter predicate,
+        SecondaryIndexMeta match,
+        ushort formatVersion)
+    {
+        GetIndexBounds(predicate, match, formatVersion, out var lo, out var hi, out var hasLo, out var hasHi);
         foreach (var (_, pageId, slot) in tree.Scan(lo, hi, hasLo, hasHi))
         {
-            var bytes = DocumentIO.Read(_db.Store, pageId, slot);
-            yield return NuvexaDocument.FromStorage(bytes);
+            yield return NuvexaDocument.FromStorage(DocumentIO.Read(_db.Store, pageId, slot));
         }
+    }
+
+    private static bool IsNumericPredicate(NuvexaFilter predicate)
+    {
+        if (predicate.Kind == NuvexaFilterKind.And)
+        {
+            return predicate.Children.Any(IsNumericPredicate);
+        }
+
+        return predicate.Values.Length > 0 && DocumentPath.IsNumeric(predicate.Values[0]);
     }
 
     private bool TryResolveIndexedPredicate(
@@ -393,7 +429,7 @@ public sealed class NuvexaCollection
                     continue;
                 }
 
-                var rank = IndexPreference(child, FormatVersion);
+                var rank = IndexPreference(child);
                 if (rank >= bestRank)
                 {
                     continue;
@@ -474,21 +510,16 @@ public sealed class NuvexaCollection
         kind is NuvexaFilterKind.Eq or NuvexaFilterKind.Gt or NuvexaFilterKind.Gte
             or NuvexaFilterKind.Lt or NuvexaFilterKind.Lte;
 
-    // Equality uses a tight prefix. String ranges keep byte order. v1 numeric ranges
-    // cannot use lo/hi (G17 keys are not numeric-order-preserving). v2 can.
-    private static int IndexPreference(NuvexaFilter filter, ushort formatVersion)
+    // Equality uses a tight prefix. String ranges keep byte order. Writes use v2
+    // numeric keys (bounded IXSCAN). Format 1 n: keys are still read.
+    private static int IndexPreference(NuvexaFilter filter)
     {
         if (filter.Kind == NuvexaFilterKind.Eq)
         {
             return 0;
         }
 
-        if (filter.Values.Length > 0 && filter.Values[0].ValueKind != JsonValueKind.Number)
-        {
-            return 1;
-        }
-
-        return formatVersion >= 2 ? 1 : 2;
+        return 1;
     }
 
     private static void GetIndexBounds(
@@ -531,8 +562,11 @@ public sealed class NuvexaCollection
         }
 
         var value = predicate.Values[0];
-        if (formatVersion < 2 && value.ValueKind == JsonValueKind.Number && predicate.Kind != NuvexaFilterKind.Eq)
+        if (formatVersion < 2 && DocumentPath.IsNumeric(value) && predicate.Kind != NuvexaFilterKind.Eq)
         {
+            lo = DocumentPath.LegacyNumericScanPrefix();
+            hi = DocumentPath.LegacyNumericScanPrefixSuccessor();
+            hasLo = hasHi = true;
             return;
         }
 
@@ -588,7 +622,7 @@ public sealed class NuvexaCollection
         {
             var bytes = DocumentIO.Read(_db.Store, pageId, slot);
             var doc = NuvexaDocument.FromStorage(bytes);
-            if (!TryIndexKey(fieldPath, doc, FormatVersion, out var key))
+            if (!TryIndexKey(fieldPath, doc, WriteFormatVersion, out var key))
             {
                 continue;
             }
@@ -618,14 +652,17 @@ public sealed class NuvexaCollection
         foreach (var idx in indexes)
         {
             var tree = new BPlusTree(_db.Store, idx.RootPageId);
-            if (removeOld is not null && TryIndexKey(idx.FieldPath, removeOld, FormatVersion, out var oldKey))
+            if (removeOld is not null)
             {
-                tree.Remove(oldKey);
+                foreach (var oldKey in IndexKeysForRead(idx.FieldPath, removeOld))
+                {
+                    tree.Remove(oldKey);
+                }
             }
 
-            if (next is not null && TryIndexKey(idx.FieldPath, next, FormatVersion, out var key))
+            if (next is not null && TryIndexKey(idx.FieldPath, next, WriteFormatVersion, out var key))
             {
-                if (idx.Unique && tree.TryFind(key, out _, out _))
+                if (idx.Unique && (tree.TryFind(key, out _, out _) || LegacyUniqueHit(tree, idx.FieldPath, next, key)))
                 {
                     throw new NuvexaException($"Unique index '{idx.Name}' would be violated.");
                 }
@@ -656,6 +693,33 @@ public sealed class NuvexaCollection
         }
 
         return 0;
+    }
+
+    private static IEnumerable<byte[]> IndexKeysForRead(string fieldPath, NuvexaDocument document)
+    {
+        byte[]? current = null;
+        if (TryIndexKey(fieldPath, document, Constants.FormatVersion, out var written))
+        {
+            current = written;
+            yield return written;
+        }
+
+        if (TryIndexKey(fieldPath, document, Constants.MinFormatVersion, out var legacy) &&
+            (current is null || !legacy.AsSpan().SequenceEqual(current)))
+        {
+            yield return legacy;
+        }
+    }
+
+    private static bool LegacyUniqueHit(BPlusTree tree, string fieldPath, NuvexaDocument document, byte[] writtenKey)
+    {
+        if (!TryIndexKey(fieldPath, document, Constants.MinFormatVersion, out var legacy) ||
+            legacy.AsSpan().SequenceEqual(writtenKey))
+        {
+            return false;
+        }
+
+        return tree.TryFind(legacy, out _, out _);
     }
 
     private static bool TryIndexKey(string fieldPath, NuvexaDocument document, ushort formatVersion, out byte[] key)

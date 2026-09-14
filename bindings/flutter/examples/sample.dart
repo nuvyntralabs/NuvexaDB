@@ -11,6 +11,7 @@ void main(List<String> args) {
   }
   const key = 'sample-key';
 
+  // create writes format 2
   final db = NuvexaDatabase.create(path, key: key);
   try {
     final adaId = db.insert(

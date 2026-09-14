@@ -3,7 +3,7 @@
 Embedded NoSQL database for **.NET** and **.NET MAUI**, with a Native AOT C ABI for **Java**, **Kotlin**, **Swift**, **Flutter**, **React Native**, **Python**, **Node.js**, **Go**, and **C++**. One portable binary **`.nvx`** file (BSON documents on data pages, AES-256-GCM encryption), and a desktop explorer for Windows, macOS, and Linux.
 
 **Package:** `Nuventra.NuvexaDB`  
-**Version:** 1.0.4  
+**Version:** 1.0.5  
 **Author:** Niladri Prasad Padhy / Nuventra  
 **License:** MIT  
 **Site:** [nuvyntralabs.github.io/nuvexadb](https://nuvyntralabs.github.io/nuvexadb/) — full documentation and integration guide  
@@ -63,21 +63,23 @@ python3 .github/scripts/check-versions.py --repo-root . --write
 That copies the same version onto NuGet, Java, Android (`versionName` + `versionCode` = major×10000+minor×100+patch), Python, Node, React Native, Flutter, Go, C++, Swift, Data Studio installers, VS Code, and Visual Studio. CI fails if any of those drift. Then push `main` and tag:
 
 ```bash
-git tag v1.0.4
-git push origin v1.0.4
+git tag v1.0.5
+git push origin v1.0.5
 ```
 
-That tagged CI run copies the same zips onto the release **only after every CI job is green**. If any job fails, the run is red and [Releases](https://github.com/nuvyntralabs/NuvexaDB/releases) is not created or updated. Fix the failure and push the tag again (or a new tag) when the run succeeds. If `v<Version>` is **already published**, CI stops after version alignment — it does not rebuild. Bump `Directory.Build.props` to start a new build. The public URL is then `https://github.com/nuvyntralabs/NuvexaDB/releases/tag/v1.0.4`. Users download only the zip they need.
+That tagged CI run copies the same zips onto the release **only after every CI job is green**. If any job fails, the run is red and [Releases](https://github.com/nuvyntralabs/NuvexaDB/releases) is not created or updated. Fix the failure and push the tag again (or a new tag) when the run succeeds. If `v<Version>` is **already published**, CI stops after version alignment — it does not rebuild. Bump `Directory.Build.props` to start a new build. The public URL is then `https://github.com/nuvyntralabs/NuvexaDB/releases/tag/v1.0.5`. Users download only the zip they need.
 
 ## Quick start
 
 ```csharp
 using Nuventra.NuvexaDB;
 
+// Create writes on-disk format 2. Format 1 files still open.
 await using var db = NuvexaDatabase.Create("app.nvx", new NuvexaCreateOptions
 {
     EncryptionKey = "correct-horse"
 });
+// db.FormatVersion == 2
 
 var users = db.GetCollection("users");
 await users.InsertAsync(NuvexaDocument.Parse("""{"name":"Ada","age":36}"""));
@@ -89,7 +91,7 @@ var rows = await db.ExecuteAsync("""db.users.find({ age: { $gte: 21 } }).sort({ 
 
 Opening an encrypted file **without** a key throws `NuvexaEncryptionException` (fail-closed). A tampered or corrupt `.nvx` throws `NuvexaIntegrityException` and is not opened. The Explorer, Visual Studio editor, and VS Code / Cursor editor prompt for the key.
 
-One process may open a path at a time. Concurrent `Find` / reads on an open handle are allowed; writes stay exclusive. `CompactAsync` keeps encryption and leaves the handle open. `BackupAsync` / `RestoreAsync` copy the `.nvx`. Format version `1` is frozen (page size, WAL, index keys). Numeric range IXSCAN is not order-preserving; index equality, string ranges, and compound equality. `$lookup` refuses a foreign collection larger than `LookupMaxDocuments` (default 100 000; `0` disables). Limits: `NuvexaLimits`.
+One process may open a path at a time. Concurrent `Find` / reads on an open handle are allowed; writes stay exclusive. `CompactAsync` keeps encryption and leaves the handle open. `BackupAsync` / `RestoreAsync` copy the `.nvx`. **Creates and writes always use format 2** (order-preserving numeric `d:` keys, WAL v2 header). **Format 1 is deprecated** and stays readable (`n:` keys, WAL v1 header). `$lookup` refuses a foreign collection larger than `LookupMaxDocuments` (default 100 000; `0` disables). Limits: `NuvexaLimits`.
 
 ```csharp
 if (NuvexaDatabase.IsEncrypted(path))
@@ -139,6 +141,7 @@ src/Nuventra.NuvexaDB.Native/publish.sh
 ```
 
 ```kotlin
+// create writes format 2
 NuvexaDatabase.create("app.nvx", "correct-horse").use { db ->
     db.insert("users", """{"name":"Ada","age":36}""")
     db.execute("db.users.find({ age: { \$gte: 21 } }).limit(20)")
@@ -146,18 +149,21 @@ NuvexaDatabase.create("app.nvx", "correct-horse").use { db ->
 ```
 
 ```swift
+// create writes format 2
 let db = try NuvexaDatabase.create("app.nvx", key: "correct-horse")
 _ = try db.insert(collection: "users", json: #"{"name":"Ada","age":36}"#)
 _ = try db.execute("db.users.find({ age: { $gte: 21 } }).limit(20)")
 ```
 
 ```dart
+// create writes format 2
 final db = NuvexaDatabase.create('app.nvx', key: 'correct-horse');
 db.insert('users', '{"name":"Ada","age":36}');
 db.execute('db.users.find({ age: { \$gte: 21 } }).limit(20)');
 ```
 
 ```js
+// create writes format 2
 const db = await NuvexaDatabase.create("app.nvx", "correct-horse");
 await db.insert("users", JSON.stringify({ name: "Ada", age: 36 }));
 await db.execute("db.users.find({ age: { $gte: 21 } }).limit(20)");

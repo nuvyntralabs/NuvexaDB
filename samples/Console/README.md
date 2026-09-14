@@ -23,7 +23,9 @@ Do not publish the engine package from a local clone.
 `GetCollection("users")` creates the collection if it does not exist.
 
 ```csharp
+// Create writes on-disk format 2. Format 1 files still open.
 await using var db = NuvexaDatabase.Create(path, new NuvexaCreateOptions { EncryptionKey = "sample-key" });
+// db.FormatVersion == 2
 var users = db.GetCollection("users");
 ```
 

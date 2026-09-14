@@ -8,6 +8,13 @@ Windows-only (`net10.0-windows10.0.17763.0`). **Run integration tour** runs [../
 <PackageReference Include="Nuventra.NuvexaDB" Version="1.0.0" />
 ```
 
+```csharp
+// Create writes on-disk format 2. Format 1 files still open.
+await using var db = NuvexaDatabase.Create(path, new NuvexaCreateOptions { EncryptionKey = "sample-key" });
+// db.FormatVersion == 2
+var users = db.GetCollection("users");
+```
+
 `GetCollection("users")` creates the collection. Insert / find-by-id / replace / delete-by-id, then:
 
 ```text

@@ -65,6 +65,7 @@ iOS — add `Nuvexa.xcframework` to the app target (**Frameworks, Libraries, and
 import NuvexaDB
 
 let path = "app.nvx"
+// create writes format 2. Format 1 files still open.
 let db = try NuvexaDatabase.create(path, key: key) // key: nil for plaintext
 // ...
 try db.close()

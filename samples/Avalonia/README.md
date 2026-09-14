@@ -9,7 +9,9 @@ Desktop window (`net10.0`) on Windows, macOS, and Linux. **Run integration tour*
 ```
 
 ```csharp
+// Create writes on-disk format 2. Format 1 files still open.
 await using var db = NuvexaDatabase.Create(path, new NuvexaCreateOptions { EncryptionKey = "sample-key" });
+// db.FormatVersion == 2
 var users = db.GetCollection("users");
 await users.InsertAsync(NuvexaDocument.Parse("""{"name":"Ada","age":36,"status":"active","address":{"city":"London"}}"""));
 var rows = await db.ExecuteAsync("""db.users.find({ $and: [ { "address.city": "London" }, { status: "active" } ] }).sort({ age: -1 })""");

@@ -12,6 +12,7 @@ Embedded NoSQL: collections, encrypted `.nvx` application files, **NQL** (Nuvexa
 - Do not port pages, WAL, or encryption into Java, Kotlin, Swift, Dart, JavaScript, Python, Go, or C++. Bindings call `Nuventra.NuvexaDB.Native` (`nuvexa.h`).
 - SQLite is allowed only in Tools (disposable explorer cache) and Benchmarks.
 - Encrypted open without a key must throw `NuvexaEncryptionException` (C ABI `NUVEXA_ENCRYPTION`).
+- On-disk format 1 is deprecated, not removed. `Create` and every write use format 2. Open / find still read format 1 (superblock, `n:` keys, WAL v1). Do not add a public API that writes format 1.
 - Never `dotnet nuget push` from a local clone. Do not publish Maven, npm, pub.dev, or the Swift package from this workspace. Everyday CI uploads GitHub Actions artifacts only. A GitHub Release is created only on a `v*` tag. nuget.org / GitHub Packages push is commented out in `.github/workflows/ci.yml`.
 - One product version: `Directory.Build.props` `<Version>` / `<PackageVersion>`. After a bump run `python3 .github/scripts/check-versions.py --repo-root . --write`. That covers .NET (inherit), Data Studio manifest, VS Code, Visual Studio, and every binding. Do not leave any of those on a different number.
 - Before every `git commit` in this repo, ask whether this commit should make a GitHub Release. Default is no. Tag `v*` only after an explicit Yes. Prefix the commit with `NUVEXA_RELEASE=no` or `NUVEXA_RELEASE=yes`.

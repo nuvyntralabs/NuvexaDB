@@ -21,6 +21,7 @@ export NUVEXA_NATIVE_DIR="$(pwd)/artifacts/native/osx-arm64"
 ### Create DB, collection, CRUD, queries
 
 ```swift
+// create writes format 2. Format 1 files still open.
 let db = try NuvexaDatabase.create("app.nvx", key: "sample-key")
 let id = try db.insert(collection: "users", json: #"{"name":"Ada","age":36,"status":"active","address":{"city":"London"}}"#)
 _ = try db.findById(collection: "users", id: id)

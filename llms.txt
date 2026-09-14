@@ -2,7 +2,7 @@
 
 - Product: Embedded NoSQL database
 - Package: Nuventra.NuvexaDB
-- File: .nvx (binary, optional AES-256-GCM)
+- File: .nvx (binary, optional AES-256-GCM). Writes are format 2; format 1 is deprecated and still readable.
 - Query: NQL db.collection.find({ }).sort().limit(); aggregate $match/$lookup/$count; LINQ Where on GetCollection<T>
 - Files: db.Files GridFS-style fs.files / fs.chunks
 - Platforms: net8.0 / net9.0 / net10.0; MAUI Android, iOS, Mac Catalyst, Windows

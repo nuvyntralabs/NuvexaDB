@@ -51,6 +51,7 @@ Kotlin:
 import nuventra.nuvexadb.NuvexaDatabase
 
 val path = "app.nvx"
+// create writes format 2. Format 1 files still open.
 NuvexaDatabase.create(path, key).use { db ->
     // work
 }
@@ -64,7 +65,7 @@ NuvexaDatabase.open(path, key).use { db ->
 }
 ```
 
-Java: `NuvexaDatabase.create(path, key)` and try-with-resources (`AutoCloseable`). Pass `null` for a plaintext file.
+Java: `NuvexaDatabase.create(path, key)` writes format 2 (try-with-resources, `AutoCloseable`). Pass `null` for a plaintext file. Format 1 files still open.
 
 ## 5. Delete the database
 

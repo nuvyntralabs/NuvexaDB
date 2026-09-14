@@ -48,6 +48,7 @@ Enable `flatDir` only if your AGP version requires it for `files(...)`.
 import nuventra.nuvexadb.NuvexaDatabase
 
 val path = File(filesDir, "app.nvx").absolutePath
+// create writes format 2. Format 1 files still open.
 NuvexaDatabase.create(path, key).use { db ->
     // work
 }

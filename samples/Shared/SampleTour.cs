@@ -31,6 +31,7 @@ public static class SampleTour
 
         await using (var db = NuvexaDatabase.Create(path, new NuvexaCreateOptions { EncryptionKey = EncryptionKey }))
         {
+            log.AppendLine($"Created format-{db.FormatVersion} database.");
             var users = db.GetCollection("users");
             log.AppendLine($"Created collection '{users.Name}'.");
 
@@ -82,6 +83,7 @@ public static class SampleTour
             await db.CheckpointAsync();
         }
 
+        log.AppendLine($"FormatVersion: 2 (format 1 deprecated, still readable)");
         log.AppendLine($"IsEncrypted: {NuvexaDatabase.IsEncrypted(path)}");
         try
         {

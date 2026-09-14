@@ -181,7 +181,7 @@ Compound indexes join field paths and value prefixes with U+001F (`EnsureIndexAs
 - String ranges
 - Compound equality on the indexed prefix
 
-On **format v2** files, numeric `$gte` / `$lte` use bounded IXSCAN (`d:` keys). **v1** files still walk the `n:` G17 index and apply the real compare. `explain()` reports `ID`, `IXSCAN`, `COLLSCAN`, `AGGREGATE`, `UPDATE`, or `DELETE`.
+**Creates and writes always use format 2.** Numeric `$gte` / `$lte` use bounded IXSCAN (`d:` keys). **Format 1 is deprecated** and stays readable: leftover `n:` G17 keys are still walked and compared. A write to a format-1 file promotes the superblock to 2; new index entries are `d:`. `explain()` reports `ID`, `IXSCAN`, `COLLSCAN`, `AGGREGATE`, `UPDATE`, or `DELETE`.
 
 Indexed `find` does not materialize the whole secondary index before `skip` / `limit`. Equality and string ranges use B+tree `lo` / `hi` (prefix inclusive, successor exclusive). Without `sort`, `skip` / `limit` apply while scanning. With `sort` on a non-index field, matches are collected then sorted.
 
@@ -243,7 +243,7 @@ A `.nvx` file is one portable embedded database. New files write format **2** (o
 | Item | Value |
 | --- | --- |
 | Magic (bytes 0–3) | `NVX1` |
-| Format version | `2` on new files; `1` accepted on open (uint16 LE at offset 4) |
+| Format version | `2` on every create / write; `1` deprecated, accepted on open (uint16 LE at offset 4) |
 | Physical page size | 8192 bytes |
 | Logical payload (after GCM) | 8164 bytes |
 | Page header | 40 bytes |
@@ -349,7 +349,7 @@ NuvexaDB is an embedded page store, not a client/server cluster. Performance is 
 | Point get by `_id` | Primary key |
 | Equality / string-range `find` + `limit` | **IXSCAN**, bounded prefix — stops after the limit |
 | Compound equality on an indexed prefix | **IXSCAN** |
-| Numeric range (`age >= 21`) | Walks the `n:` index, real compare — correct, not order-preserving |
+| Numeric range (`age >= 21`) | Format 2: bounded IXSCAN on `d:` keys. Deprecated format 1: walk leftover `n:` keys, real compare |
 | `find` + `sort` on a non-index field | Collect, then sort |
 | Aggregation / `$lookup` | In-memory after a collection scan; `$lookup` cap 100 000 foreign docs |
 

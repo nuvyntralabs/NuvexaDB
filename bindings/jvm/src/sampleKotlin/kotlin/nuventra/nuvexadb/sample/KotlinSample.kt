@@ -10,6 +10,7 @@ fun main(args: Array<String>) {
     Files.deleteIfExists(path)
     val key = "sample-key"
 
+    // create writes format 2
     NuvexaDatabase.create(path.toString(), key).use { db ->
         val adaId = db.insert(
             "users",

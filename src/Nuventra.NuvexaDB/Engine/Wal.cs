@@ -188,6 +188,7 @@ internal sealed class Wal : IDisposable
         var version = BinaryPrimitives.ReadUInt16LittleEndian(ver);
         if (version == 1)
         {
+            // Deprecated format-1 WAL. Still replayed. Truncate/new writes are format 2.
             _headerSize = Constants.WalHeaderV1Size;
             return;
         }

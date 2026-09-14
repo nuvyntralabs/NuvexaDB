@@ -43,6 +43,7 @@ Without that variable, `create` / `open` raise `NuvexaException`.
 from nuvexadb import NuvexaDatabase, NuvexaEncryptionException
 
 path = "app.nvx"
+# create writes format 2. Format 1 files still open.
 with NuvexaDatabase.create(path, key) as db:  # key=None for plaintext
     pass
 

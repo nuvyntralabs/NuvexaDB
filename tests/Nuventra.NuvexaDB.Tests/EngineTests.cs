@@ -527,19 +527,52 @@ public sealed class EngineTests : IDisposable
     }
 
     [Fact]
+    public void Create_AlwaysWritesFormat2_EvenIfDeprecatedOptionSet()
+    {
+        var path = DbPath("create-ignores-v1");
+#pragma warning disable CS0618
+        using var db = NuvexaDatabase.Create(path, new NuvexaCreateOptions { FormatVersion = 1 });
+#pragma warning restore CS0618
+        Assert.Equal((ushort)2, db.FormatVersion);
+    }
+
+    [Fact]
     public async Task FormatV1_NumericRange_StillMatches()
     {
         var path = DbPath("v1-num-walk");
-        using var db = NuvexaDatabase.Create(path, new NuvexaCreateOptions { FormatVersion = 1 });
+        using var db = NuvexaDatabase.CreateDeprecatedFormat1(path);
         var col = db.GetCollection("people");
         await col.InsertManyAsync(Enumerable.Range(0, 50).Select(i => NuvexaDocument.Parse($@"{{""age"":{i}}}")));
         await col.EnsureIndexAsync("age");
 
+        Assert.Equal((ushort)1, db.FormatVersion);
         var adults = await col.Find("""{ age: { $gte: 45 } }""").ToListAsync();
         Assert.Equal(5, adults.Count);
         var plan = await col.Find("""{ age: { $gte: 45 } }""").ExplainAsync();
         Assert.Equal("IXSCAN", plan.Strategy);
-        Assert.True(plan.Examined >= 50, $"v1 G17 keys walk the index, examined={plan.Examined}");
+        Assert.True(plan.Examined >= 50, $"v1 n: keys stay readable, examined={plan.Examined}");
+    }
+
+    [Fact]
+    public async Task FormatV1_WritePromotesToFormat2_AndKeepsLegacyRowsReadable()
+    {
+        var path = DbPath("v1-promote");
+        using (var seed = NuvexaDatabase.CreateDeprecatedFormat1(path))
+        {
+            var col = seed.GetCollection("people");
+            await col.InsertManyAsync(Enumerable.Range(0, 10).Select(i => NuvexaDocument.Parse($@"{{""age"":{i}}}")));
+            await col.EnsureIndexAsync("age");
+            await seed.CheckpointAsync();
+        }
+
+        using var db = NuvexaDatabase.Open(path);
+        Assert.Equal((ushort)1, db.FormatVersion);
+        var people = db.GetCollection("people");
+        await people.InsertAsync(NuvexaDocument.Parse("""{"age":99}"""));
+        Assert.Equal((ushort)2, db.FormatVersion);
+
+        var high = await people.Find("""{ age: { $gte: 9 } }""").ToListAsync();
+        Assert.Equal(2, high.Count);
     }
 
     [Fact]

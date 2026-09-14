@@ -4,6 +4,7 @@ import { NuvexaDatabase, NuvexaEncryptionException } from "../src/index.js";
 const path = process.argv[2] ?? "sample.nvx";
 await unlink(path).catch(() => {});
 
+// create writes format 2
 const db = await NuvexaDatabase.create(path, "sample-key");
 try {
   const adaId = await db.insert(

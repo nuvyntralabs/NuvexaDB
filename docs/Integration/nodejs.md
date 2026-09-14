@@ -44,6 +44,7 @@ $env:NUVEXA_NATIVE_LIB = "C:\path\to\nuvexa.dll"
 import { NuvexaDatabase } from "@nuventra/nuvexadb-node";
 
 const path = "app.nvx";
+// create writes format 2. Format 1 files still open.
 const db = await NuvexaDatabase.create(path, key); // omit key / pass null for plaintext
 await db.close();
 

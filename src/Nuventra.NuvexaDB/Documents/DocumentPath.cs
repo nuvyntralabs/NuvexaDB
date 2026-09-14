@@ -169,9 +169,17 @@ internal static class DocumentPath
         return dest;
     }
 
+    internal static bool IsNumeric(JsonElement value) =>
+        value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out _);
+
+    /// <summary>All deprecated format-1 numeric keys share this prefix.</summary>
+    internal static byte[] LegacyNumericScanPrefix() => "n:"u8.ToArray();
+
+    internal static byte[] LegacyNumericScanPrefixSuccessor() => Successor(LegacyNumericScanPrefix());
+
     /// <summary>
-    /// v1 numbers are <c>n:</c> + G17 text (not numeric-order-preserving).
-    /// v2 numbers are <c>d:</c> + 8 IEEE754 sortable bytes (lex order = numeric order).
+    /// v1 numbers are <c>n:</c> + G17 text (not numeric-order-preserving). Deprecated; still read.
+    /// Writes use v2: <c>d:</c> + 8 IEEE754 sortable bytes (lex order = numeric order).
     /// </summary>
     private static byte[] EncodeIndexValue(JsonElement value, ushort formatVersion)
     {

@@ -56,6 +56,7 @@ You can also `add_subdirectory` the unpacked C++ zip if you keep its `CMakeLists
 ```cpp
 #include "nuvexa.hpp"
 
+// create writes format 2. Format 1 files still open.
 auto db = nuvexa::database::create("app.nvx", key); // key "" → plaintext
 db.close();
 

@@ -26,6 +26,7 @@ Use the app files directory. First insert creates `users`.
 
 ```kotlin
 val path = filesDir.resolve("app.nvx").absolutePath
+// create writes format 2. Format 1 files still open.
 NuvexaDatabase.create(path, "sample-key").use { db ->
     val id = db.insert("users", """{"name":"Ada","age":36,"status":"active","address":{"city":"London"}}""")
     db.replace("users", """{"_id":"$id","name":"Ada Lovelace","age":36,"status":"active","address":{"city":"London"}}""")

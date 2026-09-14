@@ -24,6 +24,7 @@ export NUVEXA_NATIVE_DIR="$(pwd)/artifacts/native/osx-arm64"
 ### Create DB, collection, CRUD, queries
 
 ```cpp
+// create writes format 2. Format 1 files still open.
 auto db = nuvexa::database::create("app.nvx", "sample-key");
 auto id = db.insert("users", R"({"name":"Ada","age":36,"status":"active","address":{"city":"London"}})");
 db.replace("users", std::string(R"({"_id":")") + id + R"(","name":"Ada Lovelace","age":36,"status":"active","address":{"city":"London"}})");

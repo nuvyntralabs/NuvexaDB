@@ -1244,8 +1244,8 @@ public sealed partial class MainWindowViewModel : PageViewModel
         _suspendCollectionLoad = false;
 
         var stats = _session.Stats();
-        StatusText = $"{stats.Path}   records={stats.DocumentCount}   encrypted={stats.Encrypted}   {stats.FileBytes} bytes";
-        StructureDetail = $"{stats.Path}\nEncrypted: {stats.Encrypted}\nCollections: {stats.CollectionCount}\nDocuments: {stats.DocumentCount}\nSize: {stats.FileBytes} bytes\n\nA collection is a table. A document is a JSON row.";
+        StatusText = $"{stats.Path}   records={stats.DocumentCount}   encrypted={stats.Encrypted}   format={stats.FormatVersion}   {stats.FileBytes} bytes";
+        StructureDetail = $"{stats.Path}\nEncrypted: {stats.Encrypted}\nFormat: {stats.FormatVersion}\nCollections: {stats.CollectionCount}\nDocuments: {stats.DocumentCount}\nSize: {stats.FileBytes} bytes\n\nA collection is a table. A document is a JSON row.";
         NotifyCrudCommands();
         await LoadStructureAsync(SelectedCollection);
         if (SelectedTabIndex == 1 && SelectedCollection is not null && CollectionNames.Contains(SelectedCollection))

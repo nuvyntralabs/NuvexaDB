@@ -48,6 +48,7 @@ import nuvexa "github.com/nuvyntralabs/NuvexaDB/bindings/go"
 
 ```go
 path := "app.nvx"
+// Create writes format 2. Format 1 files still open.
 db, err := nuvexa.Create(path, key) // empty key → plaintext
 if err != nil {
     log.Fatal(err)

@@ -15,6 +15,7 @@ func main() {
 	}
 	_ = os.Remove(path)
 
+	// Create writes format 2
 	db, err := nuvexa.Create(path, "sample-key")
 	if err != nil {
 		panic(err)

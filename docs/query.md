@@ -37,6 +37,6 @@ db.orders.aggregate([{ $group: { _id: "$city", n: { $sum: 1 }, total: { $sum: "$
 
 `$lookup` fails if the foreign collection is larger than `NuvexaDatabase.LookupMaxDocuments` (default `NuvexaLimits.DefaultLookupMaxDocuments`). Set `0` for unlimited. `$group` accumulators: `$sum $min $max $avg $first`.
 
-Compound indexes: `EnsureIndexAsync(["city", "status"])`. Equality on the prefix (or all fields) can `IXSCAN`. Format v2 numeric ranges (`d:` keys) use bounded IXSCAN; v1 files still walk `n:` G17 keys.
+Compound indexes: `EnsureIndexAsync(["city", "status"])`. Equality on the prefix (or all fields) can `IXSCAN`. Writes use format-2 numeric keys (`d:`) so `$gte` / `$lte` can bounded IXSCAN. Format 1 is deprecated; leftover `n:` keys are still read.
 
 GridFS-style files: `db.Files.UploadAsync` / `DownloadAsync` store chunks in `fs.files` / `fs.chunks`.

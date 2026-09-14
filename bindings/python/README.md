@@ -25,6 +25,7 @@ from nuvexadb import NuvexaDatabase
 First `insert` / `insert_many` into `"users"` creates that collection.
 
 ```python
+# create writes format 2. Format 1 files still open.
 with NuvexaDatabase.create("app.nvx", "sample-key") as db:
     ada_id = db.insert("users", '{"name":"Ada","age":36,"status":"active","address":{"city":"London"}}')
     print(db.list_collections())

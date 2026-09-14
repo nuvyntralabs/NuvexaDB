@@ -22,6 +22,7 @@ Android: ship the CI AAR (`jni/arm64-v8a/libnuvexa.so`). iOS: `NuvexaDB.mm` / po
 ### Create DB, collection, CRUD, queries
 
 ```js
+// create writes format 2. Format 1 files still open.
 const db = await NuvexaDatabase.create("app.nvx", "sample-key");
 const id = await db.insert("users", JSON.stringify({ name: "Ada", age: 36, status: "active", address: { city: "London" } }));
 await db.replace("users", JSON.stringify({ _id: id, name: "Ada Lovelace", age: 36, status: "active", address: { city: "London" } }));

@@ -79,6 +79,7 @@ public sealed class ExplorerSession : IAsyncDisposable
             CachedPages = raw.CachedPages,
             CacheSizeMb = raw.CacheSizeMb,
             Encrypted = raw.Encrypted,
+            FormatVersion = raw.FormatVersion,
             CommittedLsn = raw.CommittedLsn,
             CompactNeeded = raw.CompactNeeded
         };

@@ -8,6 +8,12 @@ Desktop head (`net10.0-desktop`). WASM is not a target — the engine needs a re
 <PackageReference Include="Nuventra.NuvexaDB" Version="1.0.0" />
 ```
 
+```csharp
+// Create writes on-disk format 2. Format 1 files still open.
+await using var db = NuvexaDatabase.Create(path, new NuvexaCreateOptions { EncryptionKey = "sample-key" });
+// db.FormatVersion == 2
+```
+
 Same API as the Console sample. See [Console README](../Console/README.md).
 
 ```bash

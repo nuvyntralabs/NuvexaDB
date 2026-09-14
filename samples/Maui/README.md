@@ -16,7 +16,9 @@ This sample uses a `ProjectReference` to `src/Nuventra.NuvexaDB`.
 
 ```csharp
 var path = Path.Combine(FileSystem.AppDataDirectory, "cache.nvx");
+// Create writes on-disk format 2. Format 1 files still open.
 await using var db = NuvexaDatabase.Create(path, new NuvexaCreateOptions { EncryptionKey = "sample-key" });
+// db.FormatVersion == 2
 var users = db.GetCollection("users"); // created on first use
 ```
 

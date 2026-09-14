@@ -8,7 +8,13 @@ Unpackaged WinUI 3 (`net10.0-windows10.0.19041.0`). **Run integration tour** run
 <PackageReference Include="Nuventra.NuvexaDB" Version="1.0.0" />
 ```
 
-Same API as the Console sample: `NuvexaDatabase.Create`, `GetCollection`, `InsertAsync` / `ReplaceAsync` / `DeleteByIdAsync`, `ExecuteAsync`, `NuvexaFilter` fluent find. See [Console README](../Console/README.md).
+```csharp
+// Create writes on-disk format 2. Format 1 files still open.
+await using var db = NuvexaDatabase.Create(path, new NuvexaCreateOptions { EncryptionKey = "sample-key" });
+// db.FormatVersion == 2
+```
+
+Same API as the Console sample: `GetCollection`, `InsertAsync` / `ReplaceAsync` / `DeleteByIdAsync`, `ExecuteAsync`, `NuvexaFilter` fluent find. See [Console README](../Console/README.md).
 
 ```bash
 dotnet run --project samples/WinUI/WinUISample.sln -c Release

@@ -15,6 +15,7 @@ public final class JavaSample {
         Files.deleteIfExists(path);
         String key = "sample-key";
 
+        // create writes format 2
         try (NuvexaDatabase db = NuvexaDatabase.create(path.toString(), key)) {
             String adaId = db.insert(
                 "users",

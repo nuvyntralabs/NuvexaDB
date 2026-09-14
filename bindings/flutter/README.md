@@ -24,6 +24,7 @@ export NUVEXA_NATIVE_LIB="$(pwd)/artifacts/native/osx-arm64/libnuvexa.dylib"
 ### Create DB, collection, CRUD, queries
 
 ```dart
+// create writes format 2. Format 1 files still open.
 final db = NuvexaDatabase.create('app.nvx', key: 'sample-key');
 final id = db.insert('users', '{"name":"Ada","age":36,"status":"active","address":{"city":"London"}}');
 db.replace('users', '{"_id":"$id","name":"Ada Lovelace","age":36,"status":"active","address":{"city":"London"}}');

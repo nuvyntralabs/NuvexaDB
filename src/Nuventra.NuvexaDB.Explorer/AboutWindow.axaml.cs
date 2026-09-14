@@ -10,7 +10,7 @@ public partial class AboutWindow : Window
     {
         InitializeComponent();
         TitleText.Text = NuvexaAbout.Studio;
-        VersionText.Text = $"{NuvexaAbout.Product} {NuvexaAbout.ProductVersion}   ·   .nvx format {NuvexaAbout.FormatVersion}   ·   {NuvexaAbout.License}";
+        VersionText.Text = $"{NuvexaAbout.Product} {NuvexaAbout.ProductVersion}   ·   .nvx format {NuvexaAbout.FormatVersion} (format 1 deprecated, still readable)   ·   {NuvexaAbout.License}";
         SummaryText.Text = NuvexaAbout.Summary;
         AboutText.Text = NuvexaAbout.AboutUs;
         AuthorText.Text = $"Author: {NuvexaAbout.Author}";

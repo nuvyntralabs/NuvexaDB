@@ -26,6 +26,7 @@ export LD_LIBRARY_PATH="$NUVEXA_NATIVE_DIR"
 ### Create DB, collection, CRUD, queries
 
 ```go
+// Create writes format 2. Format 1 files still open.
 db, err := nuvexa.Create("app.nvx", "sample-key")
 adaID, err := db.Insert("users", `{"name":"Ada","age":36,"status":"active","address":{"city":"London"}}`)
 _, err = db.FindByID("users", adaID)

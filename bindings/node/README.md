@@ -23,6 +23,7 @@ import { NuvexaDatabase } from "@nuventra/nuvexadb-node";
 ### Create the database and a collection
 
 ```js
+// create writes format 2. Format 1 files still open.
 const db = await NuvexaDatabase.create("app.nvx", "sample-key");
 const adaId = await db.insert("users", JSON.stringify({ name: "Ada", age: 36, status: "active", address: { city: "London" } }));
 console.log(await db.listCollections());

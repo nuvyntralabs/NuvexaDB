@@ -126,7 +126,7 @@ ABI **v2** adds catalog, count, stats, backup / compact / restore, rekey, transa
 
 | Concern | Shared by |
 | --- | --- |
-| On-disk format v2 (v1 files stay readable; numeric `d:` keys; WAL v2 header) | Every host |
+| On-disk format v2 writes (format 1 deprecated, still readable; numeric `d:` keys; WAL v2 header) | Every host |
 | Encryption (Argon2id KEK, AES-256-GCM DEK, HMAC) | Every host |
 | NQL text and operators | `ExecuteAsync` / `nuvexa_execute` |
 | Exclusive lock, one writer, concurrent reads | Engine handle |

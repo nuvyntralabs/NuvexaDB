@@ -12,6 +12,7 @@ class MainActivity : AppCompatActivity() {
         val path = filesDir.resolve("app.nvx").absolutePath
         filesDir.resolve("app.nvx").delete()
         val log = StringBuilder()
+        // create writes format 2
         NuvexaDatabase.create(path, "sample-key").use { db ->
             val adaId = db.insert(
                 "users",

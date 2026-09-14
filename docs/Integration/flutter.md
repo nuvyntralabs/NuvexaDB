@@ -52,6 +52,7 @@ flutter pub get
 import 'package:nuvexadb/nuvexadb.dart';
 
 final path = 'app.nvx';
+// create writes format 2. Format 1 files still open.
 final db = NuvexaDatabase.create(path, key: key);
 // ...
 db.close();

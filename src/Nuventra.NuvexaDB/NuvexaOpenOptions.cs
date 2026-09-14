@@ -53,9 +53,10 @@ public sealed class NuvexaCreateOptions
     public int CheckpointThreshold { get; set; } = 64;
 
     /// <summary>
-    /// On-disk format for a new file. Default is 2 (order-preserving numeric index keys, WAL v2 header).
-    /// Set 1 only to reproduce a legacy file.
+    /// Obsolete. <see cref="NuvexaDatabase.Create"/> always writes format 2.
+    /// Format 1 files stay readable; this property is ignored.
     /// </summary>
+    [Obsolete("Format 1 is deprecated. Create always writes format 2. Existing format 1 files stay readable.")]
     public ushort FormatVersion { get; set; } = 2;
 
     /// <summary>64 MiB Argon2id memory for desktop Explorer / CLI creates. Existing files keep their stored KDF parameters.</summary>
@@ -78,6 +79,8 @@ public sealed class NuvexaStats
     public int CachedPages { get; init; }
     public int CacheSizeMb { get; init; }
     public bool Encrypted { get; init; }
+    /// <summary>On-disk format of the open file (1 deprecated / readable, 2 current).</summary>
+    public ushort FormatVersion { get; init; }
     public long CommittedLsn { get; init; }
     public bool CompactNeeded { get; init; }
 }

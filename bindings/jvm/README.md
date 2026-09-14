@@ -27,6 +27,7 @@ export NUVEXA_NATIVE_LIB="$(pwd)/artifacts/native/osx-arm64/libnuvexa.dylib"
 The first `insert` / `insertMany` into `"users"` creates that collection.
 
 ```kotlin
+// create writes format 2. Format 1 files still open.
 NuvexaDatabase.create("app.nvx", "sample-key").use { db ->
     db.insert("users", """{"name":"Ada","age":36,"status":"active","address":{"city":"London"}}""")
     println(db.listCollections())

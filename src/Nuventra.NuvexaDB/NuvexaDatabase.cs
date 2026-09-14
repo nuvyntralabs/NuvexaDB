@@ -20,14 +20,16 @@ public sealed class NuvexaDatabase : IDisposable, IAsyncDisposable
     private string? _encryptionKey;
     private bool _disposed;
     private NuvexaTransaction? _currentTx;
+    private readonly bool _legacyFormat1Write;
 
     internal PageStore Store { get; }
 
-    private NuvexaDatabase(PageStore store, int cacheSizeMb, string? encryptionKey)
+    private NuvexaDatabase(PageStore store, int cacheSizeMb, string? encryptionKey, bool legacyFormat1Write = false)
     {
         Store = store;
         _cacheSizeMb = cacheSizeMb;
         _encryptionKey = encryptionKey;
+        _legacyFormat1Write = legacyFormat1Write;
         _collections = Catalog.Load(store);
         foreach (var meta in _collections)
         {
@@ -41,6 +43,9 @@ public sealed class NuvexaDatabase : IDisposable, IAsyncDisposable
 
     public string Path => Store.Path;
     public bool Encrypted => Store.Encrypted;
+    /// <summary>On-disk format of this file. New writes always use format 2. Format 1 is deprecated and still readable.</summary>
+    public ushort FormatVersion => Store.Superblock.Version;
+    internal ushort WriteFormatVersion => _legacyFormat1Write ? Constants.MinFormatVersion : Constants.FormatVersion;
     public NuvexaGridFs Files => new(this);
 
     /// <summary>
@@ -69,7 +74,18 @@ public sealed class NuvexaDatabase : IDisposable, IAsyncDisposable
         }
     }
 
-    public static NuvexaDatabase Create(string path, NuvexaCreateOptions? options = null)
+    /// <summary>Creates a new format-2 <c>.nvx</c> file. Format 1 is deprecated and is never written.</summary>
+    public static NuvexaDatabase Create(string path, NuvexaCreateOptions? options = null) =>
+        CreateCore(path, options, Constants.FormatVersion, legacyFormat1Write: false);
+
+    /// <summary>
+    /// Builds a format-1 file so the deprecated format stays testable. Production
+    /// <see cref="Create"/> always writes format 2.
+    /// </summary>
+    internal static NuvexaDatabase CreateDeprecatedFormat1(string path, NuvexaCreateOptions? options = null) =>
+        CreateCore(path, options, Constants.MinFormatVersion, legacyFormat1Write: true);
+
+    private static NuvexaDatabase CreateCore(string path, NuvexaCreateOptions? options, ushort formatVersion, bool legacyFormat1Write)
     {
         options ??= new NuvexaCreateOptions();
         Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path)) ?? ".");
@@ -78,14 +94,9 @@ public sealed class NuvexaDatabase : IDisposable, IAsyncDisposable
             throw new NuvexaException($"A file already exists at '{path}'.");
         }
 
-        if (options.FormatVersion < Constants.MinFormatVersion || options.FormatVersion > Constants.FormatVersion)
-        {
-            throw new NuvexaException($"Unsupported .nvx format version {options.FormatVersion}.");
-        }
-
         var super = new Superblock
         {
-            Version = options.FormatVersion,
+            Version = formatVersion,
             FileId = RandomNumberGenerator.GetBytes(16),
             KdfMemoryKb = options.Argon2MemoryKb,
             KdfIterations = options.Argon2Iterations,
@@ -103,7 +114,7 @@ public sealed class NuvexaDatabase : IDisposable, IAsyncDisposable
         }
 
         var store = OpenStore(path, super, dek, options.CacheSizeMb, readOnly: false, options.CheckpointThreshold, create: true);
-        return new NuvexaDatabase(store, options.CacheSizeMb, options.EncryptionKey);
+        return new NuvexaDatabase(store, options.CacheSizeMb, options.EncryptionKey, legacyFormat1Write);
     }
 
     public static NuvexaDatabase Open(string path, NuvexaOpenOptions? options = null)
@@ -510,6 +521,7 @@ public sealed class NuvexaDatabase : IDisposable, IAsyncDisposable
             CachedPages = Store.Cache.Count,
             CacheSizeMb = _cacheSizeMb,
             Encrypted = Encrypted,
+            FormatVersion = Store.Superblock.Version,
             CommittedLsn = Store.Superblock.CommittedLsn,
             CompactNeeded = Store.Superblock.CompactNeeded
         };
@@ -556,6 +568,7 @@ public sealed class NuvexaDatabase : IDisposable, IAsyncDisposable
         {
             ThrowIfDisposed();
             await DrainReadersAsync().ConfigureAwait(false);
+            PromoteToCurrentFormat();
             var result = action();
             if (_currentTx is null)
             {
@@ -584,6 +597,17 @@ public sealed class NuvexaDatabase : IDisposable, IAsyncDisposable
         {
             Interlocked.Decrement(ref _readers);
         }
+    }
+
+    private void PromoteToCurrentFormat()
+    {
+        if (_legacyFormat1Write || Store.Superblock.Version >= Constants.FormatVersion)
+        {
+            return;
+        }
+
+        Store.Superblock.Version = Constants.FormatVersion;
+        Store.FlushSuperblock();
     }
 
     internal void CommitDirty()

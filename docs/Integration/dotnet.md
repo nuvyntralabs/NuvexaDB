@@ -47,12 +47,13 @@ using Nuventra.NuvexaDB;
 
 var path = Path.Combine(AppContext.BaseDirectory, "app.nvx");
 
+// Create writes on-disk format 2. Format 1 files still open.
 await using (var db = NuvexaDatabase.Create(path, new NuvexaCreateOptions
 {
     EncryptionKey = key // omit or null for a plaintext file
 }))
 {
-    // work
+    // db.FormatVersion == 2
 }
 
 if (NuvexaDatabase.IsEncrypted(path) && string.IsNullOrEmpty(key))

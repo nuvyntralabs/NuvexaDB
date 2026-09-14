@@ -1,6 +1,6 @@
 namespace Nuventra.NuvexaDB;
 
-/// <summary>Documented engine limits. Changing these does not change on-disk format version 1.</summary>
+/// <summary>Documented engine limits. Changing these does not change on-disk format version 2.</summary>
 public static class NuvexaLimits
 {
     /// <summary>Maximum stored document payload (BSON or legacy JSON).</summary>

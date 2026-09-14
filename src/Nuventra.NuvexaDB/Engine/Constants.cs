@@ -14,8 +14,9 @@ internal static class Constants
     public const int MaxDocumentBytes = 16 * 1024 * 1024;
     public const int MaxKeyBytes = 1024;
     public const int MaxCollectionName = 120;
-    /// <summary>On-disk format written by this build. v1 files stay readable.</summary>
+    /// <summary>On-disk format written by this build. Format 1 is deprecated and read-only.</summary>
     public const ushort FormatVersion = 2;
+    /// <summary>Oldest format still accepted on open. Do not write this version.</summary>
     public const ushort MinFormatVersion = 1;
     public const int WalHeaderV1Size = 22;
     public const int WalHeaderV2Size = 32;

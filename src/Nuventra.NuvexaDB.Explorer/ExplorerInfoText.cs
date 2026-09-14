@@ -8,6 +8,7 @@ public static class ExplorerInfoText
         $"""
         Path: {stats.Path}
         Encrypted: {stats.Encrypted}
+        Format: {stats.FormatVersion}{(stats.FormatVersion == 1 ? " (deprecated, still readable)" : "")}
         Collections: {stats.CollectionCount}
         Documents: {stats.DocumentCount}
         File size: {stats.FileBytes} bytes

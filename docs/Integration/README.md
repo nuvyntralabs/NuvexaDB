@@ -47,7 +47,7 @@ Set `NUVEXA_NATIVE_LIB` to the **full path** of that library file (Python, Node,
 1. Which Release zip and inner file to download  
 2. An empty project  
 3. Adding the downloaded package  
-4. Create / open / close a `.nvx`  
+4. Create / open / close a `.nvx` — **`create` always writes format 2** (format 1 is deprecated and still opens)
 5. Deleting the database file  
 6. Collection create / list / rename / drop  
 7. Document insert / read / replace / delete  

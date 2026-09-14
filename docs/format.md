@@ -1,13 +1,13 @@
 # NuvexaDB file format (version 2)
 
-A `.nvx` file is one portable embedded database. New files write format **2**. Format **1** files stay readable. Language bindings must not reimplement this format. They call the Native AOT C ABI, which uses the same managed engine as `Nuventra.NuvexaDB`.
+A `.nvx` file is one portable embedded database. **Creates and writes always use format 2.** Format **1** is deprecated: the engine still **reads** it (and leftover `n:` index keys / WAL v1 headers). Do not write format 1. Language bindings must not reimplement this format. They call the Native AOT C ABI, which uses the same managed engine as `Nuventra.NuvexaDB`.
 
 ## Layout
 
 | Item | Value |
 | --- | --- |
 | Magic (bytes 0–3) | `NVX1` |
-| Format version | `2` on create; `1` accepted on open (uint16 LE at offset 4) |
+| Format version | `2` on every create / write; `1` deprecated, accepted on open (uint16 LE at offset 4) |
 | Physical page size | 8192 bytes |
 | Logical payload (after AES-GCM overhead) | 8164 bytes (`8192 - 12 nonce - 16 tag`) |
 | Page header | 40 bytes |
@@ -82,7 +82,7 @@ Keys are type prefix plus NUL plus document id:
 | `z:` | null |
 | `j:` | other JSON |
 
-Compound indexes join field paths and value prefixes with U+001F. Equality, string ranges, and **v2 numeric ranges** can IXSCAN with lo/hi bounds. v1 numeric ranges still walk the `n:` index and apply the real compare.
+Compound indexes join field paths and value prefixes with U+001F. Equality, string ranges, and **format-2 numeric ranges** can IXSCAN with lo/hi bounds. Deprecated format-1 `n:` keys are still read (walk that prefix and apply the real compare). New numeric index entries are always `d:`.
 
 ## WAL (`*.nvx-wal`)
 

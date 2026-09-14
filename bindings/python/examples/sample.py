@@ -10,6 +10,7 @@ from nuvexadb import NuvexaDatabase, NuvexaEncryptionException
 def main() -> None:
     path = sys.argv[1] if len(sys.argv) > 1 else "sample.nvx"
     Path(path).unlink(missing_ok=True)
+    # create writes format 2
     with NuvexaDatabase.create(path, "sample-key") as db:
         ada_id = db.insert(
             "users",

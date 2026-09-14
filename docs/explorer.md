@@ -18,11 +18,11 @@ File menu: New / Open / **Open Recent** / Close, Import/Export JSON or CSV, Expo
 
 ## File and session
 
-- Create or open a `.nvx`. Encrypted files prompt for the key; a wrong key does not open the file (`NuvexaEncryptionException`).
+- Create or open a `.nvx`. **New files and writes are format 2.** Format 1 is deprecated and still opens (read, then a write promotes the file to format 2). Encrypted files prompt for the key; a wrong key does not open the file (`NuvexaEncryptionException`).
 - Optional encryption on create (empty key = plaintext).
 - **Open Recent** remembers the last 12 full paths only. The passphrase is never written to that list (`~/Library/Application Support/NuvexaDB/explorer-recent-files.json` on macOS; equivalent Application Data folder on Windows / Linux).
 - Missing recent paths are dropped when the user picks them.
-- Status bar shows path, user-visible document count (schema collection excluded), encrypted flag, and file size.
+- Status bar shows path, user-visible document count (schema collection excluded), encrypted flag, format version, and file size.
 - Compact rewrites the file in batches (encryption is preserved) and keeps the session open. Change key re-wraps the DEK; pages are not rewritten. A second process cannot open the same `.nvx` while Explorer holds it.
 
 ## Database Structure

@@ -44,7 +44,7 @@ public static class NuvexaAbout
     public static string PlainText(string surface) =>
         $"""
         {Headline(surface)}
-        {Product} {ProductVersion}   ·   .nvx format {FormatVersion}   ·   {License}
+        {Product} {ProductVersion}   ·   .nvx format {FormatVersion} (format 1 deprecated, still readable)   ·   {License}
 
         {Summary}
 

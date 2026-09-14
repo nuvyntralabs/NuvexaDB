@@ -45,6 +45,7 @@ export NUVEXA_NATIVE_LIB="/absolute/path/to/libnuvexa.dylib"
 import { NuvexaDatabase } from "@nuventra/nuvexadb";
 
 const path = "app.nvx";
+// create writes format 2. Format 1 files still open.
 const db = await NuvexaDatabase.create(path, key);
 await db.close();
 

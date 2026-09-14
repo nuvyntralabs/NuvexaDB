@@ -107,7 +107,7 @@ public partial class MainPage : ContentPage
 
         return File.Exists(DbPath)
             ? NuvexaDatabase.Open(DbPath, new NuvexaOpenOptions { EncryptionKey = key })
-            : NuvexaDatabase.Create(DbPath, new NuvexaCreateOptions { EncryptionKey = key });
+            : NuvexaDatabase.Create(DbPath, new NuvexaCreateOptions { EncryptionKey = key }); // format 2
     }
 
     private sealed class Person
