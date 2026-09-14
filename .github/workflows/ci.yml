@@ -145,17 +145,63 @@ jobs:
         if: matrix.rid == 'win-arm64'
         shell: bash
         run: |
-          # Native AOT DLLs link with GNU ld, not MSVC link.exe (LNK1107 / LNK2019).
-          # windows-11-arm ships Git clangarm64 (aarch64-w64-windows-gnu).
-          clangarm64="/c/Program Files/Git/clangarm64/bin"
-          if [[ -x "$clangarm64/clang.exe" ]]; then
-            echo "$clangarm64" >> "$GITHUB_PATH"
-            "$clangarm64/clang.exe" -dumpmachine
-          else
-            echo "Git clangarm64 is missing; ABI host tests cannot link nuvexa.dll" >&2
-            ls -la "/c/Program Files/Git" >&2 || true
-            exit 1
+          set -euo pipefail
+          # Native AOT DLLs link with GNU ld, not MSVC (LNK1107 / LNK2019).
+          # Git\clangarm64 is Git's ARM64 runtime prefix — it is not a C compiler.
+          # windows-11-arm ships MSYS2 at C:\msys64 (not on PATH). CLANGARM64
+          # gcc/clang dump aarch64-w64-windows-gnu, same class as win-x64 MinGW.
+          is_gnu_arm() {
+            local c="$1" dump
+            [[ -x "$c" ]] || return 1
+            dump="$("$c" -dumpmachine 2>/dev/null || true)"
+            echo "$dump" | grep -qiE 'aarch64|arm64' || return 1
+            echo "$dump" | grep -qiE 'x86_64|i686' && return 1
+            echo "$dump" | grep -qiE 'mingw|windows-gnu' || return 1
+            printf '%s' "$dump"
+          }
+          use_cc() {
+            local c="$1" dump
+            dump="$(is_gnu_arm "$c")" || return 1
+            if command -v cygpath >/dev/null 2>&1; then
+              echo "$(cygpath -w "$(dirname "$c")")" >> "$GITHUB_PATH"
+            else
+              echo "$(dirname "$c")" >> "$GITHUB_PATH"
+            fi
+            echo "ABI GNU cc=$c dump=$dump"
+          }
+          if use_cc "/c/msys64/clangarm64/bin/gcc.exe" \
+            || use_cc "/c/msys64/clangarm64/bin/clang.exe" \
+            || use_cc "/c/Program Files/Git/clangarm64/bin/clang.exe"; then
+            exit 0
           fi
+          if [[ -x /c/msys64/usr/bin/pacman.exe ]]; then
+            echo "Installing MSYS2 CLANGARM64 clang (C:\\msys64 present, no aarch64 GNU cc)"
+            /c/msys64/usr/bin/pacman.exe -S --noconfirm --needed \
+              mingw-w64-clang-aarch64-clang mingw-w64-clang-aarch64-gcc
+            if use_cc "/c/msys64/clangarm64/bin/gcc.exe" \
+              || use_cc "/c/msys64/clangarm64/bin/clang.exe"; then
+              exit 0
+            fi
+          fi
+          ver=20260908
+          zip="llvm-mingw-${ver}-ucrt-aarch64.zip"
+          dest="${RUNNER_TEMP}/llvm-mingw"
+          echo "Downloading $zip"
+          curl -fsSL -o "${RUNNER_TEMP}/${zip}" \
+            "https://github.com/mstorsjo/llvm-mingw/releases/download/${ver}/${zip}"
+          rm -rf "$dest"
+          mkdir -p "$dest"
+          7z x "${RUNNER_TEMP}/${zip}" "-o${dest}"
+          shopt -s nullglob
+          for cc in "$dest"/llvm-mingw-*-ucrt-aarch64/bin/clang.exe; do
+            if use_cc "$cc"; then
+              exit 0
+            fi
+          done
+          echo "No aarch64 GNU toolchain (MSYS2 CLANGARM64 or llvm-mingw)." >&2
+          ls -la /c/msys64/clangarm64/bin >&2 || true
+          ls -la "/c/Program Files/Git/clangarm64/bin" >&2 || true
+          exit 1
       - name: Publish C ABI
         shell: bash
         run: |

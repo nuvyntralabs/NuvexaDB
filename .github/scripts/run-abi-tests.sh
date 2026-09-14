@@ -172,16 +172,20 @@ dll_is_arm64() {
   [[ "$native_dir" == *win-arm64* ]]
 }
 
-# GNU ld (MinGW gcc or Git clangarm64) can consume a Native AOT DLL as an
-# input file. MSVC link.exe cannot (LNK1107 on the DLL; LNK2019 on a
-# lib /def import library — those thunks do not match AOT export slots).
+# GNU ld (MinGW / MSYS2 CLANGARM64 / llvm-mingw) can consume a Native AOT
+# DLL as an input file. MSVC link.exe cannot (LNK1107 on the DLL; LNK2019
+# on a lib /def import library — those thunks do not match AOT export slots).
+# Git\clangarm64 is Git's ARM64 runtime, not a compiler — do not treat it
+# as a toolchain unless clang.exe is actually there.
 direct_dll_cc() {
   local want_arm="${1:-0}"
   local candidate dump
   local -a candidates=(
+    "/c/msys64/clangarm64/bin/gcc.exe"
+    "/c/msys64/clangarm64/bin/clang.exe"
     "$(command -v clang || true)"
-    "/c/Program Files/Git/clangarm64/bin/clang.exe"
     "$(command -v gcc || true)"
+    "/c/Program Files/Git/clangarm64/bin/clang.exe"
     /c/mingw64/bin/gcc
     /mingw64/bin/gcc
   )
@@ -192,6 +196,7 @@ direct_dll_cc() {
     if [[ "$want_arm" -eq 1 ]]; then
       echo "$dump" | grep -qiE 'aarch64|arm64' || continue
       echo "$dump" | grep -qiE 'x86_64|i686' && continue
+      echo "$dump" | grep -qiE 'mingw|windows-gnu' || continue
       printf '%s\n' "$candidate"
       return 0
     fi
@@ -328,7 +333,7 @@ windows_link_and_run() {
   if cc="$(direct_dll_cc "$want_arm")"; then
     link_with_direct_dll "$cc" "$dll" "$out"
   elif [[ "$want_arm" -eq 1 ]]; then
-    echo "win-arm64 requires an aarch64 GNU toolchain (Git clangarm64)." >&2
+    echo "win-arm64 requires an aarch64 GNU toolchain (MSYS2 CLANGARM64 or llvm-mingw)." >&2
     echo "MSVC link.exe cannot consume a Native AOT DLL (LNK1107), and a" >&2
     echo "lib /def import library does not resolve nuvexa_* (LNK2019)." >&2
     exit 1
