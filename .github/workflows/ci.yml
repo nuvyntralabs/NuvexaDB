@@ -245,6 +245,9 @@ jobs:
           java-version: 17
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # Default "tools platform-tools" fails: Google removed the obsolete SDK Tools package.
+          packages: platform-tools
       - name: Android NDK
         run: |
           set -euo pipefail
@@ -714,6 +717,9 @@ jobs:
           add-job-summary: never
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # Default "tools platform-tools" fails: Google removed the obsolete SDK Tools package.
+          packages: platform-tools
       - name: Android platform
         run: |
           set -euo pipefail
@@ -779,6 +785,9 @@ jobs:
           add-job-summary: never
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # Default "tools platform-tools" fails: Google removed the obsolete SDK Tools package.
+          packages: platform-tools
       - name: Android platform
         run: |
           set -euo pipefail
