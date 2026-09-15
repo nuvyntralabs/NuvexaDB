@@ -15,7 +15,7 @@ Commands:
 - Click the **NuvexaDB** cylinder icon in the left Activity Bar
 - `NuvexaDB: Open Database` / `NuvexaDB: Close Database` / `NuvexaDB: About`
 - New files and writes are format 2. Format 1 is deprecated and still opens.
-- Open a `.nvx` file (custom editor)
+- Open a `.nvx` file (custom editor). Encrypted files prompt for the key (password box, up to 3 attempts).
 
 Build (extension tests only; does not publish `nuvexa`):
 

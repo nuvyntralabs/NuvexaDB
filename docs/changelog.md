@@ -2,6 +2,10 @@
 
 Working-tree notes for unreleased work. Publishing still happens only through CI.
 
+## 1.0.6 — 15 September 2026
+
+VS Code: prompt for the encryption key when `nuvexa info` reports a locked file. Pretty-printed CLI JSON (`"encrypted": true`) no longer skips the password box. Exit code 2 on `tree` / `query` is an error, not an empty successful open. Wrong keys can be retried (3 attempts), matching Visual Studio.
+
 ## 1.0.5 — 14 September 2026
 
 **Creates and writes always use format 2** (order-preserving numeric `d:` keys, WAL v2 header). **Format 1 is deprecated**, not removed: open / find still read format-1 superblocks, `n:` index keys, and WAL v1 headers. `NuvexaCreateOptions.FormatVersion` is obsolete and ignored. A write on a format-1 file promotes the superblock to 2; new index entries are `d:`. `CompactAsync` rewrites as format 2.

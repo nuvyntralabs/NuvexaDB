@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
+
+const require = createRequire(import.meta.url);
 
 const root = dirname(fileURLToPath(new URL(".", import.meta.url)));
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
@@ -55,4 +58,24 @@ test("TypeScript compile output", () => {
 test("VSIX bundles nuvexa instead of a global tool", () => {
   assert.match(source, /join\(extensionRoot, "cli"/);
   assert.doesNotMatch(source, /dotnet tool install/);
+});
+
+test("encrypted open prompts instead of matching compact JSON", () => {
+  assert.match(source, /isEncryptedLockResponse/);
+  assert.match(source, /showInputBox/);
+  assert.doesNotMatch(source, /"encrypted":true/);
+  assert.match(source, /args\[0\] === "info"/);
+});
+
+test("pretty-printed CLI lock JSON is treated as encrypted", () => {
+  const { isEncryptedLockResponse, cliErrorMessage } = require("../out/cliJson.js");
+  const peek = `{
+  "encrypted": true,
+  "error": "encrypted"
+}`;
+  assert.equal(isEncryptedLockResponse(peek), true);
+  assert.equal(isEncryptedLockResponse('{"encrypted":true,"error":"encrypted"}'), true);
+  assert.equal(isEncryptedLockResponse('{"Encrypted":false,"Path":"/tmp/a.nvx"}'), false);
+  assert.equal(isEncryptedLockResponse('{"encrypted":true}'), false);
+  assert.equal(cliErrorMessage(peek), "encrypted");
 });

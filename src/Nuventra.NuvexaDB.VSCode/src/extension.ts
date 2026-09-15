@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { spawn } from "child_process";
 import { existsSync } from "fs";
 import { dirname, join } from "path";
+import { cliErrorMessage, isEncryptedLockResponse } from "./cliJson";
 
 const keys = new Map<string, string>();
 let extensionRoot = "";
@@ -252,19 +253,32 @@ async function ensureKey(path: string): Promise<string | undefined> {
   if (keys.has(path)) {
     return keys.get(path);
   }
+
   const info = await runNuvexa(["info", path]);
-  if (info.includes('"encrypted":true') && (info.includes("error") || info.includes("Encryption"))) {
+  if (!isEncryptedLockResponse(info)) {
+    return undefined;
+  }
+
+  for (let attempt = 0; attempt < 3; attempt++) {
     const key = await vscode.window.showInputBox({
-      prompt: "This .nvx file is encrypted. Enter the encryption key.",
+      prompt:
+        attempt === 0
+          ? "This .nvx file is encrypted. Enter the encryption key."
+          : "Incorrect key. Enter the encryption key.",
       password: true
     });
     if (!key) {
       return "cancelled";
     }
-    keys.set(path, key);
-    return key;
+
+    const check = await runNuvexa(["info", path], key);
+    if (!isEncryptedLockResponse(check)) {
+      keys.set(path, key);
+      return key;
+    }
   }
-  return undefined;
+
+  return "cancelled";
 }
 
 function parseTree(json: string): TreeNode[] {
@@ -464,7 +478,7 @@ function page(): string {
       <section id="about" class="panel">
         <div class="about">
           <h1>Nuvexa Data Studio</h1>
-          <div class="hint">NuvexaDB 1.0.5 · .nvx format 2 (format 1 deprecated, still readable) · MIT</div>
+          <div class="hint">NuvexaDB 1.0.6 · .nvx format 2 (format 1 deprecated, still readable) · MIT</div>
           <p>Embedded NoSQL database for .NET and .NET MAUI. One portable .nvx file, BSON pages, optional AES-256-GCM, and NQL (Nuvexa Query Language).</p>
           <p class="hint">NuvexaDB is built by Niladri Prasad Padhy (Nuventra) and published with the MauiEssentials catalog under Nuvyntra Labs. Browse cells are editable. NQL find / aggregate / update / delete use the nuvexa CLI bundled in this VSIX.</p>
           <p>Author: Niladri Prasad Padhy / Nuventra<br />Organization: Nuvyntra Labs</p>
@@ -869,15 +883,7 @@ function page(): string {
 }
 
 function readCliError(out: string): string {
-  try {
-    const parsed = JSON.parse(out) as { error?: string };
-    if (parsed && typeof parsed.error === "string" && parsed.error) {
-      return parsed.error;
-    }
-  } catch {
-    /* not JSON */
-  }
-  return out.trim();
+  return cliErrorMessage(out);
 }
 
 function resolveNuvexa(): { command: string; cwd?: string } {
@@ -901,11 +907,17 @@ function runNuvexa(args: string[], key?: string): Promise<string> {
     child.stdout.on("data", (c) => (out += c.toString()));
     child.stderr.on("data", (c) => (err += c.toString()));
     child.on("close", (code) => {
-      if (code === 0 || code === 2) {
-        resolve(out || err);
-      } else {
-        reject(new Error(readCliError(out) || err || `nuvexa exited ${code}`));
+      const text = out || err;
+      if (code === 0) {
+        resolve(text);
+        return;
       }
+      // info peek: encrypted file without a key exits 2 with JSON (not a crash).
+      if (code === 2 && args[0] === "info") {
+        resolve(text);
+        return;
+      }
+      reject(new Error(readCliError(text) || `nuvexa exited ${code}`));
     });
     child.on("error", (e) =>
       reject(
