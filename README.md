@@ -3,7 +3,7 @@
 Embedded NoSQL database for **.NET** and **.NET MAUI**, with a Native AOT C ABI for **Java**, **Kotlin**, **Swift**, **Flutter**, **React Native**, **Python**, **Node.js**, **Go**, and **C++**. One portable binary **`.nvx`** file (BSON documents on data pages, AES-256-GCM encryption), and a desktop explorer for Windows, macOS, and Linux.
 
 **Package:** `Nuventra.NuvexaDB`  
-**Version:** 1.0.6  
+**Version:** 1.0.7  
 **Author:** Niladri Prasad Padhy / Nuventra  
 **License:** MIT  
 **Site:** [nuvyntralabs.github.io/nuvexadb](https://nuvyntralabs.github.io/nuvexadb/) — full documentation and integration guide  
@@ -17,21 +17,29 @@ NuvexaDB is a standalone **embedded NoSQL** engine: collections, **NQL** (Nuvexa
 
 ```bash
 dotnet add package Nuventra.NuvexaDB
+dotnet tool install -g Nuventra.NuvexaDB.Cli
 ```
 
-Do not publish this package from a local clone. CI on `main` and PRs **runs all C# tests first**, then builds and uploads GitHub artifacts (nupkg + snupkg, native ABI, Explorer installers, VS Code / Visual Studio VSIX, and language SDK packs). Coverage / test-result zips are not uploaded. Those everyday runs **do not** create or update [Releases](https://github.com/nuvyntralabs/NuvexaDB/releases). nuget.org, GitHub Packages, and the version / NuGet validation jobs are commented out until multi-host publishing (.NET, Maven, npm, …) is decided. Uncomment those steps in `NuvexaDB/.github/workflows/ci.yml` to restore them.
+`Nuventra.NuvexaDB` is the engine library. `Nuventra.NuvexaDB.Cli` is the standalone `nuvexa` tool (browse / NQL / backup). Do not `dotnet add package` the CLI into an app. The VS Code and Visual Studio VSIX also bundle the same CLI under `cli/`. Until nuget.org push is enabled, install the CLI from the `NuvexaDB-Cli` CI artifact:
+
+```bash
+dotnet tool install -g Nuventra.NuvexaDB.Cli --add-source /path/to/NuvexaDB-Cli
+```
+
+Do not publish this package from a local clone. CI on `main` and PRs **runs all C# tests first**, then builds and uploads GitHub artifacts (engine nupkg + snupkg, CLI PackAsTool nupkg, native ABI, Explorer installers, VS Code / Visual Studio VSIX with bundled `nuvexa`, and language SDK packs). Coverage / test-result zips are not uploaded. Those everyday runs **do not** create or update [Releases](https://github.com/nuvyntralabs/NuvexaDB/releases). nuget.org, GitHub Packages, and the version / NuGet validation jobs are commented out until multi-host publishing (.NET, Maven, npm, …) is decided. Uncomment those steps in `NuvexaDB/.github/workflows/ci.yml` to restore them.
 
 After each CI run, downloads are on that run’s **Artifacts** list (temporary; they expire):
 
 | Artifact | Contents |
 | --- | --- |
 | `NuvexaDB-NuGet` | Engine `nupkg` + `snupkg` only (`Nuventra.NuvexaDB`) |
+| `NuvexaDB-Cli` | PackAsTool `nupkg` only (`Nuventra.NuvexaDB.Cli`, command `nuvexa`; no snupkg) |
 | `NuvexaDB-Native-<rid>` | C ABI (`libnuvexa` / `nuvexa.dll`) |
 | `NuvexaDB-Native-android-arm64` | Bionic `libnuvexa.so` for the Android AAR |
 | `NuvexaDB-Native-iOS` | `Nuvexa.xcframework` (`ios-arm64` + `iossimulator-arm64`) + `nuvexa.h` |
 | `NuvexaDB-Data-Studio-<rid>` | Data Studio installer (msi / pkg / deb / rpm) |
-| `NuvexaDB-VS-Code-<rid>` | VS Code / Cursor VSIX with bundled `nuvexa` |
-| `NuvexaDB-Visual-Studio` | Visual Studio VSIX |
+| `NuvexaDB-VS-Code-<rid>` | VS Code / Cursor VSIX with bundled `nuvexa` (falls back to the global tool) |
+| `NuvexaDB-Visual-Studio` | Visual Studio VSIX with bundled `cli/nuvexa` |
 | `NuvexaDB-Java-<rid>` | Java / Kotlin library |
 | `NuvexaDB-Python-<rid>` | Python library |
 | `NuvexaDB-Node-<rid>` | Node.js library |
@@ -63,11 +71,11 @@ python3 .github/scripts/check-versions.py --repo-root . --write
 That copies the same version onto NuGet, Java, Android (`versionName` + `versionCode` = major×10000+minor×100+patch), Python, Node, React Native, Flutter, Go, C++, Swift, Data Studio installers, VS Code, and Visual Studio. CI fails if any of those drift. Then push `main` and tag:
 
 ```bash
-git tag v1.0.6
-git push origin v1.0.6
+git tag v1.0.7
+git push origin v1.0.7
 ```
 
-That tagged CI run copies the same zips onto the release **only after every CI job is green**. If any job fails, the run is red and [Releases](https://github.com/nuvyntralabs/NuvexaDB/releases) is not created or updated. Fix the failure and push the tag again (or a new tag) when the run succeeds. If `v<Version>` is **already published**, CI stops after version alignment — it does not rebuild. Bump `Directory.Build.props` to start a new build. The public URL is then `https://github.com/nuvyntralabs/NuvexaDB/releases/tag/v1.0.6`. Users download only the zip they need.
+That tagged CI run copies the same zips onto the release **only after every CI job is green**. If any job fails, the run is red and [Releases](https://github.com/nuvyntralabs/NuvexaDB/releases) is not created or updated. Fix the failure and push the tag again (or a new tag) when the run succeeds. If `v<Version>` is **already published**, CI stops after version alignment — it does not rebuild. Bump `Directory.Build.props` to start a new build. The public URL is then `https://github.com/nuvyntralabs/NuvexaDB/releases/tag/v1.0.7`. Users download only the zip they need.
 
 ## Quick start
 
@@ -126,11 +134,12 @@ Aggregation: `$match $project $sort $skip $limit $count $group $lookup`. Typed L
 | **Database core** | `src/Nuventra.NuvexaDB/Engine`, `Encryption`, `Query` | Pages, WAL, B+tree, AES-256-GCM, filters, aggregation |
 | **Access library** | `Nuventra.NuvexaDB` | `NuvexaDatabase` / `NuvexaCollection` / `AddNuvexaDB` for apps |
 | **Nuvexa Data Studio** | `Nuventra.NuvexaDB.Explorer` | Avalonia desktop IDE + [Plugin.Avalonia.MVVMExpress](https://www.nuget.org/packages/Plugin.Avalonia.MVVMExpress) on Windows, macOS, and Linux |
+| **CLI** | `Nuventra.NuvexaDB.Cli` (`nuvexa`) | PackAsTool (`dotnet tool install -g Nuventra.NuvexaDB.Cli`). Also bundled into the VS Code and Visual Studio VSIX (`cli/nuvexa`) |
 | **Editor extensions** | `Nuventra.NuvexaDB.VSCode`, `Nuventra.NuvexaDB.VisualStudio` | Custom editor / tool window over the same `ExplorerSession` (browse filter, 200-row pager, query examples, explain) |
 | **C ABI** | `Nuventra.NuvexaDB.Native` | Native AOT shared library (`nuvexa_create` / `execute` / …). Same engine; JSON in, JSON out. |
 | **Language SDKs** | `bindings/jvm`, `android`, `swift`, `flutter`, `react-native`, `python`, `node`, `go`, `cpp` | Thin overlays over `nuvexa.h` (ABI v2) |
 
-Supporting: `Nuventra.NuvexaDB.Tools` (session + grid cache), `nuvexa` CLI (`browse` / `samples` / `explain` / `backup` / `restore`; used by VS Code).
+Supporting: `Nuventra.NuvexaDB.Tools` (session + grid cache), `nuvexa` CLI (`browse` / `samples` / `explain` / `backup` / `restore`) — PackAsTool `Nuventra.NuvexaDB.Cli` and bundled into both VSIX packages.
 
 ## Language bindings
 

@@ -32,3 +32,4 @@ bindings/go/*.test
 bindings/cpp/build/
 src/Nuventra.NuvexaDB.VSCode/out/
 src/Nuventra.NuvexaDB.VSCode/.vscode-test/
+src/Nuventra.NuvexaDB.VSCode/cli/

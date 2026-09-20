@@ -4,9 +4,24 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>nuvexa</AssemblyName>
-    <IsPackable>false</IsPackable>
-    <Description>Command-line explorer for .nvx files. CI publishes this into the VS Code / Cursor VSIX; it is not a NuGet package.</Description>
+    <RootNamespace>Nuventra.NuvexaDB.Cli</RootNamespace>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>nuvexa</ToolCommandName>
+    <IsPackable>true</IsPackable>
+    <IncludeSymbols>false</IncludeSymbols>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <PackageId>Nuventra.NuvexaDB.Cli</PackageId>
+    <Title>nuvexa — NuvexaDB command-line explorer</Title>
+    <Description>dotnet tool for .nvx files: browse, NQL, backup, restore. Same CLI the VS Code and Visual Studio VSIX bundle.</Description>
+    <PackageTags>nuvexadb;nvx;cli;dotnet-tool;nql;nosql</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RollForward>Major</RollForward>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Nuventra.NuvexaDB.Tools\Nuventra.NuvexaDB.Tools.csproj" />

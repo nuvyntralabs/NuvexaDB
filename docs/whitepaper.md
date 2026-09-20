@@ -34,7 +34,7 @@ NuvexaDB is a **standalone product**. It ships its own engine, C ABI, language S
 | **Access library** | `Nuventra.NuvexaDB` | `NuvexaDatabase` / `NuvexaCollection` / `AddNuvexaDB` |
 | **Nuvexa Data Studio** | `Nuventra.NuvexaDB.Explorer` | Avalonia desktop workbench (Windows x64 / ARM, macOS Apple Silicon / Intel, Linux x64 / ARM64) |
 | **Editor extensions** | `Nuventra.NuvexaDB.VSCode`, `Nuventra.NuvexaDB.VisualStudio` | Custom editor / tool window over the same `ExplorerSession` |
-| **CLI** | `Nuventra.NuvexaDB.Cli` (`nuvexa`) | Published into the VS Code VSIX (`cli/nuvexa`). Not a NuGet package. |
+| **CLI** | `Nuventra.NuvexaDB.Cli` (`nuvexa`) | Standalone PackAsTool (`dotnet tool install -g Nuventra.NuvexaDB.Cli`). Also bundled into the VS Code and Visual Studio VSIX (`cli/nuvexa`). |
 | **C ABI** | `Nuventra.NuvexaDB.Native` | Native AOT shared library. JSON in, JSON out |
 | **Language SDKs** | `bindings/*` | Thin overlays over `nuvexa.h`. They must not parse pages |
 

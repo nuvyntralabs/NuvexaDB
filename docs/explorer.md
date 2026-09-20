@@ -1,6 +1,6 @@
 # Nuvexa Data Studio
 
-Desktop database workbench (**Nuvexa Data Studio**, project `Nuventra.NuvexaDB.Explorer`) for a single encrypted or plaintext `.nvx` file. Windows, macOS, and Linux. Built with Avalonia 11 and [Plugin.Avalonia.MVVMExpress](https://www.nuget.org/packages/Plugin.Avalonia.MVVMExpress). The same `ExplorerSession` (`Nuventra.NuvexaDB.Tools`) backs the Visual Studio tool window and the VS Code / Cursor custom editor. Browse paging (`BrowsePageAsync`), query examples (`ExplorerQuerySample`), explain text, and collection captions (`customers  (6)`) are shared. VS Code reaches those APIs through the `nuvexa` binary CI publishes into the VSIX (`cli/nuvexa`).
+Desktop database workbench (**Nuvexa Data Studio**, project `Nuventra.NuvexaDB.Explorer`) for a single encrypted or plaintext `.nvx` file. Windows, macOS, and Linux. Built with Avalonia 11 and [Plugin.Avalonia.MVVMExpress](https://www.nuget.org/packages/Plugin.Avalonia.MVVMExpress). The same `ExplorerSession` (`Nuventra.NuvexaDB.Tools`) backs the Visual Studio tool window and the VS Code / Cursor custom editor. Browse paging (`BrowsePageAsync`), query examples (`ExplorerQuerySample`), explain text, and collection captions (`customers  (6)`) are shared. VS Code reaches those APIs through the `nuvexa` binary CI publishes into the VSIX (`cli/nuvexa`), falling back to the `Nuventra.NuvexaDB.Cli` tool on PATH. The Visual Studio VSIX bundles the same binary under `cli/`.
 
 Mental model: **collection = table**, **document = JSON row**, **field = column**. `_id` is always the primary key. Declared types live in the hidden collection `__nuvexa_schema` (hidden from the tree and from user-facing stats).
 
@@ -79,7 +79,7 @@ Aggregate stages: `$match $project $sort $skip $limit $count $lookup`.
 
 ## Distribution
 
-CI builds native installers for x64 and ARM64 (Windows `.msi`, Linux `.deb` / `.rpm`, unsigned macOS `.pkg` to `/Applications` for now), a VS Code VSIX per RID (with bundled `nuvexa`), and a Visual Studio VSIX, and uploads them as GitHub artifacts next to the packed `Nuventra.NuvexaDB` nupkg. nuget.org push is commented out. Packaging scripts: `src/Nuventra.NuvexaDB.Explorer/packaging/` and `.github/scripts/pack-vscode.sh`.
+CI builds native installers for x64 and ARM64 (Windows `.msi`, Linux `.deb` / `.rpm`, unsigned macOS `.pkg` to `/Applications` for now), a VS Code VSIX per RID (with bundled `nuvexa`), a Visual Studio VSIX (with bundled `cli/nuvexa`), the PackAsTool `Nuventra.NuvexaDB.Cli` nupkg (`NuvexaDB-Cli`), and uploads them as GitHub artifacts next to the packed `Nuventra.NuvexaDB` nupkg. nuget.org push is commented out. Packaging scripts: `src/Nuventra.NuvexaDB.Explorer/packaging/`, `.github/scripts/pack-cli.sh`, `.github/scripts/pack-vscode.sh`, and `.github/scripts/pack-vsix.sh`.
 
 ## Visual Studio and VS Code
 
@@ -87,7 +87,7 @@ These hosts use the same session APIs as the desktop IDE. They do not duplicate 
 
 | Feature | Visual Studio | VS Code / Cursor |
 | --- | --- | --- |
-| Open Database / Close Database | In-process `NuvexaToolWindow` | `nuvexa.open` / `nuvexa.close` |
+| Open Database / Close Database | In-process `NuvexaToolWindow` (VSIX also bundles `cli/nuvexa`) | `nuvexa.open` / `nuvexa.close` |
 | **About** (author, license, links) | About tab (`NuvexaAbout`) | About tab + `nuvexa.about` |
 | Collapsible collection tree (Columns / Indexes, row counts) | Same session tree | `nuvexa tree` |
 | **Browse Data** (filter, **Build filter**, find-in-page, JSON/Tree, 200-row pager, editable cells) | `BrowsePageAsync` + `ReplaceDocumentAsync` | Bundled `nuvexa browse` / `nuvexa replace` |

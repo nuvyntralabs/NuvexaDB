@@ -478,14 +478,15 @@ function page(): string {
       <section id="about" class="panel">
         <div class="about">
           <h1>Nuvexa Data Studio</h1>
-          <div class="hint">NuvexaDB 1.0.6 · .nvx format 2 (format 1 deprecated, still readable) · MIT</div>
+          <div class="hint">NuvexaDB 1.0.7 · .nvx format 2 (format 1 deprecated, still readable) · MIT</div>
           <p>Embedded NoSQL database for .NET and .NET MAUI. One portable .nvx file, BSON pages, optional AES-256-GCM, and NQL (Nuvexa Query Language).</p>
-          <p class="hint">NuvexaDB is built by Niladri Prasad Padhy (Nuventra) and published with the MauiEssentials catalog under Nuvyntra Labs. Browse cells are editable. NQL find / aggregate / update / delete use the nuvexa CLI bundled in this VSIX.</p>
+          <p class="hint">NuvexaDB is built by Niladri Prasad Padhy (Nuventra) and published with the MauiEssentials catalog under Nuvyntra Labs. Browse cells are editable. NQL find / aggregate / update / delete use the nuvexa CLI bundled in this VSIX (or <code>dotnet tool install -g Nuventra.NuvexaDB.Cli</code> on PATH).</p>
           <p>Author: Niladri Prasad Padhy / Nuventra<br />Organization: Nuvyntra Labs</p>
           <p>
             <a href="https://nuvyntralabs.github.io/">Website</a>
             · <a href="https://github.com/nuvyntralabs/NuvexaDB">GitHub</a>
             · <a href="https://www.nuget.org/packages/Nuventra.NuvexaDB">NuGet</a>
+            · <a href="https://www.nuget.org/packages/Nuventra.NuvexaDB.Cli">CLI</a>
           </p>
         </div>
       </section>
@@ -922,7 +923,7 @@ function runNuvexa(args: string[], key?: string): Promise<string> {
     child.on("error", (e) =>
       reject(
         new Error(
-          `${e.message}. Reinstall the NuvexaDB VSIX for this OS (it includes nuvexa).`
+          `${e.message}. Reinstall the NuvexaDB VSIX for this OS, or install the standalone tool: dotnet tool install -g Nuventra.NuvexaDB.Cli`
         )
       )
     );

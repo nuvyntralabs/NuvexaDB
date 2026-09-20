@@ -1,6 +1,7 @@
 using Nuventra.NuvexaDB;
 using Nuventra.NuvexaDB.Explorer;
 using Nuventra.NuvexaDB.Tools;
+using Nuventra.NuvexaDB.VisualStudio;
 using Xunit;
 
 namespace Nuventra.NuvexaDB.Tests;
@@ -100,6 +101,18 @@ public sealed class ExplorerIdeTests
         Assert.Contains("MIT", text, StringComparison.Ordinal);
         Assert.Contains(NuvexaAbout.GitHub, text, StringComparison.Ordinal);
         Assert.Contains(NuvexaAbout.NuGet, text, StringComparison.Ordinal);
+        Assert.Contains(NuvexaAbout.CliNuGet, text, StringComparison.Ordinal);
+        Assert.Contains("Nuventra.NuvexaDB.Cli", text, StringComparison.Ordinal);
         Assert.Equal(2, NuvexaAbout.FormatVersion);
+    }
+
+    [Fact]
+    public void VisualStudio_ResolvesBundledThenPathCli()
+    {
+        var command = NuvexaCli.Resolve();
+        Assert.False(string.IsNullOrWhiteSpace(command));
+        Assert.True(
+            command.EndsWith(NuvexaCli.FileName, StringComparison.OrdinalIgnoreCase)
+            || command == "nuvexa");
     }
 }

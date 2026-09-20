@@ -513,17 +513,26 @@ jobs:
       - name: Pack
         run: |
           set -euo pipefail
-          mkdir -p artifacts
-          dotnet pack src/Nuventra.NuvexaDB/Nuventra.NuvexaDB.csproj -c Release -o artifacts --nologo
+          mkdir -p artifacts/engine artifacts/cli
+          dotnet pack src/Nuventra.NuvexaDB/Nuventra.NuvexaDB.csproj -c Release -o artifacts/engine --nologo
+          dotnet pack src/Nuventra.NuvexaDB.Cli/Nuventra.NuvexaDB.Cli.csproj -c Release -o artifacts/cli --nologo
           echo "Packed:"
-          ls -1 artifacts/*.{nupkg,snupkg}
-      - name: Upload nupkg and snupkg
+          ls -1 artifacts/engine/*.{nupkg,snupkg}
+          ls -1 artifacts/cli/*.nupkg
+      - name: Upload engine nupkg and snupkg
         uses: actions/upload-artifact@v4
         with:
           name: NuvexaDB-NuGet
           path: |
-            artifacts/*.nupkg
-            artifacts/*.snupkg
+            artifacts/engine/*.nupkg
+            artifacts/engine/*.snupkg
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload CLI tool nupkg
+        uses: actions/upload-artifact@v4
+        with:
+          name: NuvexaDB-Cli
+          path: artifacts/cli/*.nupkg
           if-no-files-found: error
           retention-days: 14
       # - name: Push nupkg and snupkg

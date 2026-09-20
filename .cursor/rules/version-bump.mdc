@@ -14,6 +14,6 @@ Do not hand-edit every project. One source, then sync.
 
 `--write` updates the README `**Version:**` line and `v<Version>` tag examples, VS Code, Visual Studio, Data Studio `app.manifest`, and every binding (Java, Android, Python, Node, React Native, Flutter, Go, C++, Swift). Android `versionCode` is major×10000+minor×100+patch.
 
-**.NET that inherit props (do not put a local Version in the csproj):** engine, Tools, CLI, Native, Data Studio (`Explorer`). Installers take the version from CI.
+**.NET that inherit props (do not put a local Version in the csproj):** engine, Tools, CLI (`PackAsTool`, omit snupkg), Native, Data Studio (`Explorer`). Installers take the version from CI.
 
 Do not bump sample app `ApplicationVersion`. Binding README install examples may still show an old filename; that is docs only.

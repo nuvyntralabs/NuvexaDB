@@ -1,6 +1,6 @@
 {
   "name": "@nuventra/nuvexadb-node",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Node.js library for NuvexaDB over the Native AOT C ABI.",
   "license": "MIT",
   "type": "module",

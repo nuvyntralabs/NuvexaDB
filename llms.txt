@@ -1,12 +1,12 @@
 # NuvexaDB
 
 - Product: Embedded NoSQL database
-- Package: Nuventra.NuvexaDB
+- Package: Nuventra.NuvexaDB (engine) + Nuventra.NuvexaDB.Cli (`nuvexa` PackAsTool; also bundled in VS / VS Code VSIX)
 - File: .nvx (binary, optional AES-256-GCM). Writes are format 2; format 1 is deprecated and still readable.
 - Query: NQL db.collection.find({ }).sort().limit(); aggregate $match/$lookup/$count; LINQ Where on GetCollection<T>
 - Files: db.Files GridFS-style fs.files / fs.chunks
 - Platforms: net8.0 / net9.0 / net10.0; MAUI Android, iOS, Mac Catalyst, Windows
 - Bindings: Native AOT C ABI v2 (`nuvexa_*`) + Kotlin/Java + Swift + Flutter + React Native + Python + Node + Go + C++. Architecture: docs/architecture.md
-- Explorer: Avalonia (Win/macOS/Linux). VS + VS Code custom editors.
+- Explorer: Avalonia (Win/macOS/Linux). VS + VS Code custom editors. CLI: `dotnet tool install -g Nuventra.NuvexaDB.Cli`
 - Encryption: fail-closed. Lib throws NuvexaEncryptionException. IDE prompts for key.
 - Not a server. Embedded NoSQL — the `.nvx` file is the store.

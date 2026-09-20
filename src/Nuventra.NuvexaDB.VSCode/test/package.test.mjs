@@ -55,9 +55,10 @@ test("TypeScript compile output", () => {
   assert.match(js, /nuvexa\.about/);
 });
 
-test("VSIX bundles nuvexa instead of a global tool", () => {
+test("VSIX bundles nuvexa and falls back to the PATH tool", () => {
   assert.match(source, /join\(extensionRoot, "cli"/);
-  assert.doesNotMatch(source, /dotnet tool install/);
+  assert.match(source, /return \{ command: "nuvexa" \}/);
+  assert.match(source, /dotnet tool install -g Nuventra\.NuvexaDB\.Cli/);
 });
 
 test("encrypted open prompts instead of matching compact JSON", () => {

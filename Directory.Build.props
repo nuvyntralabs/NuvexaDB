@@ -13,8 +13,8 @@
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <Deterministic>true</Deterministic>
-    <Version>1.0.6</Version>
-    <PackageVersion>1.0.6</PackageVersion>
+    <Version>1.0.7</Version>
+    <PackageVersion>1.0.7</PackageVersion>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <NeutralLanguage>en</NeutralLanguage>

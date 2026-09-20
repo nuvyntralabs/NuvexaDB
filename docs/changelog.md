@@ -2,6 +2,10 @@
 
 Working-tree notes for unreleased work. Publishing still happens only through CI.
 
+## 1.0.7 — 20 September 2026
+
+`nuvexa` is a standalone PackAsTool (`Nuventra.NuvexaDB.Cli`, command `nuvexa`, nupkg only). CI uploads `NuvexaDB-Cli` next to the engine `NuvexaDB-NuGet` artifact. The same self-contained binary is still bundled into each OS VS Code VSIX (`cli/nuvexa`) and into the Visual Studio VSIX (`cli/nuvexa.exe`). VS Code prefers the bundled copy, then PATH. Visual Studio stays in-process for the tool window and exposes `NuvexaCli.Resolve()` for the bundled / PATH tool.
+
 ## 1.0.6 — 15 September 2026
 
 VS Code: prompt for the encryption key when `nuvexa info` reports a locked file. Pretty-printed CLI JSON (`"encrypted": true`) no longer skips the password box. Exit code 2 on `tree` / `query` is an error, not an empty successful open. Wrong keys can be retried (3 attempts), matching Visual Studio.
